@@ -460,7 +460,10 @@ multica_autopilot() {
   title=$(fm_get "$f" title) role=$(fm_get "$f" role) mode=$(fm_get "$f" mode)
   cron=$(fm_get "$f" cron) trigger=$(fm_get "$f" trigger) issue_title=$(fm_get "$f" issue_title)
   subscriber=$(fm_get "$f" subscriber)
-  [ -n "$title" ] && [ -n "$role" ] && [ -n "$mode" ] || { fail "$f 缺少 title / role / mode"; return 0; }
+  if [ -z "$title" ] || [ -z "$role" ] || [ -z "$mode" ]; then
+    fail "$f 缺少 title / role / mode"
+    return 0
+  fi
   [ -n "$trigger" ] || trigger=schedule
   agent=$(registry_agent_by_role "$rows" "$role")
   [ -n "$agent" ] || { fail "$f 要求角色 $role，但 registry.yaml 里没有"; return 0; }
