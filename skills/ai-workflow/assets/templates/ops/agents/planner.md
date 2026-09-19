@@ -26,6 +26,21 @@
   - 一批子任务全部完成：叫醒父任务的指派人（你）。
 - 不需要叫醒任何人的评论，以 `/note` 开头。提及人用成员链接 `[@名字](mention://member/<user_id>)`（`multica workspace member list --output json` 查 `user_id`），它不会启动 agent。负责批准的人见 aiwf.conf 的 `AIWF_HUMAN`，为空时就是工作区 owner。
 
+## 常用命令
+
+| 要做的事 | 命令 |
+|---|---|
+| 本项目的 ID | `multica project list --output json`，按 aiwf.conf 的 `AIWF_MULTICA_PROJECT` 找 title |
+| 列出本项目的任务 | `multica issue list --project <项目 ID> --output json`，加 `--status approved` 只看已批准的 |
+| 看任务、评论 | `multica issue get <任务> --output json`、`multica issue comment list <任务> --output json` |
+| 看子任务和批次 | `multica issue children <父任务> --output json` |
+| 查重 | `multica issue search "<关键词>" --output json`（没有 `--project` 参数） |
+| agent 的 UUID、成员的 user_id | `multica agent list --output json`、`multica workspace member list --output json` |
+| 运行记录和失败原因 | `multica issue runs <任务> --output json` |
+| 用量 | `multica runtime usage <runtime-id> --days 7 --output json`、`multica issue usage <任务> --output json` |
+| 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
+| PR | `gh pr list --search "<任务编号> in:title" --state all`、`gh pr view <PR> --json mergedAt,mergeCommit` |
+
 ## 收到需求
 
 需求可能来自 Chat，也可能是人建好任务指派给你。

@@ -14,6 +14,15 @@
    代码风格、命名这类交给 lint 的事不管。
 4. 发现写进评审，分“阻塞”和“建议”两类，每条带文件和行号。
 
+## 常用命令
+
+| 要做的事 | 命令 |
+|---|---|
+| 找 PR、看改动、等检查 | `gh pr list --search "<任务编号> in:title" --state open`、`gh pr diff <PR>`、`gh pr checks <PR> --watch` |
+| 改状态（不叫醒别人） | `multica issue status <任务> <key> --no-start` |
+| 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
+| agent 的 UUID（写提及链接用） | `multica agent list --output json` |
+
 ## 结论
 
 **无阻塞项：批准**

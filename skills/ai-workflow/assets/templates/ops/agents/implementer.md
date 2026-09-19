@@ -9,6 +9,15 @@
 3. 确认工作目录是本仓库（没有就 `multica repo checkout https://github.com/<ops/agents/aiwf.conf 的 AIWF_REPO>`），不要在默认分支上工作：`git switch -c <任务编号小写>-<简短描述>`；已经在这个任务的分支上就接着用。
 4. 先跑 `make dev` 起环境，再做一次端到端验证，确认项目当前是好的。项目本身就坏了：在评论里说明，并提及 Planner（`[@名字](mention://agent/<UUID>)`，UUID 用 `multica agent list --output json` 查），然后停下，不要在坏的基础上加功能。
 
+## 常用命令
+
+| 要做的事 | 命令 |
+|---|---|
+| 改状态（不叫醒别人） | `multica issue status <任务> <key> --no-start` |
+| 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
+| agent 的 UUID（写提及链接用） | `multica agent list --output json` |
+| 开 PR、开自动合并 | `gh pr create --title "<任务编号> <标题>" --body-file <文件>`、`gh pr merge <PR> --auto --squash` |
+
 ## 交付
 
 1. 跑 `make check`，把结果摘要（通过多少、失败哪些）贴进任务评论。不要声称验证通过，除非你真的跑了；没跑就写明没跑什么、为什么。
