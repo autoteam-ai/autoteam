@@ -1,0 +1,66 @@
+---
+name: ai-workflow
+description: 把“自管理 agent 团队”工作流装进当前项目：Planner / Implementer / Reviewer / Auditor 四个角色，GitHub 负责合并闸门，Multica 负责任务调度。会生成规则文件和角色指令、按技术栈适配 make check/dev/deploy、配置 GitHub 规则集和 Multica 的状态、agent、autopilot，最后用 aiwf doctor 验收。用户说“搭建自管理 agent 团队”“接入 ai-workflow”“配置 Planner/Implementer/Reviewer/Auditor”“用 Multica 管 agent 团队”“set up the AI agent team workflow”时使用；升级、检查或排查这套流程时也用。
+---
+
+# ai-workflow：把自管理 agent 团队装进项目
+
+工具是本 skill 目录下的 `scripts/aiwf`，一律用 `bash <本 skill 目录>/scripts/aiwf <命令>` 调用（不依赖可执行位），下文简写为 `aiwf`。每个命令都有 `-h`。
+
+## 硬约束
+
+- 不替用户创建 GitHub 或 Multica 账号，不生成、不输入、不打印任何 token。需要这些时，列出步骤让用户自己做。
+- `aiwf github`、`aiwf multica` 先不加 `--apply` 跑一遍预览，把预览结果讲给用户听，得到明确同意后才加 `--apply`。
+- 不覆盖用户已有的文件；`aiwf init --force` 只在用户看过 `aiwf diff` 并同意后才用。
+- `make check`、`make dev`、`make deploy` 必须真的跑通再交付，不要编造命令，也不要声称跑过没跑的东西。
+
+## 步骤
+
+### 0. 前提
+
+1. 当前目录是 git 仓库，有 GitHub remote；`gh auth status` 已登录，并且对仓库有 admin 权限；有 `jq` 和 `curl`。
+2. `multica version` 能用；没有就让用户装：`brew install multica-ai/tap/multica`。版本过低时升级。
+3. 问清楚这几件事（已知的就不用问）：
+   - 仓库归属和套餐：个人还是组织、公开还是私有、GitHub Free / Pro / Team。它决定平台闸门能做到什么程度（见 `docs/concepts/guardrails.md` 的保护等级）；
+   - 有没有给 Implementer、Reviewer 准备的机器账号；没有就用单账号试用模式（`aiwf github --trial`）；
+   - Multica 工作区 slug，以及有哪些订阅账号、哪几台机器在跑 Multica daemon。
+
+### 1. 生成文件
+
+`aiwf init --workspace <slug>`。看输出：因为已存在而被跳过的文件，用 `aiwf diff <文件>` 看差异，手动合并；受管块（`>>> ai-workflow >>>` 之间）以外的内容不要动。
+
+### 2. 适配（需要判断的部分）
+
+1. **Makefile**：按 [references/adapt-make.md](references/adapt-make.md) 识别技术栈，把项目已有的 lint、类型检查、测试串成 `make check`；`make dev` 一条命令起环境，而且可以重复执行（项目有 docker compose 就优先用）；`make deploy` 用项目现有的部署方式，没有部署就问用户。三个目标都要实际跑一遍，把结果给用户看。
+2. **工作流**：`.github/workflows/gate.yml`、`deploy.yml`、`rollback.yml` 里补上 `make check`、`make deploy` 需要的运行时（setup-node 之类）和 secrets，其他步骤不改。
+3. **AGENTS.md**：受管块以外，按 [references/write-agents-md.md](references/write-agents-md.md) 补“从代码里看不出来、或者容易搞错”的规则，控制篇幅。
+4. **registry.yaml**：和用户确认订阅账号和机器，用 `aiwf runtimes` 列出 runtime，填 `provider@设备`。Implementer 和 Reviewer 尽量放不同机器、用不同厂商；Planner 用最强的模型；按量计费的 agent 用 `env_file` 指向 `ops/agents/local/` 下的 JSON 文件（让用户自己填 key）。
+5. **aiwf.conf**：`AIWF_MULTICA_WORKSPACE`、`AIWF_HUMAN`（负责批准的成员名）、机器账号。
+
+改完再跑一次 `aiwf doctor --skip-github --skip-multica`，本地部分应该全绿。
+
+### 3. 提交
+
+新建分支、提交、开 PR，请用户审阅后合并。这些都是约束 agent 的规则文件，本来就该由人批准。
+
+### 4. GitHub
+
+`aiwf github` 预览，给用户解释保护等级（full / standard / none）、`--trial` 的含义和要做的改动。用户同意后：`aiwf github --apply`，按情况加 `--trial`、`--bots impl=<账号>,review=<账号>,planner=<账号>`。
+
+### 5. Multica
+
+`aiwf multica` 预览，给用户看会建哪些状态、agent、autopilot。用户同意后 `aiwf multica --apply`；想先配好、晚点再让定时任务跑起来，加 `--paused`。
+
+### 6. 必须由人做的事
+
+按用户的情况，从 [references/manual-steps.md](references/manual-steps.md) 里挑出相关的列给用户：机器账号和 token、各机器上登录 gh、Multica daemon 和 runtime、Multica 的 GitHub 集成、套餐升级。
+
+### 7. 验收
+
+`aiwf doctor`，逐条解释 ⚠️ 和 ❌。处理完后，建议用户跑一个小需求演练一遍（ai-workflow 文档的 `docs/setup/first-run.md`）。
+
+## 升级和排查
+
+- ai-workflow 更新后：`aiwf diff` 看差异 → 用户同意后 `aiwf init --force`（`aiwf.conf`、`registry.yaml` 不会被覆盖）→ 提交合并 → `aiwf multica --apply` 同步指令。
+- 改了 `ops/agents/` 下的指令、registry 或 autopilot：合并后跑 `aiwf multica --apply`；`aiwf doctor` 能发现 Multica 里的指令和仓库不一致。
+- 其他问题先跑 `aiwf doctor`，再查 ai-workflow 文档的 `docs/operations/troubleshooting.md`。
