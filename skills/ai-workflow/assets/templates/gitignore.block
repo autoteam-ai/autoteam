@@ -1,0 +1,5 @@
+# >>> ai-workflow >>>
+# jscpd 报告目录；registry.yaml 里 env_file 指向的本地环境变量文件（可能含密钥）
+/report/
+/ops/agents/local/
+# <<< ai-workflow <<<

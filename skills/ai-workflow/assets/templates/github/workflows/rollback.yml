@@ -1,0 +1,54 @@
+# 线上故障时由 Planner 手动触发回滚：
+#   gh workflow run rollback.yml -f sha=<最近一次验收通过的提交>
+# 受 CODEOWNERS 保护，只能由人批准修改。
+name: rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 回滚到哪个提交（最近一次验收通过的）
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    {{AIWF_DEPLOY_ENVIRONMENT_LINE}}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.sha }}
+
+      # 在这里加上 make deploy 需要的运行时和凭据（和 deploy.yml 保持一致）
+
+      - name: deploy
+        run: make deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: notify planner
+        if: always()
+        env:
+          HOOK: ${{ secrets.MULTICA_DEPLOY_HOOK }}
+          SHA: ${{ inputs.sha }}
+          RESULT: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          KEY: rollback-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::没有设置 secret MULTICA_DEPLOY_HOOK，跳过通知 Planner"
+            exit 0
+          fi
+          jq -n --arg kind rollback --arg sha "$SHA" --arg result "$RESULT" --arg repo "$REPO" --arg run_url "$RUN_URL" \
+            '{kind: $kind, sha: $sha, result: $result, repo: $repo, run_url: $run_url}' \
+            | curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' \
+                -H "Idempotency-Key: $KEY" --data-binary @- \
+            || echo "::warning::通知 Planner 失败"
