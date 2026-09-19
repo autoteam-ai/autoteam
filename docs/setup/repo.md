@@ -14,8 +14,8 @@ gate.yml 在 `make check` 之前还有两道检查：
 
 | 检查 | 规则 | 调整 |
 |---|---|---|
-| pr-size | PR 改动不超过 400 行（参考 AI PR 的 75 分位 408 行），lock 文件不计 | `ops/agents/aiwf.conf` 的 `AIWF_PR_MAX_LINES` |
-| duplication | 重复代码占比不超过 3% | `.jscpd.json` 的 `threshold`；老项目按现状定值，只降不升 |
+| pr-size | PR 改动不超过 400 行（参考 AI PR 的 75 分位 408 行）；lock 文件和规则文件（`.github/`、`ops/agents/`，由人批准）不计 | `ops/agents/aiwf.conf` 的 `AIWF_PR_MAX_LINES` |
+| duplication | 重复代码占比不超过 3%；不查 Markdown 和规则文件 | `.jscpd.json` 的 `threshold` 和 `ignore`；老项目按现状定值，只降不升 |
 
 ## make dev
 

@@ -4,6 +4,9 @@
   "minLines": 5,
   "ignore": [
     "**/.git/**",
+    "**/.github/**",
+    "**/ops/agents/**",
+    "**/*.md",
     "**/node_modules/**",
     "**/vendor/**",
     "**/dist/**",
