@@ -59,6 +59,12 @@ case "$1 $2" in
   "user profile") jq -n '{name: "Alice"}' ;;
   "agent list") cat "$agents" ;;
   "agent get") jq --arg id "$3" '.[] | select(.id == $id)' "$agents" ;;
+  "agent tasks")
+    if [ "$3" = agent-rev-codex ] && [ -n "${STUB_FAILED_RUN:-}" ]; then
+      echo '[{"id":"t1","status":"failed","error":"Failed to authenticate: OAuth session expired"}]'
+    else
+      echo '[{"id":"t0","status":"completed","error":null}]'
+    fi ;;
   "agent create")
     name=$(flag --name "$@")
     id="agent-$name"

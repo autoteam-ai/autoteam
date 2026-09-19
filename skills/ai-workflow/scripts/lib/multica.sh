@@ -286,7 +286,9 @@ cmd_runtimes() {
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "${ws:-${AIWF_MULTICA_WORKSPACE:-}}"
-  printf '%-36s %-8s %s\n' "RUNTIME（registry 里这样写）" "状态" "ID"
+  # 表头用 ASCII：printf 按字节算宽度，中文会把列挤歪
+  info "registry.yaml 的 runtime 字段写第一列（或者直接写 ID）"
+  printf '%-36s %-8s %s\n' "RUNTIME" "STATUS" "ID"
   mc_runtime_selectors "$(mc runtime list --output json)" | while IFS=$'\t' read -r sel status id _; do
     printf '%-36s %-8s %s\n' "$sel" "$status" "$id"
   done

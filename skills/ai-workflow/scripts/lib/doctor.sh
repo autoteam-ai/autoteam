@@ -207,7 +207,7 @@ doctor_github() {
 }
 
 doctor_multica() {
-  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role rid want catalog list f title id project
+  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role rid want catalog list f title id project last
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "$ws"
@@ -244,6 +244,12 @@ EOF
         warn "agent $name 的 runtime 不在线"
       else
         ok "agent $name（$role）指令一致，runtime 在线"
+      fi
+      # runtime 在线不代表 agent CLI 能用（比如订阅登录过期），看最近一次运行
+      last=$(mc agent tasks "$id" --output json 2>/dev/null | jq -c '[.[] | select(.status == "completed" or .status == "failed")][0] // empty')
+      if [ -n "$last" ] && [ "$(jq -r '.status' <<<"$last")" = failed ]; then
+        warn "agent $name 最近一次运行失败：$(jq -r '.error // .failure_reason // "未知原因"' <<<"$last" | head -n 1)"
+        hint "登录、额度类错误要到 runtime 所在的机器上处理，比如重新登录对应的 agent CLI"
       fi
     done <<EOF
 $rows

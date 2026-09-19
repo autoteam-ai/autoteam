@@ -36,6 +36,14 @@ t_doctor_detects_instruction_drift() {
   assert_contains "$out" "agent rev-codex 的指令和 ops/agents/reviewer.md 不一致"
 }
 
+t_doctor_reports_failed_last_run() {
+  setup_ready_repo
+  aiwf_stub multica --apply >/dev/null
+  out=$(STUB_FAILED_RUN=1 aiwf_stub doctor --skip-github)
+  assert_contains "$out" "agent rev-codex 最近一次运行失败：Failed to authenticate: OAuth session expired"
+  assert_not_contains "$out" "agent planner 最近一次运行失败"
+}
+
 t_loop_guard_counts_rejections_and_markers() {
   new_repo
   aiwf_offline init --owner alice >/dev/null
