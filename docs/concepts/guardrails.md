@@ -1,0 +1,59 @@
+# 安全边界和保护等级
+
+## 代码平台和项目平台
+
+| | 代码平台（GitHub） | 项目平台（Multica） |
+|---|---|---|
+| 负责 | 合并规则、自动检查、部署 | 任务状态、角色配置、触发和定时 |
+| 谁能改 | 只有人 | agent 和人 |
+
+**能不能合并只由代码平台判断，项目平台的状态只用来调度**，因为 agent 能改的状态拦不住 agent。
+
+## 哪些是硬约束
+
+| 约束 | 由什么保证 | agent 能绕过吗 |
+|---|---|---|
+| 写代码的不能评审自己 | Implementer、Reviewer 用不同 GitHub 账号；GitHub 不允许作者批准自己的 PR | 不能（前提是账号隔离） |
+| 不过检查不能合并 | 规则集的必需检查 `check`，只认 GitHub Actions 上报的结果（integration_id 15368），防止用 API 伪造状态 | 不能 |
+| 新提交会作废旧批准 | 规则集：dismiss stale reviews、require approval of the most recent push | 不能 |
+| 规则文件只能由人改 | CODEOWNERS 保护 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json`，规则集要求 Code Owner 审批 | 不能 |
+| 任何人都不能豁免 | 规则集的 bypass list 留空，管理员也不例外 | 不能 |
+| 强推、删主干 | 规则集：restrict deletions、block force pushes | 不能 |
+| PR 不超过 400 行、重复代码不超标 | gate.yml 里的检查（阈值在受保护的文件里） | 不能 |
+
+## 哪些只是指令约束
+
+| 约束 | 风险 | 怎么发现 |
+|---|---|---|
+| 只有人能把任务改成“已批准” | agent 也有改状态的权限 | 每日摘要里的批准核对 |
+| Planner 不写代码 | 它的机器上有代码 | Planner 用只读 + Actions 的 token（planner 账号） |
+| 验收要看线上真实结果 | Planner 可能偷懒只看代码 | 评论里必须贴证据；人每周抽查 |
+| 打回、验收失败到上限就升级 | agent 可能忘记 | loop-guard.sh 从记录里算，巡检重新计算 |
+
+## 保护等级
+
+`aiwf github` 会按仓库的归属和套餐判断能做到哪一级：
+
+| 等级 | 仓库 | 规则集 | 自动合并 | 合并队列 | 谁来合并 |
+|---|---|---|---|---|---|
+| full | 组织的公开仓库；组织私有仓库 + Enterprise Cloud | 有 | 有 | 有 | 平台：检查通过后自动合并，合并队列保证合并前在最新主干上重跑检查 |
+| standard | 个人公开仓库；个人 Pro、组织 Team 的私有仓库 | 有 | 有 | 没有 | 平台：检查通过后自动合并 |
+| none | GitHub Free 的私有仓库 | **没有** | **没有** | 没有 | Reviewer 批准后，等检查全绿自己合并（降级模式） |
+
+- standard 没有合并队列：两个 PR 各自检查通过、先后合并后，主干上的组合可能是坏的。靠合并后的部署、Planner 验收和巡检兜底。
+- none 是降级模式：所有“硬约束”都退化成指令约束，`aiwf doctor` 会一直标黄提醒。适合先试用，正式用请把仓库改公开、升级 Pro，或迁到 Team 套餐的组织，再运行一次 `aiwf github --apply`。
+
+## 单账号试用模式
+
+还没准备机器账号时，Implementer 和 Reviewer 只能用同一个 GitHub 账号，GitHub 不允许它批准自己的 PR。`aiwf github --apply --trial` 会把规则集改成不要求审批（也不要求 Code Owner 审批和最后一次推送审批），其余规则不变：
+
+- Reviewer 的 `gh pr review --approve` 会失败，指令里要求它改用评论评审，并以【批准】或【阻塞】开头，打回次数照样能统计；
+- 评审独立性不再由平台保证，`aiwf doctor` 会标黄；
+- 准备好机器账号后：写进 aiwf.conf 的 `AIWF_IMPL_BOT` / `AIWF_REVIEW_BOT`，在各自机器上登录 gh，然后不加 `--trial` 重新运行 `aiwf github --apply`。
+
+## 凭据
+
+- 每个机器账号的 token 只授权本仓库、带过期时间、只给最小权限（见[第 1–3 步 GitHub](../setup/github.md#机器账号和-token)）。
+- 不同账号跑在不同机器上，至少是不同的系统用户或容器，避免互相读到凭据。
+- Multica agent 的 `custom_env`（registry 的 `env_file`）以明文存在 Multica 服务端，不要放生产数据库密码这类高价值的长期凭据。
+- 部署 webhook 地址里带凭据，只存在 GitHub secret `MULTICA_DEPLOY_HOOK` 里，aiwf 不会打印它；泄露了就 `aiwf multica --apply --rotate-webhook` 重新生成。
