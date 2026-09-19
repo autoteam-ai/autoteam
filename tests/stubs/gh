@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# gh 桩：记录调用，按 STUB_SCENARIO 返回固定结果。
+#   user-public    个人账号的公开仓库（默认）
+#   org-public     组织的公开仓库（能用合并队列）
+#   org-no-mq      组织仓库，但接口拒绝合并队列
+#   free-private   GitHub Free 的私有仓库（没有规则集、自动合并、environment）
+#   has-ruleset    已经有一个过期的 ai-workflow 规则集
+set -o pipefail
+scenario=${STUB_SCENARIO:-user-public}
+state=${STUB_STATE:?}
+printf 'gh %s\n' "$*" >> "$STUB_LOG"
+
+# 取出 --jq 表达式，其余参数留在 args
+jq_expr="" args=()
+while [ $# -gt 0 ]; do
+  case $1 in
+    --jq|-q) jq_expr=$2; shift 2 ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- "${args[@]}"
+
+out() {
+  if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi
+}
+http_error() {  # 状态码 消息
+  printf '{"message":"%s","status":"%s"}\n' "$2" "$1"
+  printf 'gh: %s (HTTP %s)\n' "$2" "$1" >&2
+  exit 1
+}
+
+repo_json() {
+  local owner_type=User visibility=public
+  case $scenario in
+    org-*) owner_type=Organization ;;
+    free-private) visibility=private ;;
+  esac
+  local base
+  base=$(jq -n --arg t "$owner_type" --arg v "$visibility" '{
+    full_name: "acme/shop", name: "shop", owner: {login: "acme", type: $t}, visibility: $v,
+    default_branch: "main", permissions: {admin: true},
+    allow_auto_merge: false, delete_branch_on_merge: false, allow_squash_merge: true,
+    allow_merge_commit: true, allow_rebase_merge: true,
+    squash_merge_commit_title: "COMMIT_OR_PR_TITLE", squash_merge_commit_message: "COMMIT_MESSAGES"}')
+  if [ -f "$state/repo-patch.json" ]; then
+    jq -s '.[0] * .[1]' <(printf '%s' "$base") "$state/repo-patch.json"
+  else
+    printf '%s\n' "$base"
+  fi
+}
+
+case $1 in
+  auth) exit 0 ;;
+  repo)
+    [ "$2" = view ] && jq -n '{nameWithOwner: "acme/shop", defaultBranchRef: {name: "main"}}' | out
+    exit 0 ;;
+  secret)
+    case $2 in
+      list)
+        if [ -f "$state/secret-MULTICA_DEPLOY_HOOK" ]; then echo '[{"name":"MULTICA_DEPLOY_HOOK"}]'; else echo '[]'; fi | out ;;
+      set)
+        cat > "$state/secret-$3"
+        printf 'gh secret set %s (%s 字节)\n' "$3" "$(wc -c < "$state/secret-$3" | tr -d ' ')" >> "$STUB_LOG" ;;
+    esac
+    exit 0 ;;
+  run) echo '[]' | out; exit 0 ;;
+  pr) echo '[]' | out; exit 0 ;;
+  api) ;;
+  *) echo "gh 桩不支持：$*" >&2; exit 2 ;;
+esac
+
+# gh api
+shift
+method=GET path="" body=""
+while [ $# -gt 0 ]; do
+  case $1 in
+    -X|--method) method=$2; shift 2 ;;
+    --input) body=$(cat); shift 2 ;;
+    -f|-F) shift 2 ;;
+    *) [ -z "$path" ] && path=$1; shift ;;
+  esac
+done
+if [ -n "$body" ]; then
+  n=0
+  for b in "$state"/body-*; do [ -e "$b" ] && n=$((n + 1)); done
+  printf '%s' "$body" > "$state/body-$((n + 1))-$method-$(printf '%s' "$path" | tr '/' '_')"
+  printf 'BODY %s %s %s\n' "$method" "$path" "$(printf '%s' "$body" | jq -c .)" >> "$STUB_LOG"
+fi
+
+case "$method $path" in
+  "GET user") jq -n '{login: "alice", plan: {name: "free"}}' | out ;;
+  "GET repos/acme/shop") repo_json | out ;;
+  "PATCH repos/acme/shop")
+    patch=$body
+    if [ "$scenario" = free-private ]; then patch=$(jq -c 'del(.allow_auto_merge)' <<<"$body"); fi
+    printf '%s' "$patch" > "$state/repo-patch.json"
+    repo_json | out ;;
+  "GET repos/acme/shop/rulesets")
+    case $scenario in
+      free-private) http_error 403 "Upgrade to GitHub Pro or make this repository public to enable this feature." ;;
+      has-ruleset) echo '[{"id":7,"name":"ai-workflow","enforcement":"active"}]' | out ;;
+      *) if [ -f "$state/ruleset.json" ]; then jq '[{id: 7, name: .name}]' "$state/ruleset.json"; else echo '[]'; fi | out ;;
+    esac ;;
+  "GET repos/acme/shop/rulesets/7")
+    if [ -f "$state/ruleset.json" ]; then jq '. + {id: 7}' "$state/ruleset.json" | out
+    else jq -n '{id: 7, name: "ai-workflow", enforcement: "active", bypass_actors: [],
+      rules: [{type: "deletion"}, {type: "pull_request", parameters: {required_approving_review_count: 0}}]}' | out
+    fi ;;
+  "POST repos/acme/shop/rulesets"|"PUT repos/acme/shop/rulesets/7")
+    if [ "$scenario" = org-no-mq ] && jq -e '.rules[] | select(.type == "merge_queue")' <<<"$body" >/dev/null; then
+      http_error 422 "Invalid rule 'merge_queue': merge queue is not available for this repository"
+    fi
+    printf '%s' "$body" > "$state/ruleset.json"
+    jq '. + {id: 7}' "$state/ruleset.json" | out ;;
+  "GET repos/acme/shop/environments/production")
+    if [ -f "$state/env-production" ]; then echo '{"name":"production"}' | out; else http_error 404 "Not Found"; fi ;;
+  "PUT repos/acme/shop/environments/production")
+    [ "$scenario" = free-private ] && http_error 422 "Environments are not available for private repositories on this plan"
+    touch "$state/env-production"; echo '{"name":"production"}' | out ;;
+  "GET repos/acme/shop/collaborators/"*)
+    if [ -f "$state/collab-${path##*/}" ]; then exit 0; else http_error 404 "Not Found"; fi ;;
+  "PUT repos/acme/shop/collaborators/"*)
+    touch "$state/invite-${path##*/}"; echo '{"id":1}' | out ;;
+  "GET repos/acme/shop/invitations") echo '[]' | out ;;
+  "GET repos/acme/shop/codeowners/errors") echo '{"errors":[]}' | out ;;
+  *) echo "gh api 桩不支持：$method $path" >&2; exit 2 ;;
+esac

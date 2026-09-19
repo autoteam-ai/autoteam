@@ -1,0 +1,7 @@
+[
+  {"id": "rt-a-claude-0000", "name": "Claude (machine-a)", "provider": "claude", "status": "online"},
+  {"id": "rt-a-codex-00000", "name": "Codex (machine-a)", "provider": "codex", "status": "online"},
+  {"id": "rt-b-claude-0000", "name": "Claude (machine-b)", "provider": "claude", "status": "online"},
+  {"id": "rt-b-codex-00000", "name": "Codex (machine-b)", "provider": "codex", "status": "offline"},
+  {"id": "rt-c-claude-0000", "name": "Claude (machine-c)", "provider": "claude", "status": "online"}
+]

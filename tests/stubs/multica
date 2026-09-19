@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# multica 桩：记录调用，状态存在 $STUB_STATE/mc-*.json，便于测试“新建 → 再跑一次变成更新”。
+set -o pipefail
+state=${STUB_STATE:?}
+# 记录调用；长文本参数（指令、runbook）只记长度
+{
+  printf 'multica'
+  prev=""
+  for a in "$@"; do
+    case $prev in
+      --instructions|--description) printf ' <%s 字节>' "${#a}" ;;
+      *) printf ' %s' "$a" ;;
+    esac
+    prev=$a
+  done
+  printf '\n'
+} >> "$STUB_LOG"
+
+agents=$state/mc-agents.json
+autopilots=$state/mc-autopilots.json
+projects=$state/mc-projects.json
+[ -f "$agents" ] || echo '[]' > "$agents"
+[ -f "$autopilots" ] || echo '[]' > "$autopilots"
+[ -f "$projects" ] || echo '[]' > "$projects"
+
+profile="" args=()
+while [ $# -gt 0 ]; do
+  case $1 in
+    --profile) profile=$2; shift 2 ;;
+    --workspace-id) shift 2 ;;
+    --output) shift 2 ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- "${args[@]}"
+
+# 取出 --flag 的值
+flag() {
+  local want=$1; shift
+  while [ $# -gt 0 ]; do
+    if [ "$1" = "$want" ]; then printf '%s' "$2"; return 0; fi
+    shift
+  done
+  return 1
+}
+
+case "$1 $2" in
+  "version "*) echo "multica 0.5.0 (stub)" ;;
+  "config show")
+    if [ -n "$profile" ]; then
+      echo "Config file: $HOME/.multica/profiles/$profile/config.json"
+      echo "server_url:                        https://api.multica.test"
+    else
+      echo "Config file: $HOME/.multica/config.json"
+      echo "server_url:                        (not set)"
+    fi ;;
+  "workspace get") jq -n '{id: "ws-0000", name: "Test", slug: "test", issue_prefix: "TST"}' ;;
+  "runtime list") cat "$STUB_FIXTURES/runtimes.json" ;;
+  "user profile") jq -n '{name: "Alice"}' ;;
+  "agent list") cat "$agents" ;;
+  "agent get") jq --arg id "$3" '.[] | select(.id == $id)' "$agents" ;;
+  "agent create")
+    name=$(flag --name "$@")
+    id="agent-$name"
+    jq --arg id "$id" --arg n "$name" --arg rt "$(flag --runtime-id "$@")" \
+       --arg ins "$(flag --instructions "$@")" --arg m "$(flag --model "$@" || true)" \
+       --arg max "$(flag --max-concurrent-tasks "$@" || echo 6)" \
+       '. + [{id: $id, name: $n, runtime_id: $rt, instructions: $ins, model: $m,
+              max_concurrent_tasks: ($max | tonumber), archived_at: null}]' "$agents" > "$agents.tmp"
+    mv "$agents.tmp" "$agents"
+    jq -n --arg id "$id" '{id: $id}' ;;
+  "agent update")
+    id=$3
+    jq --arg id "$id" --arg rt "$(flag --runtime-id "$@")" --arg ins "$(flag --instructions "$@")" \
+       'map(if .id == $id then .runtime_id = $rt | .instructions = $ins else . end)' "$agents" > "$agents.tmp"
+    mv "$agents.tmp" "$agents"
+    jq -n --arg id "$id" '{id: $id}' ;;
+  "project list") cat "$projects" ;;
+  "project create")
+    jq --arg t "$(flag --title "$@")" '. + [{id: "proj-1", title: $t}]' "$projects" > "$projects.tmp"
+    mv "$projects.tmp" "$projects"
+    echo '{"id":"proj-1"}' ;;
+  "project resource")
+    [ "$3" = list ] && echo '[{"resource_type":"github_repo","resource_ref":{"url":"https://github.com/acme/shop.git"}}]'
+    [ "$3" = add ] && echo '{"id":"res-1"}' ;;
+  "autopilot list") jq '{autopilots: [.[] | .autopilot], total: length}' "$autopilots" ;;
+  "autopilot get") jq --arg id "$3" '.[] | select(.autopilot.id == $id)' "$autopilots" ;;
+  "autopilot create")
+    n=$(jq length "$autopilots")
+    id="ap-$((n + 1))"
+    agent_id=$(jq -r --arg n "$(flag --agent "$@")" '.[] | select(.name == $n) | .id' "$agents")
+    jq --arg id "$id" --arg t "$(flag --title "$@")" --arg a "$agent_id" --arg m "$(flag --mode "$@")" \
+       --arg d "$(flag --description "$@")" \
+       '. + [{autopilot: {id: $id, title: $t, assignee_id: $a, execution_mode: $m, description: $d, status: "active"}, triggers: []}]' \
+       "$autopilots" > "$autopilots.tmp"
+    mv "$autopilots.tmp" "$autopilots"
+    jq -n --arg id "$id" '{id: $id}' ;;
+  "autopilot update")
+    id=$3
+    if st=$(flag --status "$@"); then
+      jq --arg id "$id" --arg s "$st" 'map(if .autopilot.id == $id then .autopilot.status = $s else . end)' "$autopilots" > "$autopilots.tmp"
+    else
+      jq --arg id "$id" --arg d "$(flag --description "$@")" 'map(if .autopilot.id == $id then .autopilot.description = $d else . end)' "$autopilots" > "$autopilots.tmp"
+    fi
+    mv "$autopilots.tmp" "$autopilots"
+    jq -n --arg id "$id" '{id: $id}' ;;
+  "autopilot trigger-add")
+    id=$3 kind=$(flag --kind "$@")
+    tid="tr-$id-$kind"
+    if [ "$kind" = webhook ]; then
+      trig=$(jq -n --arg tid "$tid" '{id: $tid, kind: "webhook", webhook_url: "https://api.multica.test/api/webhooks/SECRET-TOKEN-123"}')
+    else
+      trig=$(jq -n --arg tid "$tid" --arg c "$(flag --cron "$@")" --arg tz "$(flag --timezone "$@")" \
+        '{id: $tid, kind: "schedule", cron_expression: $c, timezone: $tz}')
+    fi
+    jq --arg id "$id" --argjson t "$trig" 'map(if .autopilot.id == $id then .triggers += [$t] else . end)' "$autopilots" > "$autopilots.tmp"
+    mv "$autopilots.tmp" "$autopilots"
+    printf '%s\n' "$trig" ;;
+  "autopilot trigger-update") echo '{}' ;;
+  *) echo "multica 桩不支持：$*" >&2; exit 2 ;;
+esac

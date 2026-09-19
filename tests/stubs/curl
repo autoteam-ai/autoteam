@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# curl 桩：只模拟 aiwf 调的 Multica 状态接口 /api/issue-statuses。
+set -o pipefail
+state=${STUB_STATE:?}
+method=GET out="" data="" url="" cfg=""
+while [ $# -gt 0 ]; do
+  case $1 in
+    -K) [ "$2" = - ] && cfg=$(cat); shift 2 ;;
+    -X) method=$2; shift 2 ;;
+    -o) out=$2; shift 2 ;;
+    -w|-H) shift 2 ;;
+    --data-binary) data=$(cat "${2#@}"); shift 2 ;;
+    -*) shift ;;
+    *) url=$1; shift ;;
+  esac
+done
+case $cfg in *"Authorization: Bearer "*) auth=ok ;; *) auth=missing ;; esac
+printf 'curl %s %s auth=%s\n' "$method" "$url" "$auth" >> "$STUB_LOG"
+statuses=$state/mc-statuses.json
+[ -f "$statuses" ] || echo '[]' > "$statuses"
+case "$method ${url#https://api.multica.test}" in
+  "GET /api/issue-statuses")
+    jq '{statuses: ([{key: "backlog", category: "backlog"}, {key: "todo", category: "todo"},
+          {key: "in_progress", category: "in_progress"}, {key: "in_review", category: "in_review"},
+          {key: "blocked", category: "blocked"}, {key: "done", category: "done"},
+          {key: "cancelled", category: "cancelled"}] + .)}' "$statuses" > "$out"
+    printf 200 ;;
+  "POST /api/issue-statuses")
+    printf 'BODY POST /api/issue-statuses %s\n' "$(jq -c . <<<"$data")" >> "$STUB_LOG"
+    wire=$(jq -r '.category | if . == "unstarted" then "todo" else "in_progress" end' <<<"$data")
+    jq --argjson s "$data" --arg c "$wire" '. + [{key: $s.key, name: $s.name, category: $c}]' "$statuses" > "$statuses.tmp"
+    mv "$statuses.tmp" "$statuses"
+    jq '. + {id: "st-1"}' <<<"$data" > "$out"
+    printf 201 ;;
+  *) echo '{"error":"not found"}' > "$out"; printf 404 ;;
+esac
