@@ -20,6 +20,7 @@
 | `ops/agents/planner-mcp.json` | Planner 的浏览器自动化（Playwright MCP，可选） | 人 | ✅ |
 | `ops/agents/autopilots/*.md` | 8 个 autopilot 的触发配置和 runbook | 人 | ✅ |
 | `ops/agents/scripts/loop-guard.sh` | 统计打回、验收不通过、换人次数，判断是否升级 | 模板 | ✅ |
+| `ops/agents/scripts/merge-mode.sh` | 判断由平台自动合并（platform）还是由 Reviewer 合并（reviewer） | 模板 | ✅ |
 | `ops/agents/scripts/health-metrics.sh` | 代码健康指标 | 模板 | ✅ |
 
 “模板”表示一般不需要手改，升级 ai-workflow 时用 `aiwf diff` / `aiwf init --force` 更新；“人”表示装完后按项目情况修改。

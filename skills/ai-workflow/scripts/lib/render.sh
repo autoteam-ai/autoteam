@@ -57,6 +57,7 @@ ops/agents/reviewer.md                ops/agents/reviewer.md                  fi
 ops/agents/auditor.md                 ops/agents/auditor.md                   file
 ops/agents/planner-mcp.json           ops/agents/planner-mcp.json             file
 ops/agents/scripts/loop-guard.sh      ops/agents/scripts/loop-guard.sh        exec
+ops/agents/scripts/merge-mode.sh      ops/agents/scripts/merge-mode.sh        exec
 ops/agents/scripts/health-metrics.sh  ops/agents/scripts/health-metrics.sh    exec
 EOF
   local f

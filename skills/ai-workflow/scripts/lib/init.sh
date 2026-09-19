@@ -5,9 +5,10 @@
 
 init_usage() {
   cat <<'EOF'
-用法：aiwf init [选项]
+用法：aiwf init [选项] [文件...]
 
 在当前 git 仓库生成工作流文件。已有文件不覆盖；AGENTS.md、CODEOWNERS、.gitignore 用受管块追加一次。
+指定文件时只处理这些文件，升级时用来只覆盖没改过的文件：aiwf init --force ops/agents/reviewer.md
 
 选项：
   --repo <owner/name>     GitHub 仓库（默认从 git remote 识别）
@@ -23,6 +24,7 @@ EOF
 
 cmd_init() {
   AIWF_FORCE=0 AIWF_DRY_RUN=0
+  local only=" "
   while [ $# -gt 0 ]; do
     case $1 in
       --repo) AIWF_REPO=$2; shift 2 ;;
@@ -34,7 +36,8 @@ cmd_init() {
       --force) AIWF_FORCE=1; shift ;;
       --dry-run) AIWF_DRY_RUN=1; shift ;;
       -h|--help) init_usage; return 0 ;;
-      *) init_usage >&2; die "未知选项：$1" ;;
+      -*) init_usage >&2; die "未知选项：$1" ;;
+      *) only="$only${1#./} "; shift ;;
     esac
   done
 
@@ -57,6 +60,7 @@ cmd_init() {
   local tpl target mode
   while read -r tpl target mode; do
     [ -n "$tpl" ] || continue
+    [ "$only" = " " ] || case $only in *" $target "*) ;; *) continue ;; esac
     init_install "$tpl" "$target" "$mode"
   done <<EOF
 $(aiwf_manifest)
@@ -67,6 +71,7 @@ EOF
     printf '\n%s以上是预览，没有写任何文件。%s\n' "$C_BLUE" "$C_RESET"
     return 0
   fi
+  [ "$only" = " " ] || return 0
 
   section "下一步"
   info "1. 把 Makefile 的 check / dev / deploy 改成真实命令，gate.yml 和 deploy.yml 里补上需要的运行时"

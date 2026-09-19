@@ -16,13 +16,16 @@
 | 改状态（不叫醒别人） | `multica issue status <任务> <key> --no-start` |
 | 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
 | agent 的 UUID（写提及链接用） | `multica agent list --output json` |
-| 开 PR、开自动合并 | `gh pr create --title "<任务编号> <标题>" --body-file <文件>`、`gh pr merge <PR> --auto --squash` |
+| 开 PR | `gh pr create --title "<任务编号> <标题>" --body-file <文件>` |
+| 判断谁来合并 | `ops/agents/scripts/merge-mode.sh`，输出 platform 才开自动合并 |
 
 ## 交付
 
 1. 跑 `make check`，把结果摘要（通过多少、失败哪些）贴进任务评论。不要声称验证通过，除非你真的跑了；没跑就写明没跑什么、为什么。
 2. 提交、推送，开 PR：`gh pr create --title "<任务编号> <标题>" --body-file <文件>`，正文按 `.github/pull_request_template.md` 填。标题以任务编号开头；**不写 Closes / Fixes / Resolves 等关闭关键字**，因为任务要等线上验收通过才算完成。
-3. 打开自动合并：`gh pr merge <PR> --auto --squash`。如果报错说仓库不允许自动合并，在评论里注明“仓库不支持自动合并”，由 Reviewer 在检查通过后合并。
+3. 先跑 `ops/agents/scripts/merge-mode.sh`：
+   - 输出 `platform`：打开自动合并 `gh pr merge <PR> --auto --squash`，平台会在评审和检查都通过后合并；
+   - 输出 `reviewer`：**不要执行任何 `gh pr merge` 命令**。没有平台闸门的仓库里，`gh pr merge --auto` 不会报错，而是立即合并，绕过评审和检查。在评论里注明“降级模式，由 Reviewer 批准后合并”。
 4. `multica issue status <任务> code_review --no-start`，然后在任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`。
 5. 做的过程中发现、但不属于本任务的问题，写进评论的“范围外发现”，不要顺手做。
 

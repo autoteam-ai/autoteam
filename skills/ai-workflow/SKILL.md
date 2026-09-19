@@ -61,6 +61,6 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ## 升级和排查
 
-- ai-workflow 更新后：`aiwf diff` 看差异 → 用户同意后 `aiwf init --force`（`aiwf.conf`、`registry.yaml` 不会被覆盖）→ 提交合并 → `aiwf multica --apply` 同步指令。
+- ai-workflow 更新后：`npx skills update ai-workflow`（或 `git pull`）→ `aiwf init` 补上新增的文件 → `aiwf diff` 看已有文件的差异 → 用户同意后只覆盖没被改过的文件：`aiwf init --force <文件...>`；改过的（比如加了运行时的 gate.yml）手动合并 → 提交合并 → `aiwf multica --apply` 同步指令。
 - 改了 `ops/agents/` 下的指令、registry 或 autopilot：合并后跑 `aiwf multica --apply`；`aiwf doctor` 能发现 Multica 里的指令和仓库不一致。
 - 其他问题先跑 `aiwf doctor`，再查 ai-workflow 文档的 `docs/operations/troubleshooting.md`。

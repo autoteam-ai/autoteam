@@ -19,6 +19,7 @@
 | 要做的事 | 命令 |
 |---|---|
 | 找 PR、看改动、等检查 | `gh pr list --search "<任务编号> in:title" --state open`、`gh pr diff <PR>`、`gh pr checks <PR> --watch` |
+| 判断谁来合并 | `ops/agents/scripts/merge-mode.sh`，输出 reviewer 时由你合并 |
 | 改状态（不叫醒别人） | `multica issue status <任务> <key> --no-start` |
 | 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
 | agent 的 UUID（写提及链接用） | `multica agent list --output json` |
@@ -29,7 +30,9 @@
 
 1. `gh pr review <PR> --approve --body "…"`。如果报错不能批准自己的 PR（单账号试用模式：写代码和评审用的是同一个 GitHub 账号），改用 `gh pr review <PR> --comment --body "【批准】…"`。
 2. `multica issue status <任务> shipping --no-start`，评论 `/note 评审通过，等待合并和部署`。
-3. 看 `gh pr view <PR> --json autoMergeRequest`：已开启自动合并，平台会在检查通过后合并，你什么都不用做；为空（仓库不支持自动合并，降级模式），等检查全部通过后由你合并：`gh pr merge <PR> --squash --delete-branch`。
+3. 跑 `ops/agents/scripts/merge-mode.sh`：输出 `platform` 时平台会在检查通过后自动合并，你什么都不用做；输出 `reviewer`（降级模式）时，等 `gh pr checks <PR> --watch` 全部通过后由你合并：`gh pr merge <PR> --squash --delete-branch`。
+
+**PR 在评审前就已经合并了**（不该发生）：照常评审。没有阻塞项，按上面批准（不用再合并）；有阻塞项，把任务改为 `rework` 并提及 Implementer 另开 PR 修复。两种情况都在任务评论里提及 Planner，说明“PR 未经评审已合并”。
 
 **有阻塞项：打回**
 

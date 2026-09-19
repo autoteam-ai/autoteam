@@ -93,7 +93,7 @@ Makefile                       check / dev / deploy（已有就不动，只检�
 .github/workflows/gate.yml     必需检查 check：PR 行数、重复代码、make check
 .github/workflows/deploy.yml   合并后部署，结果通知 Planner
 .github/workflows/rollback.yml Planner 回滚用
-ops/agents/                    配置、团队清单、四个角色指令、8 个 autopilot、两个统计脚本
+ops/agents/                    配置、团队清单、四个角色指令、8 个 autopilot、三个辅助脚本
 ```
 
 逐个文件的说明见[生成的文件](docs/reference/files.md)。
@@ -110,7 +110,7 @@ ops/agents/                    配置、团队清单、四个角色指令、8 �
 这套流程来自《自管理 Agent 团队研究》。落地时按平台现状做了几处调整，都在文档里写了原因：
 
 - **Multica 0.5 改了状态模型**：自定义状态不再继承“进入即唤醒”等行为。所以唤醒下一个角色全部靠显式指派或评论里的 @提及，自定义状态只表示看板上的进度。详见[任务状态和唤醒](docs/concepts/lifecycle.md)。
-- **GitHub Free 的私有仓库没有规则集和自动合并**：aiwf 会识别出来并降级：Reviewer 在检查通过后自己合并，doctor 标出哪些闸门没有生效。
+- **GitHub Free 的私有仓库没有规则集和自动合并**：aiwf 会识别出来并降级：Implementer 不开自动合并（这种仓库里 `gh pr merge --auto` 会立即合并），Reviewer 批准后在检查通过时自己合并，doctor 标出哪些闸门没有生效。
 - **个人账号的仓库，协作者不能用 fine-grained token**：机器账号只能用 classic token；想按最小权限给，把仓库放到组织下。
 - **每日摘要改用 create_issue 模式**：run_only 的结果只在运行历史里，人收不到通知。
 

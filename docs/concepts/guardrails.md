@@ -42,6 +42,7 @@
 
 - standard 没有合并队列：两个 PR 各自检查通过、先后合并后，主干上的组合可能是坏的。靠合并后的部署、Planner 验收和巡检兜底。
 - none 是降级模式：所有“硬约束”都退化成指令约束，`aiwf doctor` 会一直标黄提醒。适合先试用，正式用请把仓库改公开、升级 Pro，或迁到 Team 套餐的组织，再运行一次 `aiwf github --apply`。
+- 谁来合并由 `ops/agents/scripts/merge-mode.sh` 当场判断：规则集 `ai-workflow` 生效且允许自动合并时输出 platform，Implementer 开自动合并；否则输出 reviewer，Implementer **不能**执行 `gh pr merge --auto`——没有平台闸门时它不会报错，而是立即合并，绕过评审和检查（端到端验证时真的发生过）。
 
 ## 单账号试用模式
 

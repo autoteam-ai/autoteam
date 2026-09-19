@@ -77,6 +77,18 @@ t_init_force_overwrites_templates_but_not_config() {
   assert_eq "$(grep -c carol .github/CODEOWNERS)" 0 "--force 应替换受管块"
 }
 
+t_init_force_only_named_files() {
+  new_repo
+  aiwf_offline init --owner alice >/dev/null
+  echo "# 本地改动" >> .github/workflows/gate.yml
+  echo "# 本地改动" >> ops/agents/reviewer.md
+  out=$(aiwf_offline init --force ops/agents/reviewer.md)
+  assert_eq "$(grep -c '本地改动' ops/agents/reviewer.md)" 0 "指定的文件应被覆盖"
+  assert_eq "$(grep -c '本地改动' .github/workflows/gate.yml)" 1 "没指定的文件不应被覆盖"
+  assert_not_contains "$out" "gate.yml"
+  assert_contains "$out" "覆盖 ops/agents/reviewer.md"
+}
+
 t_init_dry_run_writes_nothing() {
   new_repo
   out=$(aiwf_offline init --dry-run --owner alice)

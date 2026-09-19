@@ -19,6 +19,7 @@ aiwf [-C <目录>] <命令> [选项]
 | `--human <成员名>` | 负责批准和接收升级的 Multica 成员 |
 | `--timezone <时区>` | autopilot 时区，默认 Asia/Shanghai |
 | `--force` | 覆盖与模板不同的文件、替换受管块（aiwf.conf、registry.yaml 永远不覆盖） |
+| `[文件...]` | 只处理这些文件，例如 `aiwf init --force ops/agents/reviewer.md` |
 | `--dry-run` | 只列出会做什么 |
 
 写文件的规则：
@@ -83,4 +84,6 @@ aiwf diff                       # 对比全部文件
 aiwf diff .github/CODEOWNERS    # 只看某几个
 ```
 
-对比已安装的文件和当前模板的渲染结果，受管块只比较块内内容。升级 ai-workflow 后用它决定要不要 `aiwf init --force`。
+对比已安装的文件和当前模板的渲染结果，受管块只比较块内内容。
+
+升级 ai-workflow 的步骤：更新 aiwf（`npx skills update ai-workflow` 或 `git pull`）→ `aiwf init` 补上新增的文件 → `aiwf diff` 看已有文件的差异 → 没改过的文件用 `aiwf init --force <文件...>` 覆盖，改过的（比如加了运行时的 gate.yml）手动合并 → 提交、合并 → `aiwf multica --apply`。

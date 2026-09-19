@@ -70,6 +70,31 @@ EOF
   assert_contains "$(jq -r '.reasons[0]' <<<"$out")" "打回 2 次"
 }
 
+t_merge_mode_script() {
+  new_repo
+  aiwf_offline init --owner alice >/dev/null
+  mkdir -p bin
+  # gh 桩：按 GH_AUTO / GH_RULES 返回仓库设置和规则集，并执行 --jq
+  cat > bin/gh <<'EOF'
+#!/usr/bin/env bash
+expr=""; path=""
+while [ $# -gt 0 ]; do case $1 in --jq) expr=$2; shift 2 ;; api) shift ;; *) path=$1; shift ;; esac; done
+case $path in
+  */rulesets)
+    if [ "$GH_RULES" = 403 ]; then echo '{"message":"Upgrade to GitHub Pro"}'; exit 1; fi
+    out=$GH_RULES ;;
+  *) out="{\"allow_auto_merge\": $GH_AUTO}" ;;
+esac
+if [ -n "$expr" ]; then jq -r "$expr" <<<"$out"; else echo "$out"; fi
+EOF
+  chmod +x bin/gh
+  run() { PATH="$WORK/bin:$PATH" GH_AUTO=$1 GH_RULES=$2 bash ops/agents/scripts/merge-mode.sh; }
+  assert_eq "$(run true '[{"name":"ai-workflow","enforcement":"active"}]')" platform
+  assert_eq "$(run true '[{"name":"ai-workflow","enforcement":"disabled"}]')" reviewer
+  assert_eq "$(run false '[{"name":"ai-workflow","enforcement":"active"}]')" reviewer
+  assert_eq "$(run false 403)" reviewer "GitHub Free 私有仓库应该是 reviewer"
+}
+
 t_health_metrics_outputs_json_and_markdown() {
   new_repo
   aiwf_offline init --owner alice >/dev/null
