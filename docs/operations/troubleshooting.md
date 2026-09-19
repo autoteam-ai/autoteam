@@ -23,6 +23,7 @@
 | 现象 | 原因和处理 |
 |---|---|
 | 运行失败：`Failed to authenticate: OAuth session expired and could not be refreshed` | runtime 在线不代表 agent CLI 能用：那台机器上 Claude Code 等的订阅登录过期了，到机器上重新登录。`aiwf doctor` 会报出每个 agent 最近一次失败的原因；修好之前可以先在 registry.yaml 里把 agent 挪到别的 runtime |
+| 运行失败：`You've hit your session limit · resets 1:10am` | 订阅的窗口额度用完了。平台不会自动重试额度类错误，任务停在原状态；Planner 下一次巡检会重新派发（额度恢复后也可以手动触发“推进巡检”）。同一个订阅账号下的所有 agent 共用额度，registry.yaml 里要如实写 account；额度经常不够，就加一个其他厂商或按量计费的 agent 分担 |
 | 批准了任务，Planner 没反应 | 子任务要指派给 Planner、从 backlog 改成 approved 才会叫醒它；直接新建成 approved 的不会。也可能 Planner 的 runtime 离线，看 `aiwf runtimes` |
 | Planner 派发了，Implementer 没开始 | runtime 离线或并发满了（任务在排队，排队超过 2 小时会失败）；或者 agent 是 private，而触发链路上的人不是 agent 的创建者：把 `AIWF_AGENT_ACCESS` 改成 workspace 后 `aiwf multica --apply --only agents` |
 | Reviewer 没被叫醒 | 评论里只写了 `@名字`，没用提及链接 `[@名字](mention://agent/<UUID>)`；或者用了 `/note` |
