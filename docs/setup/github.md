@@ -36,7 +36,9 @@ GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer �
 
    个人账号的仓库，协作者不能用 fine-grained token（resource owner 只能选自己或所在的组织），只能用 classic token，没法按仓库细分权限。想按最小权限给，就把仓库放到组织下，机器账号作为组织成员。
 
-4. 在各自机器上登录，并设好 git 身份：
+4. 把 token 交给 agent。两种方式，按 agent 怎么分布选：
+
+   **一台机器一个账号**：在那台机器上登录，`gh` 和 `git` 全局用这个身份。
 
    ```bash
    gh auth login --with-token < token.txt
@@ -44,7 +46,19 @@ GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer �
    git config --global user.email <账号邮箱>
    ```
 
-不同账号跑在不同机器上（至少是不同系统用户或容器），避免互相读到凭据。
+   **一台机器跑多个角色**（常见：agent 都在同一个容器里）：全局登录只能有一个身份，这时用 registry 的 `env_file` 给每个 agent 单独的 token——Multica 把它注入 agent 进程，`gh` 会优先用 `GITHUB_TOKEN`：
+
+   ```yaml
+   ex-rev-claude: { role: reviewer, ..., env_file: ops/agents/local/reviewer-env.json }
+   ```
+
+   ```json
+   { "GITHUB_TOKEN": "<review 账号的 token>", "GH_TOKEN": "<同一个>" }
+   ```
+
+   文件放 `ops/agents/local/`（已被 gitignore），权限设 0600，改完跑 `autoteam multica --apply --only agents` 同步。注意这份 env 以明文存在 Multica 服务端，只放这类可随时吊销的 token。
+
+不同账号尽量跑在不同机器上（至少是不同系统用户或容器），避免互相读到凭据。
 
 还没准备账号时，用单账号试用模式：`autoteam github --apply --trial`，见[单账号试用模式](../concepts/guardrails.md#单账号试用模式)。
 
@@ -56,7 +70,7 @@ GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer �
 |---|---|
 | Bypass list | 留空，管理员也不能豁免 |
 | Restrict deletions、Block force pushes | 打开 |
-| Require a pull request before merging | 1 个审批；新提交作废旧审批；规则文件要 Code Owner 审批；最后一次推送要别人批准；合并方式只留 squash |
+| Require a pull request before merging | 1 个审批；新提交作废旧审批；规则文件要 Code Owner 审批；合并方式只留 squash |
 | Require status checks to pass | `check`，只认 GitHub Actions 上报的结果 |
 | Require merge queue | 只有组织仓库（full 等级）才加 |
 
