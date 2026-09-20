@@ -42,6 +42,7 @@
 
 - standard 没有合并队列：两个 PR 各自检查通过、先后合并后，主干上的组合可能是坏的。靠合并后的部署、Planner 验收和巡检兜底。
 - none 是降级模式：所有“硬约束”都退化成指令约束，`autoteam doctor` 会一直标黄提醒。适合先试用，正式用请把仓库改公开、升级 Pro，或迁到 Team 套餐的组织，再运行一次 `autoteam github --apply`。
+
 ## 谁来合并：三种模式
 
 保护等级说的是平台能提供什么，合并模式说的是在这个前提下 Implementer 和 Reviewer 各做什么。`ops/agents/scripts/merge-mode.sh` 每次开 PR 和批准前当场判断，依据是这个分支上**实际生效**的规则（`repos/{repo}/rules/branches/{branch}`，规则集和老的分支保护合并后的结果）加上仓库有没有开自动合并：
@@ -59,7 +60,7 @@
 
 ## 单账号试用模式
 
-还没准备机器账号时，Implementer 和 Reviewer 只能用同一个 GitHub 账号，GitHub 不允许它批准自己的 PR。`autoteam github --apply --trial` 会把规则集改成不要求审批（也不要求 Code Owner 审批和最后一次推送审批），其余规则不变：
+还没准备机器账号时，Implementer 和 Reviewer 只能用同一个 GitHub 账号，GitHub 不允许它批准自己的 PR。`autoteam github --apply --trial` 会把规则集改成不要求审批，也不要求 Code Owner 审批，其余规则不变：
 
 - Reviewer 的 `gh pr review --approve` 会失败，指令里要求它改用评论评审，并以【批准】或【阻塞】开头，打回次数照样能统计；
 - 合并模式落到 `staged`：Implementer 开 draft PR，Reviewer 批准后才 `gh pr ready` 放行。检查依然是硬闸门，但“评审过了才能合”这一条退化成指令约束；
