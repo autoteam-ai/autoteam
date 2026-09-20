@@ -82,7 +82,7 @@ PY
   # 否则换了 token 之后 apply 会报"已是最新"，token 永远同步不过去
   : > "$STUB_STATE/mc-agent-env.log"
   out=$(autoteam_stub multica --apply --only agents)
-  assert_contains "$out" "agent rev-codex 已是最新（环境变量 会重新写入）"
+  assert_contains "$out" "agent rev-codex 已是最新（环境变量会重新写入）"
   assert_contains "$(cat "$STUB_STATE/mc-agent-env.log" 2>/dev/null)" "agent-rev-codex" "第二次 apply 也要重写环境变量"
   assert_contains "$out" "agent planner 已是最新"
   assert_not_contains "$(cat "$STUB_STATE/mc-agent-env.log" 2>/dev/null)" "agent-planner" "没配 env_file 的 agent 不该被写"

@@ -383,7 +383,7 @@ multica_agent_update() {
     local rewrite=""
     [ "$mcp" != "-" ] && rewrite="MCP 配置"
     [ "$envf" != "-" ] && rewrite="${rewrite:+$rewrite和}环境变量"
-    info "agent $name 已是最新（$rewrite 会重新写入）"
+    info "agent $name 已是最新（$rewrite会重新写入）"
   else
     planned "更新 agent $name：$changes"
   fi
