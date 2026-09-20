@@ -41,10 +41,13 @@ jobs:
           max=${max:-400}
           skip=$(sed -n 's/^AUTOTEAM_PR_SIZE_EXCLUDE=//p' "$conf" | head -n 1 | tr -d '[:space:]')
           skip=${skip:-'**/*.lock,**/*.md,.github/**,ops/agents/**'}
-          set --
+          # set -f 关掉路径展开：不关的话 $skip 里的 **/*.md 会先被 shell 展开成
+          # 实际文件名（而且没开 globstar 时 ** 等于 *，只匹配一层），排除就不准了
+          set -f --
           IFS=,
           for pat in $skip; do set -- "$@" ":(exclude,glob)$pat"; done
           unset IFS
+          set +f
           changed=$(git diff --numstat "origin/$BASE"...HEAD -- . "$@" \
             | awk '{s += $1 + $2} END {print s + 0}')
           echo "本 PR 改动 $changed 行，上限 $max 行"
