@@ -1,3 +1,7 @@
+---
+title: autoteam 命令
+---
+
 # autoteam 命令
 
 ```

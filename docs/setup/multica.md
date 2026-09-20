@@ -1,3 +1,7 @@
+---
+title: 第 4–6 步：Multica
+---
+
 # 第 4–6 步：Multica
 
 ```bash

@@ -1,3 +1,7 @@
+---
+title: 常见问题
+---
+
 # 常见问题
 
 先跑 `autoteam doctor`，它会指出大部分配置问题。任务卡住时，看运行记录：`multica issue runs <任务> --output json`。

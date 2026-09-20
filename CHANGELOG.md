@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 新增基于 Starlight 的版本化文档站和 GitHub Pages 工作流：`docs/` 只维护开发版，构建时从所有 `v*` tag 提取历史文档，页面可在开发版与各发布版本之间切换。
 - 新增 npm 包 `autoteam` 的清单（`package.json`，`bin` 指向 `bin/autoteam`）和 `make deploy`：发布前核对三处版本号、把打出的包装到临时目录跑一遍，再 `npm publish`；版本已发过则跳过，`DRY_RUN=1` 只演练。还没有真正发布过。
 - 项目改名为 **autoteam**（原 ai-workflow）：CLI、skill、`ops/agents/autoteam.conf`、`AUTOTEAM_*` 变量、受管块标记和规则集名一并跟随。原名撞的是整个赛道——n8n、Dify、LangGraph 都自称 "AI workflow"，而这套东西做的是 agent 团队自治和合并闸门。
 - 合并模式从两种扩展到三种，新增 **`staged`**：仓库有必需检查、但规则集不要求审批时（单账号的必然处境，GitHub 不允许作者批准自己的 PR），Implementer 开 draft PR 且不开自动合并，Reviewer 批准后 `gh pr ready` 放行。补上了“检查一绿就合并、Reviewer 来不及看”这个缺口。

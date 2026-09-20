@@ -1,3 +1,7 @@
+---
+title: 配置文件
+---
+
 # 配置文件
 
 三类配置都在目标仓库的 `ops/agents/` 下，受 CODEOWNERS 保护，修改走 PR。

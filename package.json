@@ -42,6 +42,16 @@
     "access": "public"
   },
   "scripts": {
-    "test": "bash tests/run.sh"
+    "test": "bash tests/run.sh",
+    "docs:start": "astro dev",
+    "docs:build": "astro build",
+    "docs:build:all": "node scripts/build-docs.mjs",
+    "docs:preview": "astro preview"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "0.42.2",
+    "astro": "7.3.3",
+    "astro-mermaid": "2.1.0",
+    "mermaid": "11.12.2"
   }
 }

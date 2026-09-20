@@ -1,3 +1,7 @@
+---
+title: 第 1–3 步：GitHub
+---
+
 # 第 1–3 步：GitHub
 
 `autoteam github` 负责能用 API 完成的部分；账号和 token 需要你自己做。

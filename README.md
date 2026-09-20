@@ -100,6 +100,8 @@ ops/agents/                    配置、团队清单、四个角色指令、8 �
 
 ## 文档
 
+在线文档：<https://autoteam.hdgcs.com/>。根地址默认打开最新发布版本，也可以在页面顶部切换到开发版或历史版本。
+
 - 概念：[为什么要自管理](docs/concepts/why.md) · [四个角色](docs/concepts/roles.md) · [任务状态和唤醒](docs/concepts/lifecycle.md) · [按额度选 agent](docs/concepts/quota-routing.md) · [安全边界和保护等级](docs/concepts/guardrails.md)
 - 搭建：[前提条件](docs/setup/prerequisites.md) · [快速上手](docs/setup/quickstart.md) · [第 0 步 准备仓库](docs/setup/repo.md) · [第 1–3 步 GitHub](docs/setup/github.md) · [第 4–6 步 Multica](docs/setup/multica.md) · [第 7 步 跑通第一个需求](docs/setup/first-run.md)
 - 日常：[日常操作](docs/operations/daily.md) · [每周指标](docs/operations/metrics.md) · [常见问题](docs/operations/troubleshooting.md)
@@ -119,6 +121,17 @@ ops/agents/                    配置、团队清单、四个角色指令、8 �
 ```bash
 make check   # shellcheck + actionlint + 单元测试；本机没装 linter 时用 docker 镜像
 ```
+
+文档站使用 Starlight，本地开发要求 Node.js 22.12 以上：
+
+```bash
+npm ci
+npm run docs:start       # 本地预览当前 docs/
+npm run docs:build       # 检查当前文档能否构建
+npm run docs:build:all   # 从所有 v* tag 提取 docs/，生成完整版本站到 build/docs-site/
+```
+
+`docs/` 始终只维护当前内容。推送 `main` 或 `v*` tag 后，`.github/workflows/docs.yml` 会重新生成开发版和全部历史版本并部署到 GitHub Pages；仓库首次启用时需要在 Settings → Pages 中把 Source 设为 GitHub Actions。
 
 发布到 npm 用 `make deploy`（`make deploy DRY_RUN=1` 先演练）。维护约定见 [AGENTS.md](AGENTS.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)。
 

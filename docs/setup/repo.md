@@ -1,3 +1,7 @@
+---
+title: 第 0 步：准备仓库
+---
+
 # 第 0 步：准备仓库
 
 `autoteam init` 生成的 Makefile 里，三个目标都是会直接报错的 `AUTOTEAM-TODO` 桩，逼你把它们改成真实命令。这一步决定了后面所有自动化的上限：`make check` 不够严，编排得再好，也只是更快地把不合格的代码送进主干。
@@ -25,7 +29,7 @@ gate.yml 在 `make check` 之前还有两道检查：
 
 在 GitHub Actions 里部署当前提交：deploy.yml 在合并到默认分支后调它，rollback.yml 用旧提交调它。凭据从 secrets 传进 `env:`。先部署后验收，所以建议新功能放在功能开关后面，验收通过再全量打开。
 
-各技术栈的例子见 skill 里的 [adapt-make.md](../../skills/autoteam/references/adapt-make.md)。
+各技术栈的例子见 skill 里的 [adapt-make.md](https://github.com/autoteam-ai/autoteam/blob/main/skills/autoteam/references/adapt-make.md)。
 
 ## AGENTS.md
 
@@ -36,7 +40,7 @@ gate.yml 在 `make check` 之前还有两道检查：
 - 分层：根目录放全局规则，子包放各自的 AGENTS.md；
 - 常驻上下文控制在模型有效上下文的 5% 以内。
 
-详见 [write-agents-md.md](../../skills/autoteam/references/write-agents-md.md)。
+详见 [write-agents-md.md](https://github.com/autoteam-ai/autoteam/blob/main/skills/autoteam/references/write-agents-md.md)。
 
 ## 检查
 
