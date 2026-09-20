@@ -74,24 +74,30 @@ t_merge_mode_script() {
   new_repo
   autoteam_offline init --owner alice >/dev/null
   mkdir -p bin
-  # gh 桩：按 GH_AUTO / GH_RULES 返回仓库设置和规则集，并执行 --jq
+  # gh 桩：按 GH_AUTO / GH_RULES 返回仓库设置和分支上生效的规则，并执行 --jq
   cat > bin/gh <<'EOF'
 #!/usr/bin/env bash
 expr=""; path=""
 while [ $# -gt 0 ]; do case $1 in --jq) expr=$2; shift 2 ;; api) shift ;; *) path=$1; shift ;; esac; done
 case $path in
-  */rulesets)
+  */rules/branches/*)
     if [ "$GH_RULES" = 403 ]; then echo '{"message":"Upgrade to GitHub Pro"}'; exit 1; fi
     out=$GH_RULES ;;
-  *) out="{\"allow_auto_merge\": $GH_AUTO}" ;;
+  *) out="{\"allow_auto_merge\": $GH_AUTO, \"default_branch\": \"main\"}" ;;
 esac
 if [ -n "$expr" ]; then jq -r "$expr" <<<"$out"; else echo "$out"; fi
 EOF
   chmod +x bin/gh
   run() { PATH="$WORK/bin:$PATH" GH_AUTO=$1 GH_RULES=$2 bash ops/agents/scripts/merge-mode.sh; }
-  assert_eq "$(run true '[{"name":"autoteam","enforcement":"active"}]')" platform
-  assert_eq "$(run true '[{"name":"autoteam","enforcement":"disabled"}]')" reviewer
-  assert_eq "$(run false '[{"name":"autoteam","enforcement":"active"}]')" reviewer
+  checks='{"type":"required_status_checks","parameters":{"required_status_checks":[{"context":"check"}]}}'
+  pr1='{"type":"pull_request","parameters":{"required_approving_review_count":1}}'
+  pr0='{"type":"pull_request","parameters":{"required_approving_review_count":0}}'
+  assert_eq "$(run true "[$checks,$pr1]")" platform "有必需检查 + 要求审批"
+  assert_eq "$(run true "[$checks,$pr0]")" staged "有必需检查但不要求审批（单账号）"
+  assert_eq "$(run true "[$checks]")" staged "只有必需检查，没有 pull_request 规则"
+  assert_eq "$(run true "[$pr1]")" reviewer "只要求审批、检查不强制，等于没闸门"
+  assert_eq "$(run false "[$checks,$pr1]")" reviewer "仓库没开自动合并"
+  assert_eq "$(run true '[]')" reviewer "分支上没有任何规则"
   assert_eq "$(run false 403)" reviewer "GitHub Free 私有仓库应该是 reviewer"
 }
 

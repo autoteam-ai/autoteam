@@ -1,5 +1,11 @@
 # 更新记录
 
+## 未发布
+
+- 项目改名为 **autoteam**（原 ai-workflow）：CLI、skill、`ops/agents/autoteam.conf`、`AUTOTEAM_*` 变量、受管块标记和规则集名一并跟随。原名撞的是整个赛道——n8n、Dify、LangGraph 都自称 "AI workflow"，而这套东西做的是 agent 团队自治和合并闸门。
+- 合并模式从两种扩展到三种，新增 **`staged`**：仓库有必需检查、但规则集不要求审批时（单账号的必然处境，GitHub 不允许作者批准自己的 PR），Implementer 开 draft PR 且不开自动合并，Reviewer 批准后 `gh pr ready` 放行。补上了“检查一绿就合并、Reviewer 来不及看”这个缺口。
+- `merge-mode.sh` 改看 `repos/{repo}/rules/branches/{branch}`：读的是分支上实际生效的规则，别人另建的规则集、老的分支保护一样算数，不再只按名字找 `autoteam` 规则集。
+
 ## 0.1.0（2026-09-20）
 
 第一个版本。

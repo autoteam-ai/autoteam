@@ -42,15 +42,29 @@
 
 - standard 没有合并队列：两个 PR 各自检查通过、先后合并后，主干上的组合可能是坏的。靠合并后的部署、Planner 验收和巡检兜底。
 - none 是降级模式：所有“硬约束”都退化成指令约束，`autoteam doctor` 会一直标黄提醒。适合先试用，正式用请把仓库改公开、升级 Pro，或迁到 Team 套餐的组织，再运行一次 `autoteam github --apply`。
-- 谁来合并由 `ops/agents/scripts/merge-mode.sh` 当场判断：规则集 `autoteam` 生效且允许自动合并时输出 platform，Implementer 开自动合并；否则输出 reviewer，Implementer **不能**执行 `gh pr merge --auto`——没有平台闸门时它不会报错，而是立即合并，绕过评审和检查（端到端验证时真的发生过）。
+## 谁来合并：三种模式
+
+保护等级说的是平台能提供什么，合并模式说的是在这个前提下 Implementer 和 Reviewer 各做什么。`ops/agents/scripts/merge-mode.sh` 每次开 PR 和批准前当场判断，依据是这个分支上**实际生效**的规则（`repos/{repo}/rules/branches/{branch}`，规则集和老的分支保护合并后的结果）加上仓库有没有开自动合并：
+
+| 输出 | 触发条件 | Implementer | Reviewer | 检查能绕过吗 |
+|---|---|---|---|---|
+| `platform` | 有必需检查，且规则集要求至少 1 个审批 | 正常开 PR + `gh pr merge --auto --squash` | `gh pr review --approve`，然后什么都不用做 | 不能 |
+| `staged` | 有必需检查，但不要求审批（单账号只能这样） | 开 **draft** PR，不开自动合并 | 批准后 `gh pr ready` 再 `gh pr merge --auto --squash` | 不能 |
+| `reviewer` | 没有必需检查，或仓库没开自动合并 | 不执行任何 `gh pr merge` | 等检查全绿后 `gh pr merge --squash --delete-branch` | 能（只剩指令约束） |
+
+两个容易踩的坑：
+
+1. **没有平台闸门时 `gh pr merge --auto` 不报错，而是立即合并**，绕过评审和检查。端到端验证时真的发生过：PR 创建 7 秒后就被合并了。所以 `reviewer` 模式下 Implementer 绝对不碰 merge 命令。
+2. **只有必需检查、不要求审批，等于 Reviewer 没有闸门**。这是单账号的必然处境：GitHub 不允许作者批准自己的 PR，审批数只能设 0，于是检查一绿平台就合并，Reviewer 来不及看。`staged` 模式用 draft PR 补上这一环——draft 本来就不能开自动合并，Reviewer 不 `gh pr ready`，谁都合不了，而检查仍然由平台强制。它不是硬约束（Implementer 理论上可以自己 ready），但比“一绿就合”强得多。
 
 ## 单账号试用模式
 
 还没准备机器账号时，Implementer 和 Reviewer 只能用同一个 GitHub 账号，GitHub 不允许它批准自己的 PR。`autoteam github --apply --trial` 会把规则集改成不要求审批（也不要求 Code Owner 审批和最后一次推送审批），其余规则不变：
 
 - Reviewer 的 `gh pr review --approve` 会失败，指令里要求它改用评论评审，并以【批准】或【阻塞】开头，打回次数照样能统计；
+- 合并模式落到 `staged`：Implementer 开 draft PR，Reviewer 批准后才 `gh pr ready` 放行。检查依然是硬闸门，但“评审过了才能合”这一条退化成指令约束；
 - 评审独立性不再由平台保证，`autoteam doctor` 会标黄；
-- 准备好机器账号后：写进 autoteam.conf 的 `AUTOTEAM_IMPL_BOT` / `AUTOTEAM_REVIEW_BOT`，在各自机器上登录 gh，然后不加 `--trial` 重新运行 `autoteam github --apply`。
+- 准备好机器账号后：写进 autoteam.conf 的 `AUTOTEAM_IMPL_BOT` / `AUTOTEAM_REVIEW_BOT`，在各自机器上登录 gh，然后不加 `--trial` 重新运行 `autoteam github --apply`。模式会自动变成 `platform`，不需要改任何指令。
 
 ## 凭据
 

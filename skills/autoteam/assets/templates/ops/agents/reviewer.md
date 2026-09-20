@@ -19,7 +19,7 @@
 | 要做的事 | 命令 |
 |---|---|
 | 找 PR、看改动、等检查 | `gh pr list --search "<任务编号> in:title" --state open`、`gh pr diff <PR>`、`gh pr checks <PR> --watch` |
-| 判断谁来合并 | `ops/agents/scripts/merge-mode.sh`，输出 reviewer 时由你合并 |
+| 判断谁来合并 | `ops/agents/scripts/merge-mode.sh`，输出 staged 和 reviewer 时都要你动手放行 |
 | 改状态（不叫醒别人） | `multica issue status <任务> <key> --no-start` |
 | 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
 | agent 的 UUID（写提及链接用） | `multica agent list --output json` |
@@ -30,7 +30,15 @@
 
 1. `gh pr review <PR> --approve --body "…"`。如果报错不能批准自己的 PR（单账号试用模式：写代码和评审用的是同一个 GitHub 账号），改用 `gh pr review <PR> --comment --body "【批准】…"`。
 2. `multica issue status <任务> shipping --no-start`，评论 `/note 评审通过，等待合并和部署`。
-3. 跑 `ops/agents/scripts/merge-mode.sh`：输出 `platform` 时平台会在检查通过后自动合并，你什么都不用做；输出 `reviewer`（降级模式）时，等 `gh pr checks <PR> --watch` 全部通过后由你合并：`gh pr merge <PR> --squash --delete-branch`。
+3. 跑 `ops/agents/scripts/merge-mode.sh`，按输出放行：
+
+   | 输出 | 你要做什么 |
+   |---|---|
+   | `platform` | 什么都不用做，平台在审批和检查都通过后自己合并 |
+   | `staged` | `gh pr ready <PR>` 把 draft 转成正式 PR，再 `gh pr merge <PR> --auto --squash`。合不合得成仍由平台按检查结果判断，你只是放行 |
+   | `reviewer` | 等 `gh pr checks <PR> --watch` 全部通过，再 `gh pr merge <PR> --squash --delete-branch` |
+
+   `staged` 和 `reviewer` 下这一步是你的职责：不放行，PR 就停在那里。放行前务必确认你真的看过改动。
 
 **PR 在评审前就已经合并了**（不该发生）：照常评审。没有阻塞项，按上面批准（不用再合并）；有阻塞项，把任务改为 `rework` 并提及 Implementer 另开 PR 修复。两种情况都在任务评论里提及 Planner，说明“PR 未经评审已合并”。
 
@@ -42,4 +50,4 @@
 
 ## 你不能
 
-改代码、推送提交、修改任务的指派人、把任务设为 `done`。合并只有一个例外：降级模式下，你已经批准、并且检查全部通过之后。
+改代码、推送提交、修改任务的指派人、把任务设为 `done`。合并只有一个例外：`staged` 或 `reviewer` 模式下，你已经批准、并且（`reviewer` 模式还要）确认检查全部通过之后。

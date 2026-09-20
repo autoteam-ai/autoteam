@@ -11,7 +11,7 @@
 | `autopilots/*.md` | 定时和 webhook 触发的 runbook，front matter 是触发配置 |
 | `planner-mcp.json` | Planner 线上验收用的浏览器自动化（Web 项目可选） |
 | `scripts/loop-guard.sh` | 统计打回和验收不通过的次数，判断是否升级给人 |
-| `scripts/merge-mode.sh` | 判断由平台自动合并还是由 Reviewer 合并 |
+| `scripts/merge-mode.sh` | 判断这个 PR 由谁放行、由谁合并（platform / staged / reviewer） |
 | `scripts/health-metrics.sh` | 代码健康指标，Auditor 每周用 |
 
 改了角色指令、registry 或 autopilot，合并到默认分支后运行：
