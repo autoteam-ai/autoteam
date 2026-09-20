@@ -22,7 +22,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 2. `multica version` 能用；没有就让用户装：`brew install multica-ai/tap/multica`。版本过低时升级。
 3. 问清楚这几件事（已知的就不用问）：
    - 仓库归属和套餐：个人还是组织、公开还是私有、GitHub Free / Pro / Team。它决定平台闸门能做到什么程度（见 `docs/concepts/guardrails.md` 的保护等级）；
-   - 有没有给 Implementer、Reviewer 准备的机器账号；没有就用单账号试用模式（`autoteam github --trial`）；
+   - 有没有给 Implementer、Reviewer 建好 GitHub App（两个不同的 App）；没有就用单身份试用模式（`autoteam github --trial`）；
    - Multica 工作区 slug，以及有哪些订阅账号、哪几台机器在跑 Multica daemon。
 
 ### 1. 生成文件
@@ -35,7 +35,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 2. **工作流**：`.github/workflows/gate.yml`、`deploy.yml`、`rollback.yml` 里补上 `make check`、`make deploy` 需要的运行时（setup-node 之类）和 secrets，其他步骤不改。
 3. **AGENTS.md**：受管块以外，按 [references/write-agents-md.md](references/write-agents-md.md) 补“从代码里看不出来、或者容易搞错”的规则，控制篇幅。
 4. **registry.yaml**：和用户确认订阅账号和机器，用 `autoteam runtimes` 列出 runtime，填 `provider@设备`。Implementer 和 Reviewer 尽量放不同机器、用不同厂商；Planner 用最强的模型；按量计费的 agent 用 `env_file` 指向 `ops/agents/local/` 下的 JSON 文件（让用户自己填 key）。
-5. **autoteam.conf**：`AUTOTEAM_MULTICA_WORKSPACE`、`AUTOTEAM_HUMAN`（负责批准的成员名）、机器账号。
+5. **autoteam.conf**：`AUTOTEAM_MULTICA_WORKSPACE`、`AUTOTEAM_HUMAN`（负责批准的成员名）、三个 `AUTOTEAM_*_APP_ID`。
 
 改完再跑一次 `autoteam doctor --skip-github --skip-multica`，本地部分应该全绿。
 
@@ -45,7 +45,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 4. GitHub
 
-`autoteam github` 预览，给用户解释保护等级（full / standard / none）、`--trial` 的含义和要做的改动。用户同意后：`autoteam github --apply`，按情况加 `--trial`、`--bots impl=<账号>,review=<账号>,planner=<账号>`。
+`autoteam github` 预览，给用户解释保护等级（full / standard / none）、`--trial` 的含义和要做的改动。用户同意后：`autoteam github --apply`，按情况加 `--trial`、`--apps impl=<App ID>,review=<App ID>,planner=<App ID>`。App 只能由人创建和安装，autoteam 只核对。
 
 ### 5. Multica
 
@@ -53,7 +53,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 6. 必须由人做的事
 
-按用户的情况，从 [references/manual-steps.md](references/manual-steps.md) 里挑出相关的列给用户：机器账号和 token、各机器上登录 gh、Multica daemon 和 runtime、Multica 的 GitHub 集成、套餐升级。
+按用户的情况，从 [references/manual-steps.md](references/manual-steps.md) 里挑出相关的列给用户：建 GitHub App 和放私钥、各机器上跑一次 `gh-app-token.sh --setup-git`、Multica daemon 和 runtime、Multica 的 GitHub 集成、套餐升级。
 
 ### 7. 验收
 

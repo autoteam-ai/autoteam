@@ -16,14 +16,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 在这里加上 make check 需要的运行时，例如：
-      # - uses: actions/setup-node@v7
-      #   with:
-      #     node-version: 22
+      # 本仓库特有：make check 有 docker 回退，但直接装二进制快得多。
+      # 版本和 Makefile 里的镜像 tag 保持一致，避免本地和 CI 的检查结果不一样
+      - name: install linters
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJ -C "$RUNNER_TEMP" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          bash <(curl -fsSL "https://raw.githubusercontent.com/rhysd/actionlint/v${ACTIONLINT_VERSION}/scripts/download-actionlint.bash") "$ACTIONLINT_VERSION" "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       # 上限和不计入的路径都在 ops/agents/autoteam.conf：AUTOTEAM_PR_MAX_LINES（默认 400，
-      # 参考 AI PR 的 75 分位 408 行）、AUTOTEAM_PR_SIZE_EXCLUDE（lock 文件、Markdown，
-      # 以及受 CODEOWNERS 保护、由人批准的规则文件——它们不该占 agent 的代码行数预算）
+      # 参考 AI PR 的 75 分位 408 行）、AUTOTEAM_PR_SIZE_EXCLUDE（lock 文件，以及受
+      # CODEOWNERS 保护、由人批准的规则文件——它们不该占 agent 的代码行数预算）
       - name: pr-size
         if: github.event_name == 'pull_request'
         env:

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# autoteam github：预览不写、三种套餐、试用模式、已有规则集、机器账号
+# autoteam github：预览不写、三种套餐、试用模式、已有规则集、GitHub App
 
 github_ready_repo() {
   new_repo acme/shop
@@ -80,11 +80,25 @@ t_github_updates_outdated_ruleset() {
   assert_log "BODY PUT repos/acme/shop/rulesets/7"
 }
 
-t_github_invites_bots() {
-  github_ready_repo
-  out=$(autoteam_stub github --apply --bots impl=acme-impl-bot,review=acme-review-bot)
-  assert_contains "$out" "已邀请 acme-impl-bot"
-  assert_contains "$out" "已邀请 acme-review-bot"
-  assert_contains "$out" "只能用 classic token"
-  assert_log "BODY PUT repos/acme/shop/collaborators/acme-impl-bot"
+t_github_checks_apps() {
+  setup_ready_repo
+  STUB_SCENARIO=org-public out=$(autoteam_stub github --apply --apps impl=111,review=222,planner=333)
+  assert_contains "$out" "GitHub App"
+  assert_contains "$out" "三个 App 各自的权限"
+  # App 不能用 API 创建，autoteam 只核对：不该出现任何写操作
+  assert_no_log "BODY PUT repos/acme/shop/collaborators"
+}
+
+# 同一个 App 既开 PR 又批准，GitHub 会拒，评审独立性就没了——这是整套方案的核心约束
+t_github_rejects_same_app_for_impl_and_review() {
+  setup_ready_repo
+  out=$(autoteam_stub github --apply --apps impl=111,review=111)
+  assert_contains "$out" "同一个 App"
+  assert_contains "$out" "评审独立性"
+}
+
+t_github_warns_when_no_apps() {
+  setup_ready_repo
+  out=$(autoteam_stub github)
+  assert_contains "$out" "还没有配置 GitHub App"
 }

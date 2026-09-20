@@ -32,9 +32,9 @@ title: 常见问题
 | Planner 派发了，Implementer 没开始 | runtime 离线或并发满了（任务在排队，排队超过 2 小时会失败）；或者 agent 是 private，而触发链路上的人不是 agent 的创建者：把 `AUTOTEAM_AGENT_ACCESS` 改成 workspace 后 `autoteam multica --apply --only agents` |
 | Reviewer 没被叫醒 | 评论里只写了 `@名字`，没用提及链接 `[@名字](mention://agent/<UUID>)`；或者用了 `/note` |
 | 改了状态为什么没人被叫醒 | Multica 0.5 起，自定义状态不再负责唤醒，唤醒只靠指派和 @提及，见[唤醒规则](../concepts/lifecycle.md#唤醒规则multica-05) |
-| `Can not approve your own pull request` | Implementer 和 Reviewer 用的是同一个 GitHub 账号。准备机器账号；在此之前用试用模式（Reviewer 会改用【批准】评论评审） |
+| `Can not approve your own pull request` | Implementer 和 Reviewer 是同一个身份：两个 `AUTOTEAM_*_APP_ID` 配成了一个，或者还没建 App。建两个 App；在此之前用试用模式（Reviewer 会改用【批准】评论评审） |
 | PR 刚开就被合并了，没经过评审 | 没有平台闸门的仓库里执行了 `gh pr merge --auto`，它会立即合并。确认 Implementer 的指令是最新的（先跑 `merge-mode.sh`，输出 reviewer 时不合并）；根本的解决是让规则集生效 |
-| 检查一通过 PR 就被合并，Reviewer 来不及看 | 规则集的必需检查生效了，但审批数是 0（单账号只能这样），平台看没有别的条件就合并了。`merge-mode.sh` 认出这种情况会输出 `staged`，Implementer 应该开 draft PR——draft 不能开自动合并，要等 Reviewer `gh pr ready` 才放行 |
+| 检查一通过 PR 就被合并，Reviewer 来不及看 | 规则集的必需检查生效了，但审批数是 0（单身份只能这样），平台看没有别的条件就合并了。`merge-mode.sh` 认出这种情况会输出 `staged`，Implementer 应该开 draft PR——draft 不能开自动合并，要等 Reviewer `gh pr ready` 才放行 |
 | `Cannot use -d or --delete-branch when merge queue enabled` | 有合并队列时 `gh pr merge` 不接受 `--delete-branch`：分支由仓库设置 `delete_branch_on_merge` 自动删（`autoteam github --apply` 会打开它），命令里去掉这个参数就行 |
 | `The merge strategy for main is set by the merge queue` | 这不是报错：PR 已经进了合并队列，平台会在临时分支上用最新主干重跑一遍检查再合并，`gh pr view <PR> --json state` 等它变成 MERGED |
 | 开了合并队列后 `mergeStateStatus` 一直是 `BLOCKED` | 有合并队列时这是常态，不代表缺审批：直接合并本来就被禁止，只能走队列。看 `reviewDecision` 和 `gh pr checks` 判断审批和检查，看 `state` 判断有没有合并 |
@@ -54,4 +54,6 @@ title: 常见问题
 | 规则集要求的检查 `check` 一直是 Expected | gate.yml 没在这个 PR 上运行：确认它在默认分支上，触发条件包含 `pull_request` |
 | 合并队列里的 PR 一直等 | gate.yml 必须有 `merge_group` 触发 |
 | 自己改规则文件的 PR 合不了 | 没有别的 Code Owner 能批准，见[修改规则文件](daily.md#修改规则文件) |
-| 机器账号的 fine-grained token 选不到仓库 | 个人账号的仓库，协作者只能用 classic token；或把仓库迁到组织下 |
+| agent 推上去的提交显示成你本人 | 那台机器上没跑过 `gh-app-token.sh --setup-git <角色>`，git 用了系统钥匙串里你登录 `gh` 留下的凭据。跑一次 setup-git，它会先清掉继承来的凭据助手 |
+| `gh-app-token：GitHub 拒绝了 App 的身份（401）` | App ID 和私钥对不上，或本机时钟偏差过大（JWT 的 iat 已经往前挪了 60 秒）|
+| `gh-app-token：App 没有装在 <仓库> 上（404）` | App 建好了但没装，到 App 的 Install App 页面装到这个仓库 |

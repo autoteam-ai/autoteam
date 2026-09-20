@@ -11,7 +11,7 @@ title: 生成的文件
 | `AGENTS.md`（受管块） | 四条全局规则：怎么跑检查、不谎报验证、PR 标题、规则文件 | 模板 | |
 | `Makefile` | `check` / `dev` / `deploy`（只在不存在时创建） | 人 | ✅ |
 | `.jscpd.json` | 重复代码阈值 3%、忽略目录 | 人 | ✅ |
-| `.gitignore`（受管块） | 忽略 jscpd 报告目录和 `ops/agents/local/` | 模板 | |
+| `.gitignore`（受管块） | 忽略 jscpd 报告目录和 `ops/agents/local/`（App 私钥、按量计费的 key 都在这里） | 模板 | |
 | `.github/CODEOWNERS`（受管块） | 规则文件的负责人 | 模板 | ✅ |
 | `.github/pull_request_template.md` | PR 正文：任务编号、检查结果、范围外发现 | 人 | ✅ |
 | `.github/workflows/gate.yml` | 必需检查 `check`：PR 行数、重复代码、`make check` | 人 | ✅ |
@@ -23,6 +23,7 @@ title: 生成的文件
 | `ops/agents/planner.md` 等 4 个 | 角色指令，同步到 Multica | 人 | ✅ |
 | `ops/agents/planner-mcp.json` | Planner 的浏览器自动化（Playwright MCP，可选） | 人 | ✅ |
 | `ops/agents/autopilots/*.md` | 8 个 autopilot 的触发配置和 runbook | 人 | ✅ |
+| `ops/agents/scripts/gh-app-token.sh` | 用 App 私钥铸 token，给 agent 提供 GitHub 身份 | 模板 | ✅ |
 | `ops/agents/scripts/loop-guard.sh` | 统计打回、验收不通过、换人次数，判断是否升级 | 模板 | ✅ |
 | `ops/agents/scripts/merge-mode.sh` | 判断这个 PR 由谁放行、由谁合并（platform / staged / reviewer） | 模板 | ✅ |
 | `ops/agents/scripts/health-metrics.sh` | 代码健康指标 | 模板 | ✅ |

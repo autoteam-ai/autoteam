@@ -2,22 +2,30 @@
 
 这些步骤涉及创建账号、生成凭据或付费，agent 不能代劳。按用户的情况挑出相关的列给他。
 
-## GitHub 机器账号
+## GitHub App
 
-GitHub 不允许 PR 作者批准自己的 PR，所以写代码和评审用不同账号，“写代码的不能评审自己”就由平台保证。
+GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer 用两个不同的 GitHub App，"写代码的不能评审自己"就由平台保证。用 App 而不是机器账号：不用注册邮箱和两步验证、不占席位、Reviewer 可以连写权限都不给。
 
-1. 注册账号（每个账号要单独的邮箱，建议开两步验证），例如 `acme-impl-bot`、`acme-review-bot`、`acme-planner-bot`。
-2. 仓库在组织下：把机器账号加成组织成员（基础权限设为 No permission），再给本仓库 Write 权限。仓库在个人账号下：`autoteam github --apply --bots ...` 会发邀请，用机器账号登录后接受。
-3. 生成 token，只授权本仓库、设过期时间：
+App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做一遍：
 
-   | 账号 | 组织仓库（fine-grained token） | 个人仓库（classic token） |
-   |---|---|---|
-   | impl | Contents 读写、Pull requests 读写 | `repo`；不要勾 `workflow`，这样它推不了工作流文件 |
-   | review | Pull requests 读写、Contents 只读 | `repo` |
-   | planner | Actions 读写、Contents 只读、Pull requests 只读 | `repo` |
+1. 组织（或个人）Settings → Developer settings → GitHub Apps → New GitHub App。
+2. **取消 Webhook 的 Active**（只当身份用，不需要 webhook 服务）；安装范围选 Only on this account。
+3. Repository permissions：
 
-   个人账号的仓库，协作者不能用 fine-grained token，这是 GitHub 的限制；想按最小权限给，就把仓库迁到组织下。
-4. 在对应机器上登录：`gh auth login --with-token < token.txt`，再设 git 身份（`git config --global user.name/user.email`）。不同账号跑在不同机器（或至少不同系统用户、不同容器）上，避免互相读到凭据。
+   | App | 权限 |
+   |---|---|
+   | impl | Contents 读写、Pull requests 读写 |
+   | review | Pull requests 读写、Contents 只读（它不该能推代码） |
+   | planner | Actions 读写、Contents 只读、Pull requests 只读 |
+
+4. 记下 App ID，Generate a private key 下载 `.pem`。
+5. Install App → 只选本仓库。
+6. App ID 填进 `ops/agents/autoteam.conf` 的 `AUTOTEAM_IMPLEMENTER_APP_ID` / `AUTOTEAM_REVIEWER_APP_ID` / `AUTOTEAM_PLANNER_APP_ID`；`.pem` 按角色放到各自机器的 `ops/agents/local/<角色>.pem`（这个目录不会被提交），`chmod 600`。
+7. 在每台 agent 机器上跑一次 `ops/agents/scripts/gh-app-token.sh --setup-git <角色>`，确认输出的是 `<app>[bot]` 而不是你的账号。
+
+私钥是长期凭据，比带过期时间的 token 权限宽：只装这一个仓库、权限给到最小、只放需要它的机器上。泄露了就删掉那把 key 重新生成。
+
+人工账号要留一个：CODEOWNERS 不能写 App，规则文件的 Code Owner 是人，规则文件改动必须由人批准。
 
 ## GitHub 套餐
 

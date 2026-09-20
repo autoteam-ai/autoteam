@@ -35,7 +35,7 @@ autoteam init --workspace <Multica 工作区 slug>
 1. `Makefile` 的 `check` / `dev` / `deploy` 改成真实命令，删掉 `AUTOTEAM-TODO`（[第 0 步](repo.md)）；
 2. `.github/workflows/gate.yml`、`deploy.yml`、`rollback.yml` 补上需要的运行时和 secrets；
 3. `ops/agents/registry.yaml` 按你的订阅账号和机器填，`autoteam runtimes` 列出 runtime（[按额度选 agent](../concepts/quota-routing.md)）；
-4. `ops/agents/autoteam.conf` 填 `AUTOTEAM_HUMAN`（负责批准的 Multica 成员）和机器账号。
+4. `ops/agents/autoteam.conf` 填 `AUTOTEAM_HUMAN`（负责批准的 Multica 成员）和三个 `AUTOTEAM_*_APP_ID`。
 
 检查本地部分：
 
@@ -51,11 +51,11 @@ autoteam doctor --skip-github --skip-multica
 
 ```bash
 autoteam github                  # 预览
-autoteam github --apply          # 有机器账号：--bots impl=<账号>,review=<账号>,planner=<账号>
-autoteam github --apply --trial  # 还没有机器账号：单账号试用模式
+autoteam github --apply          # 建好 App：--apps impl=<App ID>,review=<App ID>,planner=<App ID>
+autoteam github --apply --trial  # 还没建 App：单身份试用模式
 ```
 
-然后按提示完成机器账号的邀请、token 和登录（[第 1–3 步](github.md)）。
+然后按提示建好三个 GitHub App、放好私钥（[第 1–3 步](github.md)）。
 
 ## 6. 配置 Multica
 
