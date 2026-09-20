@@ -98,7 +98,8 @@ case "$1 $2" in
   "autopilot create")
     n=$(jq length "$autopilots")
     id="ap-$((n + 1))"
-    agent_id=$(jq -r --arg n "$(flag --agent "$@")" '.[] | select(.name == $n) | .id' "$agents")
+    # --agent 可以是 ID 也可以是名字，和真 CLI 一致
+    agent_id=$(jq -r --arg n "$(flag --agent "$@")" '[.[] | select(.id == $n or .name == $n)][0].id // ""' "$agents")
     jq --arg id "$id" --arg t "$(flag --title "$@")" --arg a "$agent_id" --arg m "$(flag --mode "$@")" \
        --arg d "$(flag --description "$@")" --arg p "$(flag --project "$@")" \
        '. + [{autopilot: {id: $id, title: $t, assignee_id: $a, execution_mode: $m, description: $d, project_id: $p, status: "active"}, triggers: []}]' \

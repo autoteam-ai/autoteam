@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- **autopilot 改用 agent ID 而不是名字**。Multica 按名字解析 agent 是模糊匹配：工作区里只要存在名字包含它的另一个 agent（比如 `ex-planner` 之于 `planner`），就会报 `ambiguous agent`，8 个 autopilot 全部创建/更新失败。真机装配时撞到的。
+
 ### 真机验证修正的两条
 
 - **Reviewer App 必须有 Contents 写权限**。GitHub 只把「有仓库写权限的身份」提交的批准计入必需审批数：只给 Pull requests 写权限的 App，批准会记录成 APPROVED 但不算数，PR 永远停在 `REVIEW_REQUIRED`。原来按「Reviewer 只读、物理上推不了代码」设计，真机一跑就卡住；`github` 和 `doctor` 现在会在 Reviewer App 缺写权限时报错。代价是「评审者不能推代码」退回指令约束，和机器账号方案一样——**能当硬约束的只有「作者不能批准自己」**，这条已真机验证（Implementer App 批准自己开的 PR 收到 `Can not approve your own pull request`）。

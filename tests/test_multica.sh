@@ -32,10 +32,10 @@ t_multica_apply_creates_everything() {
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10
   assert_eq "$(jq -r '.[] | select(.autopilot.title == "每日摘要") | .triggers[0].cron_expression' "$STUB_STATE/mc-autopilots.json")" "0 9 * * *"
   assert_eq "$(jq -r '.[] | select(.autopilot.title == "每日摘要") | .triggers[0].timezone' "$STUB_STATE/mc-autopilots.json")" "Asia/Shanghai"
-  assert_log "autopilot create --title 每日摘要 --agent planner --mode create_issue"
+  assert_log "autopilot create --title 每日摘要 --agent agent-planner --mode create_issue"
   assert_log "--issue-title-template 每日摘要 {{date}}"
   assert_log "--subscriber Alice"
-  assert_log "autopilot create --title agent 成绩单 --agent auditor"
+  assert_log "autopilot create --title agent 成绩单 --agent agent-auditor"
   assert_eq "$(cat "$STUB_STATE/secret-MULTICA_DEPLOY_HOOK")" "https://api.multica.test/api/webhooks/SECRET-TOKEN-123"
   assert_not_contains "$out" "SECRET-TOKEN-123" "webhook 地址含凭据，不应打印"
   assert_not_contains "$out" "mul_test_token" "token 不应打印"

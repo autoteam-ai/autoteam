@@ -462,6 +462,11 @@ multica_autopilots() {
   done
 }
 
+# agent 名字 -> ID。精确匹配，避免 Multica 的模糊解析把 planner 匹配到 ex-planner
+mc_agent_id() {
+  mc agent list --output json 2>/dev/null | jq -r --arg n "$1" '[.[] | select(.name == $n)][0].id // empty'
+}
+
 multica_autopilot() {
   local f=$1 rows=$2 list=$3 paused=$4 rotate=$5
   local title role mode cron trigger issue_title subscriber agent body id out args
@@ -477,7 +482,13 @@ multica_autopilot() {
   [ -n "$agent" ] || { fail "$f 要求角色 $role，但 registry.yaml 里没有"; return 0; }
   body=$(fm_body "$f")
 
-  args=(--agent "$agent" --mode "$mode" --description "$body")
+  # 传 ID 不传名字：Multica 按名字解析是模糊匹配，工作区里只要有另一个 agent 的名字
+  # 包含这个名字（比如 ex-planner 之于 planner），就会报 ambiguous agent
+  local agent_ref
+  agent_ref=$(mc_agent_id "$agent")
+  [ -n "$agent_ref" ] || agent_ref=$agent
+
+  args=(--agent "$agent_ref" --mode "$mode" --description "$body")
   [ -n "$MC_PROJECT_ID" ] && args+=(--project "$MC_PROJECT_ID")
   if [ "$mode" = create_issue ]; then
     [ -n "$issue_title" ] && args+=(--issue-title-template "$issue_title")
@@ -532,7 +543,7 @@ multica_autopilot() {
 multica_autopilot_same() {
   local id=$1 agent=$2 mode=$3 body=$4 json agent_id
   json=$(mc autopilot get "$id" --output json 2>/dev/null) || return 1
-  agent_id=$(mc agent list --output json | jq -r --arg n "$agent" '[.[] | select(.name == $n)][0].id // empty')
+  agent_id=$(mc_agent_id "$agent")
   # 项目也要比：项目改名或重建后会有新的 project_id，autopilot 还绑在旧项目上的话，
   # Planner 会在旧项目里找任务，查不到就报"无待验收任务"，整条链路悄悄断掉。
   jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" --arg p "$MC_PROJECT_ID" '
