@@ -16,6 +16,7 @@ slug: /
 | [任务状态和唤醒](concepts/lifecycle.md) | 状态流转、Multica 的唤醒规则、防止来回打转、升级 |
 | [按额度选 agent](concepts/quota-routing.md) | 计费模式、registry.yaml、Planner 的选人流程 |
 | [安全边界和保护等级](concepts/guardrails.md) | 哪些是 agent 绕不过的硬约束、哪些只是指令约束；三种保护等级和试用模式 |
+| [四条不变量](concepts/invariants.md) | 实现可以换、不能破的四条；已知偏离的登记表。改动前对照 |
 
 ## 搭建
 

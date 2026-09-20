@@ -138,3 +138,51 @@ t_registry_parsing_and_validation() {
   assert_contains "$out" "至少要 1 个 implementer"
   assert_contains "$out" "rc=1"
 }
+
+# autoteam diff --check：CI 用来挡住"改了模板但没同步到本仓库"的漂移
+t_diff_check_exits_nonzero_on_drift() {
+  setup_ready_repo
+  out=$(autoteam_offline diff --check) ; rc=$?
+  assert_eq "$rc" 0 "刚装完不该有漂移"
+  assert_contains "$out" "与模板一致"
+
+  echo "# 手改的" >> ops/agents/reviewer.md
+  out=$(autoteam_offline diff --check) ; rc=$?
+  assert_eq "$rc" 1 "有漂移要退出码 1"
+  assert_contains "$out" "ops/agents/reviewer.md"
+  assert_contains "$out" "AUTOTEAM_DIFF_IGNORE"
+}
+
+t_diff_check_skips_user_data_and_ignored_files() {
+  setup_ready_repo
+  # registry.yaml 装的是用户数据，和模板不一样是正常的，--check 不该报它
+  out=$(autoteam_offline diff --check) ; rc=$?
+  assert_eq "$rc" 0
+  assert_not_contains "$out" "registry.yaml"
+
+  # 登记为有意改过的文件要被跳过
+  echo "# 本项目加的运行时" >> .github/workflows/gate.yml
+  out=$(autoteam_offline diff --check) ; rc=$?
+  assert_eq "$rc" 1 "还没登记时应该报出来"
+  # 同名键第一条生效，所以要改那一行而不是追加
+  sed -i.bak 's|^AUTOTEAM_DIFF_IGNORE=$|AUTOTEAM_DIFF_IGNORE=.github/workflows/gate.yml|' ops/agents/autoteam.conf
+  out=$(autoteam_offline diff --check) ; rc=$?
+  assert_eq "$rc" 0 "登记之后就不该再报"
+  assert_contains "$out" "已忽略 .github/workflows/gate.yml"
+}
+
+# 升级时 --force 不该覆盖"有意改过"的文件：这是 first-run 里踩过的坑（改过的 gate.yml 被冲掉）
+t_force_skips_files_listed_in_diff_ignore() {
+  setup_ready_repo
+  sed -i.bak 's|^AUTOTEAM_DIFF_IGNORE=$|AUTOTEAM_DIFF_IGNORE=.github/workflows/gate.yml|' ops/agents/autoteam.conf
+  echo "# 本项目加的运行时" >> .github/workflows/gate.yml
+  before=$(shasum .github/workflows/gate.yml | cut -d' ' -f1)
+
+  out=$(autoteam_offline init --force)
+  assert_contains "$out" "跳过 .github/workflows/gate.yml"
+  assert_eq "$(shasum .github/workflows/gate.yml | cut -d' ' -f1)" "$before" "--force 不该覆盖登记过的文件"
+
+  # 显式点名时还是要覆盖，否则没法升级它
+  autoteam_offline init --force .github/workflows/gate.yml >/dev/null
+  assert_not_contains "$(cat .github/workflows/gate.yml)" "本项目加的运行时" "显式点名时应该覆盖"
+}

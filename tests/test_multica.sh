@@ -29,7 +29,7 @@ t_multica_apply_creates_everything() {
   assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$(head -n 1 ops/agents/reviewer.md)"
   assert_log "agent create --name rev-codex --runtime-id rt-b-codex-00000"
   assert_log "--model gpt-5.5"
-  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 8
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10
   assert_eq "$(jq -r '.[] | select(.autopilot.title == "每日摘要") | .triggers[0].cron_expression' "$STUB_STATE/mc-autopilots.json")" "0 9 * * *"
   assert_eq "$(jq -r '.[] | select(.autopilot.title == "每日摘要") | .triggers[0].timezone' "$STUB_STATE/mc-autopilots.json")" "Asia/Shanghai"
   assert_log "autopilot create --title 每日摘要 --agent planner --mode create_issue"
@@ -110,7 +110,7 @@ t_multica_reports_missing_runtime() {
 t_multica_paused_flag() {
   setup_ready_repo
   autoteam_stub multica --apply --paused >/dev/null
-  assert_eq "$(jq '[.[] | select(.autopilot.status == "paused")] | length' "$STUB_STATE/mc-autopilots.json")" 8
+  assert_eq "$(jq '[.[] | select(.autopilot.status == "paused")] | length' "$STUB_STATE/mc-autopilots.json")" 10
 }
 
 t_runtimes_lists_selectors() {

@@ -13,9 +13,10 @@ fi
 
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 conf=$root/ops/agents/autoteam.conf
-conf_get() { sed -n "s/^$1=//p" "$conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]'; }
+conf_get() { sed -n "s/^$1=//p" "$conf" 2>/dev/null | head -n 1 | tr -d '[:space:]'; }
 max_rej=$(conf_get AUTOTEAM_MAX_REVIEW_REJECTIONS)
 max_acc=$(conf_get AUTOTEAM_MAX_ACCEPTANCE_FAILURES)
+max_sw=$(conf_get AUTOTEAM_MAX_IMPLEMENTER_SWITCHES)
 repo=$(conf_get AUTOTEAM_REPO)
 repo_args=()
 [ -n "$repo" ] && repo_args=(--repo "$repo")
@@ -29,7 +30,8 @@ prs=$(gh pr list ${repo_args[@]+"${repo_args[@]}"} --state all --search "$key in
 comments=$("$mc" issue comment list "$key" --full --output json 2>/dev/null || echo '[]')
 
 jq -n --arg key "$key" --argjson prs "$prs" --argjson comments "$comments" \
-  --argjson max_rej "${max_rej:-2}" --argjson max_acc "${max_acc:-2}" '
+  --argjson max_rej "${max_rej:-2}" --argjson max_acc "${max_acc:-2}" \
+  --argjson max_sw "${max_sw:-1}" '
   def rejected: .state == "CHANGES_REQUESTED" or ((.body // "") | startswith("【阻塞】"));
   def marker($m): [(if ($comments | type) == "array" then $comments else ($comments.comments // []) end)[]
                    | select((.content // "") | ltrimstr(" ") | startswith($m))] | length;
@@ -44,13 +46,13 @@ jq -n --arg key "$key" --argjson prs "$prs" --argjson comments "$comments" \
       review_rejections: $rej,
       acceptance_failures: $acc,
       implementer_switches: $sw,
-      limits: {review_rejections: $max_rej, acceptance_failures: $max_acc, implementer_switches: 1},
+      limits: {review_rejections: $max_rej, acceptance_failures: $max_acc, implementer_switches: $max_sw},
       reasons: [
         (if $rej >= $max_rej then "同一个 PR 已被打回 \($rej) 次" else empty end),
         (if $acc >= $max_acc then "验收已不通过 \($acc) 次" else empty end)
       ],
       notes: [
-        (if $sw >= 1 then "已经换过 \($sw) 次 Implementer，再因额度或权限失败就升级" else empty end)
+        (if $sw >= $max_sw then "已经换过 \($sw) 次 Implementer，再因额度或权限失败就升级" else empty end)
       ]
     }
   | .escalate = (.reasons | length > 0)'

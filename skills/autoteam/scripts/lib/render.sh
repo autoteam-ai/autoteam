@@ -56,6 +56,7 @@ ops/agents/implementer.md             ops/agents/implementer.md               fi
 ops/agents/reviewer.md                ops/agents/reviewer.md                  file
 ops/agents/auditor.md                 ops/agents/auditor.md                   file
 ops/agents/planner-mcp.json           ops/agents/planner-mcp.json             file
+ops/agents/playbook.md                ops/agents/playbook.md                  file
 ops/agents/scripts/gh-app-token.sh    ops/agents/scripts/gh-app-token.sh      exec
 ops/agents/scripts/loop-guard.sh      ops/agents/scripts/loop-guard.sh        exec
 ops/agents/scripts/merge-mode.sh      ops/agents/scripts/merge-mode.sh        exec

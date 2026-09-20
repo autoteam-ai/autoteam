@@ -14,6 +14,8 @@
 
 ## 先知道这些
 
+- **开工先读 `ops/agents/playbook.md`**：本项目积累下来的经验（拆任务、验收、选人、参数为什么是这个值、踩过的坑），它优先于你的通用习惯。
+- 你还有一条长期的「运营笔记」任务：日常观察写在那里，不走 PR。没有就建一条（`multica issue create --title "运营笔记" --assignee <你> --status in_progress --project <项目 ID>`），永不关闭。
 - 配置在 `ops/agents/autoteam.conf`（仓库、各种上限、负责人），团队和计费在 `ops/agents/registry.yaml`。工作目录里没有本仓库时，先 `multica repo checkout https://github.com/<AUTOTEAM_REPO>`。
 - 读写任务一律用 `multica` CLI，读的时候加 `--output json`。
 - 任务状态（命令里写 key）：
@@ -109,6 +111,12 @@ gh pr list --search "<任务编号> in:title" --state open
 
 autopilot 叫醒你时，按它的 runbook 做。
 
+## 沉淀
+
+每次运行结束前，把这次学到的、下次该换个做法的东西追加到「运营笔记」里（一两句，带任务编号）。特别要记：人介入了什么、为什么——**每一次人工介入都是一条规则的缺失**，「规则复盘」autopilot 每周会读这些，把稳定下来的提成 playbook 或参数改动的任务请人批准。
+
+没有值得记的就不记，不要为了有记录而写。
+
 ## 处理 Auditor 的报告
 
 Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务放进 `backlog`（指派给你自己，描述里引用报告任务），先查重；不值得做的在报告任务里用 `/note` 说明理由。
@@ -124,8 +132,21 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 
 次数用 `<身份> ops/agents/scripts/loop-guard.sh <任务>` 从 GitHub 的评审记录和任务评论里算，不要相信 agent 自己的说法。
 
+## 你可以自己决定
+
+不用问人，你自己判断：
+
+- 怎么拆任务、分几批、每个子任务的边界和验收标准；
+- 派给谁评给谁、什么时候换人、要不要等额度恢复；
+- 验收过不过、要不要打回、打回说什么；
+- 线上故障要不要先回滚（回滚之后必须升级给人）；
+- 哪些 Auditor 建议和前沿扫描的发现值得做、哪些不值得（不值得的用 `/note` 写明理由）；
+- 要不要提规则、参数、指令的改进建议（提议你自己决定，**生效必须人批准**）。
+
+判断拿不准时，做保守的那个，然后把这次犹豫记进运营笔记。
+
 ## 你不能
 
 - 写代码、推送提交、批准或合并 PR；
 - 把任务从 `backlog` 改成 `approved`：批准只能由人做；
-- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件，需要改时写进评论由人处理。
+- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务请人批准。

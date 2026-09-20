@@ -17,7 +17,8 @@ init_usage() {
   --workspace <slug>       Multica 工作区
   --human <成员名>         在 Multica 里负责批准和接收升级的成员
   --timezone <时区>        autopilot 时区（默认 Asia/Shanghai）
-  --force                  覆盖与模板不同的文件（autoteam.conf、registry.yaml 除外）
+  --force                  覆盖与模板不同的文件（autoteam.conf、registry.yaml，以及
+                           AUTOTEAM_DIFF_IGNORE 登记的文件除外；显式点名时才动后者）
   --dry-run                只列出会做什么
 EOF
 }
@@ -57,10 +58,17 @@ cmd_init() {
   fi
 
   section "生成文件"
-  local tpl target mode
+  local tpl target mode ignore
+  # 登记为"有意改过"的文件，--force 也不覆盖；显式点名时才动它
+  ignore=,${AUTOTEAM_DIFF_IGNORE// /},
   while read -r tpl target mode; do
     [ -n "$tpl" ] || continue
     [ "$only" = " " ] || case $only in *" $target "*) ;; *) continue ;; esac
+    if [ "$AUTOTEAM_FORCE" = 1 ] && [ "$only" = " " ]; then
+      case $ignore in
+        *",$target,"*) info "跳过 $target（AUTOTEAM_DIFF_IGNORE 登记为有意改过）"; continue ;;
+      esac
+    fi
     init_install "$tpl" "$target" "$mode"
   done <<EOF
 $(autoteam_manifest)
@@ -223,27 +231,38 @@ diff_usage() {
 用法：autoteam diff [文件...]
 
 对比已安装的文件和当前模板渲染结果（受管块只比较块内内容）。不指定文件时对比全部。
+
+选项：
+  --check   有差异时退出码为 1，给 CI 用来挡住模板漂移。跳过 autoteam.conf、
+            registry.yaml 这类用户数据，以及 AUTOTEAM_DIFF_IGNORE 里登记的文件
 EOF
 }
 
 cmd_diff() {
-  local only=" " a
+  local only=" " a check=0
   for a in "$@"; do
     case $a in
       -h|--help) diff_usage; return 0 ;;
-      *) only="$only$a " ;;
+      --check) check=1 ;;
+      *) only="$only${a#./} " ;;
     esac
   done
-  local root tmp tpl target mode content changed=0
+  local root tmp tpl target mode content ignore changed=0
   root=$(repo_root)
   cd "$root" || die "进不去 $root"
   conf_exists "$root" || die "还没有 $AUTOTEAM_CONF_REL，先运行 autoteam init"
   conf_load "$root"
   init_derived_vars
   tmp=$(autoteam_tmpdir)
+  ignore=,${AUTOTEAM_DIFF_IGNORE// /},
   while read -r tpl target mode; do
     [ -n "$tpl" ] || continue
     [ "$only" = " " ] || case $only in *" $target "*) ;; *) continue ;; esac
+    if [ "$check" = 1 ]; then
+      # autoteam.conf 和 registry.yaml 装的是用户数据，本来就该和模板不一样
+      [ "$mode" != config ] || continue
+      case $ignore in *",$target,"*) info "已忽略 $target（AUTOTEAM_DIFF_IGNORE）"; continue ;; esac
+    fi
     content=$(render_file "$AUTOTEAM_TEMPLATES/$tpl"; printf x)
     content=${content%x}
     if [ ! -e "$target" ]; then
@@ -268,6 +287,12 @@ cmd_diff() {
 $(autoteam_manifest)
 gitignore.block                       .gitignore                              block
 EOF
-  [ "$changed" = 0 ] && info "与模板一致"
+  if [ "$changed" = 0 ]; then
+    info "与模板一致"
+  elif [ "$check" = 1 ]; then
+    fail "有文件和模板不一致"
+    hint "没改过的用 autoteam init --force <文件...> 覆盖；有意改过的写进 autoteam.conf 的 AUTOTEAM_DIFF_IGNORE"
+    return 1
+  fi
   return 0
 }

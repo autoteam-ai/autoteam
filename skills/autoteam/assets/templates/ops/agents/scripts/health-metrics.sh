@@ -5,10 +5,14 @@
 #   legacy_touch_pct  近 N 天（默认 30）改过的文件里，上一次改动在一年以前的比例：老代码有没有人维护
 #   rework_14d_pct    近 14 天改过的文件里，前 14 天也改过的比例：两周内返工
 #   prs_7d            近 7 天合并的 PR：数量、改动行数中位数和 75 分位、一次通过率、平均打回次数
+#   human_7d          近 7 天人（autoteam.conf 的 AUTOTEAM_OWNER）在 GitHub 上的介入次数：
+#                     自己提交了多少次、评审了多少个 PR。这套流程做得好不好，看它降不降
 # 依赖 git、jq；PR 指标需要已登录的 gh；重复代码需要 npx（设 AUTOTEAM_SKIP_JSCPD=1 跳过）。
 set -eo pipefail
 
-format=md days=30
+format=md
+days=$(sed -n 's/^AUTOTEAM_METRICS_DAYS=//p' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/ops/agents/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
+days=${days:-30}
 while [ $# -gt 0 ]; do
   case $1 in
     --json) format=json ;;
@@ -80,7 +84,24 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   fi
 fi
 
+# 5. 近 7 天人的介入。批准任务是设计内的动作不算，这里只数人自己动手写和评审代码：
+#    它应该随着规则变好而下降，是"越来越符合人工期望"唯一客观的指标
+human=null
+owner=$(sed -n 's/^AUTOTEAM_OWNER=//p' "$root/ops/agents/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
+if [ -n "$owner" ]; then
+  commits=$(git log --since="7 days ago" --author="$owner" --oneline 2>/dev/null | grep -c . || true)
+  reviews=null
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    since7=$(jq -rn 'now - 7 * 86400 | strftime("%Y-%m-%d")')
+    if rv=$(gh pr list --state all --search "reviewed-by:$owner updated:>=$since7" --limit 100 --json number 2>/dev/null); then
+      reviews=$(jq 'length' <<<"$rv")
+    fi
+  fi
+  human=$(jq -n --argjson c "${commits:-0}" --argjson r "$reviews" '{commits: $c, reviews: $r}')
+fi
+
 json=$(jq -n \
+  --argjson human "$human" \
   --argjson dup "$dup" \
   --argjson legacy "$(pct "$legacy" "$total")" --argjson files "$total" --argjson days "$days" \
   --argjson rework "$(pct "$both" "$w1")" \
@@ -92,7 +113,8 @@ json=$(jq -n \
     legacy_window_days: $days,
     files_changed: $files,
     rework_14d_pct: $rework,
-    prs_7d: $prs
+    prs_7d: $prs,
+    human_7d: $human
   }')
 
 if [ "$format" = json ]; then
@@ -111,6 +133,7 @@ jq -r '
   "| PR 改动行数 中位数 / 75 分位 | \(.prs_7d.size_p50 | v) / \(.prs_7d.size_p75 | v) |",
   "| 评审一次通过率 % | \(.prs_7d.first_pass_pct | v) |",
   "| 平均打回次数 | \(.prs_7d.avg_rejections | v) |",
+  "| 人工介入：本人提交 / 评审 PR（近 7 天） | \(.human_7d.commits | v) / \(.human_7d.reviews | v) |",
   "",
   "生成时间 \(.generated_at)"
 ' <<<"$json"
