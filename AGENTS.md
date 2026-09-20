@@ -9,6 +9,7 @@
   - `assets/templates/` 装进用户项目的文件，占位符写 `{{AUTOTEAM_名字}}`；
   - `SKILL.md`、`references/` 是给编码 agent 看的。
 - `bin/autoteam` 只是薄包装，不要在这里加逻辑。
+- `package.json` 和 `scripts/release.sh` 是 npm 包（包名 `autoteam`）的清单和发布脚本；`files` 只放 `bin/`、`skills/autoteam/`、`docs/`，新增顶层目录要同步它。
 - `docs/` 是给人看的文档，`tests/` 是测试（`stubs/` 下是 gh、multica、curl 的桩）。
 
 ## 约定
@@ -28,3 +29,14 @@ bash tests/run.sh multica   # 只跑名字里带 multica 的测试
 ```
 
 不要声称检查通过，除非你真的跑了。
+
+## 发布
+
+`make deploy` 发布到 npm（本仓库的 deploy 就是发包）。发布前 `scripts/release.sh` 会核对 `package.json`、`skills/autoteam/scripts/lib/common.sh` 的 `AUTOTEAM_VERSION`、CHANGELOG 三处版本号，并把打出的包真的跑一遍。
+
+```bash
+make deploy DRY_RUN=1   # 只检查和打包，不需要 npm 凭据，随时可跑
+make deploy             # 真的发布：要求工作区干净、npm 已登录（CI 里用 NODE_AUTH_TOKEN）；该版本已发过则跳过
+```
+
+发布是对外的、撤不回的动作：改版本号（三处一起）、CHANGELOG 定版、合并后，由人来执行。

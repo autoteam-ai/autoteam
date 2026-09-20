@@ -1,13 +1,14 @@
 # 本仓库的检查：make check = shellcheck + actionlint + 单元测试。
+# 发布：make deploy 把包发到 npm（先 make deploy DRY_RUN=1 演练）。
 # 本机没装 shellcheck / actionlint 时用 docker 镜像跑。
 SHELL := /bin/bash
 SHELLCHECK_IMAGE := koalaman/shellcheck:v0.11.0
 ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12
-SCRIPTS := bin/autoteam skills/autoteam/scripts/autoteam $(wildcard skills/autoteam/scripts/lib/*.sh) \
+SCRIPTS := bin/autoteam scripts/release.sh skills/autoteam/scripts/autoteam $(wildcard skills/autoteam/scripts/lib/*.sh) \
   $(wildcard skills/autoteam/assets/templates/ops/agents/scripts/*.sh) \
   tests/run.sh tests/lib.sh tests/render-workflows.sh $(wildcard tests/test_*.sh) $(wildcard tests/stubs/*)
 
-.PHONY: check test lint shellcheck actionlint
+.PHONY: check test lint shellcheck actionlint deploy
 
 check: lint test ## 全部检查
 
@@ -25,3 +26,6 @@ actionlint: ## 检查本仓库的 CI 和渲染后的工作流模板
 	@if command -v actionlint >/dev/null 2>&1; then actionlint .github/workflows/*.yml tests/.work/actionlint/.github/workflows/*.yml; \
 	else docker run --rm -v "$(CURDIR):/repo" -w /repo $(ACTIONLINT_IMAGE) .github/workflows/*.yml tests/.work/actionlint/.github/workflows/*.yml; fi
 	@echo "actionlint 通过"
+
+deploy: ## 发布到 npm；DRY_RUN=1 只检查和打包，版本已发过则跳过
+	@bash scripts/release.sh

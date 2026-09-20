@@ -120,7 +120,7 @@ ops/agents/                    配置、团队清单、四个角色指令、8 �
 make check   # shellcheck + actionlint + 单元测试；本机没装 linter 时用 docker 镜像
 ```
 
-维护约定见 [AGENTS.md](AGENTS.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)。
+发布到 npm 用 `make deploy`（`make deploy DRY_RUN=1` 先演练）。维护约定见 [AGENTS.md](AGENTS.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可
 
