@@ -248,8 +248,10 @@ EOF
       # runtime 在线不代表 agent CLI 能用（比如订阅登录过期），看最近一次运行
       last=$(mc agent tasks "$id" --output json 2>/dev/null | jq -c '[.[] | select(.status == "completed" or .status == "failed")][0] // empty')
       if [ -n "$last" ] && [ "$(jq -r '.status' <<<"$last")" = failed ]; then
-        warn "agent $name 最近一次运行失败：$(jq -r '.error // .failure_reason // "未知原因"' <<<"$last" | head -n 1)"
-        hint "登录、额度类错误要到 runtime 所在的机器上处理，比如重新登录对应的 agent CLI"
+        # 带上时间：这是历史记录，处理完也要等下一次成功运行才会消失
+        when=$(jq -r '.completed_at // .started_at // ""' <<<"$last" | cut -c1-16 | tr T ' ')
+        warn "agent $name 最近一次运行失败${when:+（$when UTC）}：$(jq -r '.error // .failure_reason // "未知原因"' <<<"$last" | head -n 1)"
+        hint "登录、额度类错误要到 runtime 所在的机器上处理，比如重新登录对应的 agent CLI；已经处理过的话，这条会留到下一次成功运行"
       fi
     done <<EOF
 $rows
