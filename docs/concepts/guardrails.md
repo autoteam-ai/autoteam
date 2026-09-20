@@ -18,6 +18,7 @@ title: 安全边界和保护等级
 | 约束 | 由什么保证 | agent 能绕过吗 |
 |---|---|---|
 | 写代码的不能评审自己 | Implementer、Reviewer 用两个不同的 GitHub App；GitHub 不允许作者批准自己的 PR | 不能（前提是两个 App 不同） |
+| Implementer 不能改工作流 | impl App 没有 `workflows` 权限，推含 `.github/workflows/` 的提交会被 GitHub 拒 | 不能 |
 | 不过检查不能合并 | 规则集的必需检查 `check`，只认 GitHub Actions 上报的结果（integration_id 15368），防止用 API 伪造状态 | 不能 |
 | 新提交会作废旧批准 | 规则集：dismiss stale reviews、require approval of the most recent push | 不能 |
 | 规则文件只能由人改 | CODEOWNERS 保护 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json`，规则集要求 Code Owner 审批 | 不能 |
@@ -73,7 +74,7 @@ title: 安全边界和保护等级
 
 ## 凭据
 
-- 每个 App 只装本仓库、权限给到最小（见[第 1–3 步 GitHub](../setup/github.md#三个-github-app)）。Reviewer App 不给 Contents 写权限，它物理上推不了代码。
+- 每个 App 只装本仓库、权限给到最小（见[第 1–3 步 GitHub](../setup/github.md#三个-github-app)）。注意 **Reviewer App 必须有 Contents 写权限**，否则它的批准不计入必需审批数；「评审者不能推代码」因此只是指令约束。
 - App 私钥是长期凭据，只放需要它的那台机器上；不同角色跑在不同机器（至少不同系统用户或容器），避免互相读到私钥。泄露了到 App 设置里删掉那把 key 重新生成，已铸出的 token 最多 1 小时后失效。
 - Multica agent 的 `custom_env`（registry 的 `env_file`）以明文存在 Multica 服务端，不要放生产数据库密码这类高价值的长期凭据。
 - 部署 webhook 地址里带凭据，只存在 GitHub secret `MULTICA_DEPLOY_HOOK` 里，autoteam 不会打印它；泄露了就 `autoteam multica --apply --rotate-webhook` 重新生成。

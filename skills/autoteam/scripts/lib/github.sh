@@ -320,9 +320,11 @@ github_app_check() {
     return 0
   fi
   ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已安装"
-  # Reviewer 不该有写代码的权限：这是 App 方案比机器账号强的地方，别把它浪费掉
-  if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" = write ]; then
-    warn "Reviewer App 有 contents 写权限：它本来就不该能推代码，去 App 设置里降成 Read"
+  # App 的批准只有在它有仓库写权限时才计入必需审批数（真机验证过：只给 Pull requests
+  # 写权限的 App，审批不算数，PR 会一直停在 REVIEW_REQUIRED）
+  if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" != write ]; then
+    fail "Reviewer App 没有 Contents 写权限：它的批准不会计入必需审批数，PR 会永远卡在等审批"
+    hint "去 App 设置把 Contents 改成 Read and write，再到 Install 页面接受新权限"
   fi
   if [ "$(jq -r '.repository_selection // ""' <<<"$row")" = all ]; then
     warn "$role App 装在了组织的全部仓库上：改成只选 $AUTOTEAM_REPO，缩小私钥泄露时的影响面"
@@ -333,7 +335,8 @@ github_app_table() {
   info ""
   info "三个 App 各自的权限（都只装本仓库，私钥放各自机器的 ops/agents/local/<角色>.pem）："
   info "  impl     Contents 读写、Pull requests 读写   推分支、开 PR、开自动合并"
-  info "  review   Pull requests 读写、Contents 只读   提交评审；没有写权限，它推不了代码"
+  info "  review   Contents 读写、Pull requests 读写   提交评审。写权限不能省：App 的批准"
+  info "                                              只有在它有写权限时才计入必需审批数"
   info "  planner  Actions 读写、Contents 只读、Pull requests 只读   查 PR、触发回滚"
   hint "App 由人在 GitHub 上创建和安装，autoteam 不会也不能代做；建完把 App ID 填进 autoteam.conf"
 }

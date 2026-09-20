@@ -15,12 +15,14 @@ autoteam github --apply            # 执行
 
 GitHub 不允许 PR 作者批准自己的 PR。只要 Implementer 和 Reviewer 是**两个不同的 GitHub 身份**，"写代码的不能评审自己"就由平台保证，agent 绕不过去。
 
-身份用 GitHub App，不用机器账号：不用注册邮箱和两步验证、不占席位、权限按 App 定义而不是靠选 token 范围，而且 **Reviewer App 可以连写权限都不给——它物理上推不了代码**。
+身份用 GitHub App，不用机器账号：不用注册邮箱和两步验证、不占席位、权限按 App 定义而不是靠选 token 范围。
+
+**Reviewer App 必须给 Contents 读写。** 这一条是真机验证出来的：GitHub 只把"有仓库写权限的身份"提交的批准计入必需审批数，只给 Pull requests 写权限的 App，批准会被记录成 APPROVED 但**不算数**，PR 一直停在 `REVIEW_REQUIRED`。所以"Reviewer 不能推代码"只能靠指令约束，和机器账号方案一样。
 
 | App | 给谁用 | 权限（都只装本仓库） |
 |---|---|---|
 | `<前缀>-impl` | 所有 Implementer | Contents 读写、Pull requests 读写 |
-| `<前缀>-review` | 所有 Reviewer | Pull requests 读写、Contents **只读** |
+| `<前缀>-review` | 所有 Reviewer | Pull requests 读写、Contents 读写（**不能省**，见下） |
 | `<前缀>-planner` | Planner、Auditor | Actions 读写、Contents 只读、Pull requests 只读 |
 
 ### 建 App
