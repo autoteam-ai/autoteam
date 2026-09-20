@@ -48,9 +48,29 @@
 
 问题 5 最值得记住：在降级模式下，“合并只由平台判断”这条原则完全靠指令维持，一条命令的默认行为就能绕过它。正式使用请让规则集生效（仓库改公开、升级 Pro 或迁到 Team 组织）。
 
-### 需要人处理的环境问题（第一轮）
+### 第二轮：拿到完整闸门之后
 
-- devcontainer-cloud 上 Claude Code 的登录、devcontainer.local 上 Codex 的登录都已过期，要到机器上重新登录；在此之前 Claude 系 agent 放本地、Codex 系 agent 放云端。
+迁到组织的公开仓库，规则集、自动合并、合并队列全部可用。新问题都出在"配置看起来成功了，链路其实断着"这一类：
+
+| # | 问题 | 修正 |
+|---|---|---|
+| 1 | 规则集生效了，但单账号下审批数只能设 0，检查一绿平台就合并，Reviewer 来不及看 | 新增 `staged` 模式：Implementer 开 draft PR（draft 不能开自动合并），Reviewer 批准后 `gh pr ready` 放行 |
+| 2 | 项目改名后 autopilot 还绑着旧 `project_id`，照常运行、照常成功，只是在旧项目里找任务，Planner 一直报"无待验收任务" | apply 时比对 `project_id`，doctor 把绑错项目当错误报 |
+| 3 | 给 Reviewer 配了机器账号的 `env_file`，apply 却报"已是最新"——env 读不回来没法比对，判断里又漏了它，token 一次都没同步 | 和 MCP 配置一样：registry 里写了就每次重写 |
+| 4 | `require_last_push_approval` 让人改规则文件时谁都合不了：`ops/agents/` 只有人能批，而人又是推的那个 | 不再开这条。`dismiss_stale_reviews_on_push` 已经覆盖它防的风险，对 agent 流程它不增加任何保护 |
+
+2 和 3 是同一类错误，都是**比对不全面导致"已是最新"撒谎**。这类问题最难发现：命令返回成功，doctor 全绿，只有跑到那一步才发现链路是断的。现在两条都有回归测试。
+
+两个用得上的技术细节：
+
+- 开了合并队列后，`gh pr merge` 不能带 `--delete-branch`（直接报错），分支由仓库设置 `delete_branch_on_merge` 自动删；`mergeStateStatus` 也会一直是 `BLOCKED`，那是"只能走队列"的意思，不代表缺审批。
+- 要让 git push 换成机器账号的身份，得先清空凭据助手列表再加自己的，否则系统钥匙串里的凭据优先：
+  `git -c credential.helper= -c credential.helper='!f() { echo username=x-access-token; echo password=$BOT_TOKEN; }; f' push`
+
+### 需要人处理的环境问题
+
+- agent CLI 的订阅登录会过期（两台机器上各踩过一次）。runtime 显示在线不代表 CLI 能用，`autoteam doctor` 会报出每个 agent 最近一次运行失败的原因和时间。
 - 所有 Claude 系 agent 共用一个 Pro 订阅，一个小需求就撞到了 5 小时会话上限。额度紧张时加其他厂商或按量计费的 agent 分担。
+- 要用上完整闸门，需要一个独立的机器账号当 Reviewer：GitHub 不允许作者批准自己的 PR，没有第二个账号，规则集的审批数只能设 0。
 
 <!-- e2e-report -->
