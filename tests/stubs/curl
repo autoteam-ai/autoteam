@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# curl 桩：只模拟 autoteam 调的 Multica 状态接口 /api/issue-statuses。
+# curl 桩：模拟 Multica 的状态接口 /api/issue-statuses，以及 GitHub App 铸 token 的三个接口。
 set -o pipefail
 state=${STUB_STATE:?}
-method=GET out="" data="" url="" cfg=""
+method=GET out="" data="" url="" cfg="" bearer=""
 while [ $# -gt 0 ]; do
   case $1 in
     -K) [ "$2" = - ] && cfg=$(cat); shift 2 ;;
     -X) method=$2; shift 2 ;;
     -o) out=$2; shift 2 ;;
-    -w|-H) shift 2 ;;
+    -H) case $2 in "Authorization: Bearer "*) bearer=${2#Authorization: Bearer } ;; esac; shift 2 ;;
+    -w) shift 2 ;;
     --data-binary) data=$(cat "${2#@}"); shift 2 ;;
     -*) shift ;;
     *) url=$1; shift ;;
@@ -16,6 +17,32 @@ while [ $# -gt 0 ]; do
 done
 case $cfg in *"Authorization: Bearer "*) auth=ok ;; *) auth=missing ;; esac
 printf 'curl %s %s auth=%s\n' "$method" "$url" "$auth" >> "$STUB_LOG"
+
+# GitHub App：铸 installation token 用。这里不写文件，按 -w '%{http_code}' 的约定把状态码跟在正文后面
+case $url in
+  https://api.github.com/*)
+    segs=$(printf '%s' "$bearer" | awk -F. '{print NF}')
+    printf 'JWT segments=%s\n' "$segs" >> "$STUB_LOG"
+    case $bearer in
+      ghs_*) ;;  # installation token
+      *) [ "$segs" = 3 ] || { printf '{"message":"Bad credentials"}\n401'; exit 0; } ;;
+    esac
+    case ${url#https://api.github.com} in
+      /repos/*/installation) printf '{"id":98765,"app_slug":"acme-impl"}\n200' ;;
+      # /users/ 不吃 App 的 JWT，只认 installation token。真的 GitHub 会返回 401，
+      # 桩也照做——这个区别踩过一次坑
+      /users/*)
+        case $bearer in
+          ghs_*) printf '{"id":4242}\n200' ;;
+          *) printf '{"message":"Bad credentials"}\n401' ;;
+        esac ;;
+      /app/installations/*/access_tokens)
+        printf 'BODY POST access_tokens\n' >> "$STUB_LOG"
+        printf '{"token":"ghs_stubtoken","expires_at":"2099-01-01T00:00:00Z"}\n201' ;;
+      *) printf '{"message":"not found"}\n404' ;;
+    esac
+    exit 0 ;;
+esac
 statuses=$state/mc-statuses.json
 [ -f "$statuses" ] || echo '[]' > "$statuses"
 case "$method ${url#https://api.multica.test}" in

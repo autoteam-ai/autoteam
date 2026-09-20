@@ -5,3 +5,9 @@
 /dist/
 /node_modules/
 .DS_Store
+
+# >>> autoteam >>>
+# jscpd 报告目录；registry.yaml 里 env_file 指向的本地环境变量文件（可能含密钥）
+/report/
+/ops/agents/local/
+# <<< autoteam <<<

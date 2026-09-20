@@ -71,7 +71,7 @@ cd your-project
 | GitHub 仓库 | 你有 admin 权限；`gh` 已登录 |
 | `bash`、`git`、`jq`、`curl` | macOS 自带的 bash 3.2 也可以 |
 | Multica | CLI 0.5 以上；运行 `autoteam multica` 的人是工作区 owner 或 admin；至少一台机器跑着 daemon，agent CLI 已登录订阅 |
-| 机器账号（推荐） | 写代码和评审用不同的 GitHub 账号；没有就先用单账号试用模式 |
+| GitHub App | 写代码和评审用两个不同的 App 身份（不用注册机器账号）；没有就先用单身份试用模式 |
 
 GitHub 套餐决定平台闸门能做到什么程度：
 
@@ -102,7 +102,7 @@ ops/agents/                    配置、团队清单、四个角色指令、8 �
 
 在线文档：<https://autoteam.hdgcs.com/>。根地址默认打开最新发布版本，也可以在页面顶部切换到开发版或历史版本。
 
-- 概念：[为什么要自管理](docs/concepts/why.md) · [四个角色](docs/concepts/roles.md) · [任务状态和唤醒](docs/concepts/lifecycle.md) · [按额度选 agent](docs/concepts/quota-routing.md) · [安全边界和保护等级](docs/concepts/guardrails.md)
+- 概念：[为什么要自管理](docs/concepts/why.md) · [四个角色](docs/concepts/roles.md) · [任务状态和唤醒](docs/concepts/lifecycle.md) · [按额度选 agent](docs/concepts/quota-routing.md) · [安全边界和保护等级](docs/concepts/guardrails.md) · [四条不变量](docs/concepts/invariants.md)
 - 搭建：[前提条件](docs/setup/prerequisites.md) · [快速上手](docs/setup/quickstart.md) · [第 0 步 准备仓库](docs/setup/repo.md) · [第 1–3 步 GitHub](docs/setup/github.md) · [第 4–6 步 Multica](docs/setup/multica.md) · [第 7 步 跑通第一个需求](docs/setup/first-run.md)
 - 日常：[日常操作](docs/operations/daily.md) · [每周指标](docs/operations/metrics.md) · [常见问题](docs/operations/troubleshooting.md)
 - 参考：[autoteam 命令](docs/reference/cli.md) · [配置文件](docs/reference/config.md) · [生成的文件](docs/reference/files.md) · [代价和风险](docs/limitations.md)
@@ -113,7 +113,7 @@ ops/agents/                    配置、团队清单、四个角色指令、8 �
 
 - **Multica 0.5 改了状态模型**：自定义状态不再继承“进入即唤醒”等行为。所以唤醒下一个角色全部靠显式指派或评论里的 @提及，自定义状态只表示看板上的进度。详见[任务状态和唤醒](docs/concepts/lifecycle.md)。
 - **GitHub Free 的私有仓库没有规则集和自动合并**：autoteam 会识别出来并降级：Implementer 不开自动合并（这种仓库里 `gh pr merge --auto` 会立即合并），Reviewer 批准后在检查通过时自己合并，doctor 标出哪些闸门没有生效。
-- **个人账号的仓库，协作者不能用 fine-grained token**：机器账号只能用 classic token；想按最小权限给，把仓库放到组织下。
+- **身份用 GitHub App，不用机器账号**：研究文档里是三个机器账号，落地时改成三个 GitHub App。不变量没变（两个不同身份 → 平台挡住作者批准自己），但不用注册邮箱和两步验证、不占席位，而且 Reviewer App 可以连写权限都不给。代价是私钥要放在 agent 机器上，比带过期时间的 token 权限宽。
 - **每日摘要改用 create_issue 模式**：run_only 的结果只在运行历史里，人收不到通知。
 
 ## 开发

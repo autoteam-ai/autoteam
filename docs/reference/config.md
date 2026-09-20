@@ -15,7 +15,7 @@ title: 配置文件
 | `AUTOTEAM_REPO` | 从 git remote 识别 | GitHub 仓库 owner/name |
 | `AUTOTEAM_DEFAULT_BRANCH` | 仓库默认分支 | deploy.yml 监听的分支 |
 | `AUTOTEAM_OWNER` | 当前 gh 用户 | 规则文件的负责人，写进 CODEOWNERS |
-| `AUTOTEAM_IMPL_BOT` / `AUTOTEAM_REVIEW_BOT` / `AUTOTEAM_PLANNER_BOT` | 空 | 机器账号，`autoteam github --apply` 邀请为协作者 |
+| `AUTOTEAM_IMPLEMENTER_APP_ID` / `AUTOTEAM_REVIEWER_APP_ID` / `AUTOTEAM_PLANNER_APP_ID` | 空 | 三个角色各自的 GitHub App ID。impl 和 review 必须不同，否则作者要批准自己的 PR，GitHub 会拒。私钥放 `ops/agents/local/<角色>.pem` |
 | `AUTOTEAM_MULTICA_WORKSPACE` | 空 | Multica 工作区 slug |
 | `AUTOTEAM_MULTICA_PROJECT` | 仓库名 | Multica 项目标题 |
 | `AUTOTEAM_HUMAN` | 空（运行 autoteam 的人） | 负责批准、接收升级的成员名；每日摘要的订阅人 |
@@ -25,6 +25,12 @@ title: 配置文件
 | `AUTOTEAM_PR_MAX_LINES` | 400 | 单个 PR 改动行数上限 |
 | `AUTOTEAM_MAX_REVIEW_REJECTIONS` | 2 | 同一个 PR 打回上限 |
 | `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` | 2 | 同一个任务验收不通过上限 |
+| `AUTOTEAM_MAX_IMPLEMENTER_SWITCHES` | 1 | 同一个任务换几次 Implementer 之后升级 |
+| `AUTOTEAM_SHIPPING_RECHECK_HOURS` | 1 | shipping 超过几小时没验收，巡检补查 |
+| `AUTOTEAM_METRICS_DAYS` | 30 | health-metrics 默认窗口 |
+| `AUTOTEAM_PR_SIZE_EXCLUDE` | lock 文件 + `.github/**` + `ops/agents/**` | 不计入 PR 行数上限的路径，逗号分隔 |
+| `AUTOTEAM_DIFF_IGNORE` | 空 | `autoteam diff --check` 跳过的文件，逗号分隔：按本项目需要改过、不打算跟模板一致的 |
+| `AUTOTEAM_CRON_*` | 见模板 | 9 个 autopilot 各自的 cron，见下 |
 | `AUTOTEAM_DEPLOY_ENVIRONMENT` | production（Free 私有仓库为空） | 部署用的 GitHub environment |
 | `AUTOTEAM_TIMEZONE` | Asia/Shanghai | autopilot 定时触发的时区 |
 
@@ -73,6 +79,25 @@ subscriber: human
 | `trigger` | 默认 schedule；写 `webhook` 表示 webhook 触发，地址写进 GitHub secret `MULTICA_DEPLOY_HOOK` |
 | `issue_title` | create_issue 模式的任务标题，只支持 `{{date}}` |
 | `subscriber` | create_issue 模式下通知谁；`human` 表示 `AUTOTEAM_HUMAN`（为空时是运行 autoteam 的人） |
+
+**阈值和 cron 的区别**：正文里的阈值写成“读 autoteam.conf 的 X”，改完 conf 立即生效；front matter 的 `cron` 必须是具体值（Multica 要），所以写成 `{{AUTOTEAM_CRON_*}}` 占位符，改完 conf 要重新渲染：
+
+```bash
+autoteam init --force ops/agents/autopilots/patrol.md   # 重新渲染
+autoteam multica --apply --only autopilots              # 同步到 Multica
+```
+
+| conf 键 | 对应 autopilot | 默认 |
+|---|---|---|
+| `AUTOTEAM_CRON_PATROL` | 推进巡检 | `0 */2 * * *` |
+| `AUTOTEAM_CRON_DAILY_DIGEST` | 每日摘要 | `0 9 * * *` |
+| `AUTOTEAM_CRON_SCORECARD` | agent 成绩单 | `0 8 * * 1` |
+| `AUTOTEAM_CRON_CONSOLIDATION` | 整合审计 | `0 9 * * 1` |
+| `AUTOTEAM_CRON_ROADMAP` | 路线图对账 | `0 10 * * 1` |
+| `AUTOTEAM_CRON_FRONTIER` | 前沿扫描 | `0 11 * * 1` |
+| `AUTOTEAM_CRON_RULE_REVIEW` | 规则复盘 | `0 12 * * 1` |
+| `AUTOTEAM_CRON_SPEC_RECONCILE` | 规格对账 | `0 9 * * 5` |
+| `AUTOTEAM_CRON_LEGACY_SWEEP` | 老代码巡检 | `0 3 1 * *` |
 
 加一个新的 autopilot：新建一个 md 文件，合并后 `autoteam multica --apply`。删除一个：删文件后到 Multica 界面里删掉对应的 autopilot（autoteam 不会删除任何东西）。
 

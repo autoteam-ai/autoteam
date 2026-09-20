@@ -21,19 +21,24 @@ jobs:
       #   with:
       #     node-version: 22
 
-      # PR 改动行数上限在 ops/agents/autoteam.conf 的 AUTOTEAM_PR_MAX_LINES（默认 400，参考 AI PR 的 75 分位 408 行）。
-      # lock 文件不计；规则文件（.github/、ops/agents/）受 CODEOWNERS 保护、由人批准，也不计
+      # 上限和不计入的路径都在 ops/agents/autoteam.conf：AUTOTEAM_PR_MAX_LINES（默认 400，
+      # 参考 AI PR 的 75 分位 408 行）、AUTOTEAM_PR_SIZE_EXCLUDE（lock 文件，以及受
+      # CODEOWNERS 保护、由人批准的规则文件——它们不该占 agent 的行数预算）
       - name: pr-size
         if: github.event_name == 'pull_request'
         env:
           BASE: ${{ github.base_ref }}
         run: |
-          max=$(sed -n 's/^AUTOTEAM_PR_MAX_LINES=//p' ops/agents/autoteam.conf | tr -d '[:space:]')
+          conf=ops/agents/autoteam.conf
+          max=$(sed -n 's/^AUTOTEAM_PR_MAX_LINES=//p' "$conf" | head -n 1 | tr -d '[:space:]')
           max=${max:-400}
-          changed=$(git diff --numstat "origin/$BASE"...HEAD -- . \
-            ':(exclude,glob)**/*.lock' ':(exclude,glob)**/package-lock.json' \
-            ':(exclude,glob)**/pnpm-lock.yaml' ':(exclude,glob)**/go.sum' \
-            ':(exclude,glob).github/**' ':(exclude,glob)ops/agents/**' \
+          skip=$(sed -n 's/^AUTOTEAM_PR_SIZE_EXCLUDE=//p' "$conf" | head -n 1 | tr -d '[:space:]')
+          skip=${skip:-'**/*.lock,.github/**,ops/agents/**'}
+          set --
+          IFS=,
+          for pat in $skip; do set -- "$@" ":(exclude,glob)$pat"; done
+          unset IFS
+          changed=$(git diff --numstat "origin/$BASE"...HEAD -- . "$@" \
             | awk '{s += $1 + $2} END {print s + 0}')
           echo "本 PR 改动 $changed 行，上限 $max 行"
           if [ "$changed" -gt "$max" ]; then

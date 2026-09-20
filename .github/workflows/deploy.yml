@@ -1,0 +1,61 @@
+# 合并到默认分支后自动部署，并把结果通知 Planner（Multica 的“部署结果” autopilot）。
+# 受 CODEOWNERS 保护，只能由人批准修改。
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read   # 本仓库的 make deploy 只打包，不写仓库
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      # 本仓库特有：make deploy 要 npm pack
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: deploy
+        run: make deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # 本仓库的"线上"就是这个包：Planner 下载它、装进干净目录、按验收标准跑。
+      # npm publish 是对外的、撤不回的动作，由人执行 make publish，不在这里做
+      - name: upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: autoteam-package
+          path: build/pkg/*.tgz
+          if-no-files-found: error
+
+      # 无论成败都通知 Planner。只在部署工作流里通知，避免每次 PR 检查都唤醒 Planner
+      - name: notify planner
+        if: always()
+        env:
+          HOOK: ${{ secrets.MULTICA_DEPLOY_HOOK }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          KEY: deploy-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::没有设置 secret MULTICA_DEPLOY_HOOK，跳过通知 Planner"
+            exit 0
+          fi
+          jq -n --arg kind deploy --arg sha "$SHA" --arg result "$RESULT" --arg repo "$REPO" --arg run_url "$RUN_URL" \
+            '{kind: $kind, sha: $sha, result: $result, repo: $repo, run_url: $run_url}' \
+            | curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' \
+                -H "Idempotency-Key: $KEY" --data-binary @- \
+            || echo "::warning::通知 Planner 失败，巡检会补查待上线的任务"

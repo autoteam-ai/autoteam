@@ -2,7 +2,7 @@
 title: 规格对账
 role: auditor
 mode: create_issue
-cron: 0 9 * * 5
+cron: {{AUTOTEAM_CRON_SPEC_RECONCILE}}
 issue_title: 规格对账 {{date}}
 ---
 对账本周完成任务的验收标准和实际代码：
