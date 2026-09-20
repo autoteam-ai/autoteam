@@ -15,7 +15,7 @@
 |---|---|---|
 | 写代码的不能评审自己 | Implementer、Reviewer 用不同 GitHub 账号；GitHub 不允许作者批准自己的 PR | 不能（前提是账号隔离） |
 | 不过检查不能合并 | 规则集的必需检查 `check`，只认 GitHub Actions 上报的结果（integration_id 15368），防止用 API 伪造状态 | 不能 |
-| 新提交会作废旧批准 | 规则集：dismiss stale reviews、require approval of the most recent push | 不能 |
+| 新提交会作废旧批准 | 规则集：dismiss stale reviews——Implementer 一推新提交，之前的批准全部作废，Reviewer 必须重新看 | 不能 |
 | 规则文件只能由人改 | CODEOWNERS 保护 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json`，规则集要求 Code Owner 审批 | 不能 |
 | 任何人都不能豁免 | 规则集的 bypass list 留空，管理员也不例外 | 不能 |
 | 强推、删主干 | 规则集：restrict deletions、block force pushes | 不能 |

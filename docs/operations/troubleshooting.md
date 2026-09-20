@@ -33,6 +33,8 @@
 | 检查一通过 PR 就被合并，Reviewer 来不及看 | 规则集的必需检查生效了，但审批数是 0（单账号只能这样），平台看没有别的条件就合并了。`merge-mode.sh` 认出这种情况会输出 `staged`，Implementer 应该开 draft PR——draft 不能开自动合并，要等 Reviewer `gh pr ready` 才放行 |
 | `Cannot use -d or --delete-branch when merge queue enabled` | 有合并队列时 `gh pr merge` 不接受 `--delete-branch`：分支由仓库设置 `delete_branch_on_merge` 自动删（`autoteam github --apply` 会打开它），命令里去掉这个参数就行 |
 | `The merge strategy for main is set by the merge queue` | 这不是报错：PR 已经进了合并队列，平台会在临时分支上用最新主干重跑一遍检查再合并，`gh pr view <PR> --json state` 等它变成 MERGED |
+| 开了合并队列后 `mergeStateStatus` 一直是 `BLOCKED` | 有合并队列时这是常态，不代表缺审批：直接合并本来就被禁止，只能走队列。看 `reviewDecision` 和 `gh pr checks` 判断审批和检查，看 `state` 判断有没有合并 |
+| 自己开的 PR，自己批准了还是合不了 | 规则集的 `require_last_push_approval`：最后一次推送的人不能当批准人。agent 流程里不会遇到（Implementer 推、Reviewer 批）。人改规则文件时会撞上——`ops/agents/` 受 CODEOWNERS 保护，只有人能批，而人又是推送者。让机器账号来推这个分支（`git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$BOT_TOKEN" \| base64)" push`），人只负责批准 |
 | PR 迟迟不合并 | 检查没过、审批数不够、CODEOWNERS 要求你批准（改了规则文件）、或者没开自动合并。`gh pr view <PR> --json mergeStateStatus,autoMergeRequest,reviewDecision` |
 | PR 合并后任务直接变成 done 了 | PR 正文写了 `Closes XXX-123` 之类的关闭关键字，Multica 的 GitHub 集成会直接设为完成。只在标题写任务编号 |
 | 运行失败后任务回到了 todo 而不是 rework | 平台的失败回滚只写内置状态，Planner 巡检时会处理 |

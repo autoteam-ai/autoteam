@@ -195,9 +195,14 @@ github_ruleset_matches() {
 }
 
 github_ruleset() {
-  local trial=$1 level=$2 approvals=1 code_owner=true last_push=true mq=false want id
+  # require_last_push_approval 刻意不开。它要的是"批准人不能是最后推送的人"，
+  # 而 dismiss_stale_reviews_on_push 已经把它防的风险覆盖了：Implementer 推了新提交，
+  # 之前的批准全部作废，Reviewer 必须重新看。对 agent 流程它一点保护都不增加
+  # （Implementer 和 Reviewer 本来就是不同账号），却会卡住人改规则文件：
+  # ops/agents/ 受 CODEOWNERS 保护只有人能批，而人又是推的那个，于是谁都合不了。
+  local trial=$1 level=$2 approvals=1 code_owner=true last_push=false mq=false want id
   if [ "$trial" = 1 ]; then
-    approvals=0 code_owner=false last_push=false
+    approvals=0 code_owner=false
     warn "试用模式：不要求审批，也不要求 Code Owner 审批（写代码和评审是同一个 GitHub 账号）"
   fi
   [ "$level" = full ] && mq=true

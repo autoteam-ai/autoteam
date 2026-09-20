@@ -28,7 +28,9 @@ t_github_user_public_apply() {
   assert_eq "$(jq -r '.bypass_actors | length' "$rs")" 0
   assert_eq "$(jq -r '.conditions.ref_name.include[0]' "$rs")" "~DEFAULT_BRANCH"
   assert_eq "$(jq -c '[.rules[].type]' "$rs")" '["deletion","non_fast_forward","pull_request","required_status_checks"]'
-  assert_eq "$(jq -c '.rules[2].parameters | [.required_approving_review_count, .require_code_owner_review, .require_last_push_approval, .dismiss_stale_reviews_on_push, .allowed_merge_methods]' "$rs")" '[1,true,true,true,["squash"]]'
+  # last_push_approval 刻意为 false：dismiss_stale_reviews 已经覆盖它防的风险，
+  # 开着反而卡住人改规则文件（人是唯一能批 ops/agents/ 的人，也是推的那个）
+  assert_eq "$(jq -c '.rules[2].parameters | [.required_approving_review_count, .require_code_owner_review, .require_last_push_approval, .dismiss_stale_reviews_on_push, .allowed_merge_methods]' "$rs")" '[1,true,false,true,["squash"]]'
   assert_eq "$(jq -c '.rules[3].parameters.required_status_checks' "$rs")" '[{"context":"check","integration_id":15368}]'
   # 再跑一次：规则集已符合，不再写
   : > "$STUB_LOG"
