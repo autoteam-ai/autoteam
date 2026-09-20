@@ -30,16 +30,33 @@ bash tests/run.sh multica   # 只跑名字里带 multica 的测试
 
 不要声称检查通过，除非你真的跑了。
 
-## 发布
+## 上线和发版
 
-`make deploy` 发布到 npm（本仓库的 deploy 就是发包）。发布前 `scripts/release.sh` 会核对 `package.json`、`skills/autoteam/scripts/lib/common.sh` 的 `AUTOTEAM_VERSION`、CHANGELOG 三处版本号，并把打出的包真的跑一遍。
+两件事，分开：
 
 ```bash
-make deploy DRY_RUN=1   # 只检查和打包，不需要 npm 凭据，随时可跑
-make deploy             # 真的发布：要求工作区干净、npm 已登录（CI 里用 NODE_AUTH_TOKEN）；该版本已发过则跳过
+make deploy    # 上线：打包 + 装进干净仓库真跑一遍，产物在 build/pkg/。合并后 CI 自动跑
+make publish   # 发版：发到 npm，由人执行；DRY_RUN=1 只演练
 ```
 
-发布是对外的、撤不回的动作：改版本号（三处一起）、CHANGELOG 定版、合并后，由人来执行。
+`make deploy` 是本仓库的"上线"——Planner 下载 CI 传上去的那个 tarball 做线上验收，验的是真实可安装的制品，不是代码。它不碰网络凭据，可以随便跑。
+
+`make publish` 是对外的、撤不回的动作（npm 72 小时后连 unpublish 都不行），**不接进任何自动流程**：改版本号（`package.json`、`common.sh` 的 `AUTOTEAM_VERSION`、CHANGELOG 三处一起，`scripts/release.sh` 会核对）、CHANGELOG 定版、合并之后，由人执行。`package.json` 受 CODEOWNERS 保护，所以"什么时候发版"这个决定始终在人手里。
+
+## 自举
+
+本仓库自己也用 autoteam 管理，所以同一份东西在仓库里有两份，别搞混：
+
+| 路径 | 是什么 | 谁能改 |
+|---|---|---|
+| `skills/autoteam/assets/templates/**` | 产品源码，发给所有用户的规则文件 | agent 可以改，但受 CODEOWNERS 保护，**必须由人批准** |
+| `ops/agents/**`、`.github/**` | 本仓库自己这份，由模板**渲染**出来 | 只能由 `make selfhost` 生成，**禁止手写** |
+
+- 改了模板就要在**同一个 PR 里**跑 `make selfhost` 把副本同步上。`make check` 里的 `selfhost-check`（`autoteam diff --check`）会挡住不同步的 PR。
+- 因此每个改模板的 PR 都会带上受保护路径，必然要人批准。这是设计：**改规则由人拍板**，不是麻烦。
+- 三个工作流（gate / deploy / rollback）按本仓库需要改过，登记在 `ops/agents/autoteam.conf` 的 `AUTOTEAM_DIFF_IGNORE` 里，`make selfhost` 不会覆盖它们。改模板里的工作流时，记得手工看一眼本仓库这份要不要跟。
+- 一律用仓库里的 `bash bin/autoteam`，不要用全局装的 skill——自举的前提是永远跑正在开发的这一版。
+- `dist/` 是文档站的构建输出（会发布到 autoteam.hdgcs.com），npm 包放 `build/pkg/`，别放错。
 
 <!-- >>> autoteam >>> -->
 ## AI 团队工作流

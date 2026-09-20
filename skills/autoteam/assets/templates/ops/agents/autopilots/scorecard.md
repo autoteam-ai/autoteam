@@ -2,7 +2,7 @@
 title: agent 成绩单
 role: auditor
 mode: create_issue
-cron: 0 8 * * 1
+cron: {{AUTOTEAM_CRON_SCORECARD}}
 issue_title: agent 成绩单 {{date}}
 ---
 出过去 7 天的 agent 成绩单，写在本任务的评论里。

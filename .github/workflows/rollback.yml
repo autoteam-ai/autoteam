@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   rollback:
@@ -26,12 +26,22 @@ jobs:
         with:
           ref: ${{ inputs.sha }}
 
-      # 在这里加上 make deploy 需要的运行时和凭据（和 deploy.yml 保持一致）
+      # 和 deploy.yml 保持一致
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
 
       - name: deploy
         run: make deploy
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: autoteam-package-rollback
+          path: build/pkg/*.tgz
+          if-no-files-found: error
 
       - name: notify planner
         if: always()

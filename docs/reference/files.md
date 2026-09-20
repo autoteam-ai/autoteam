@@ -21,8 +21,9 @@ title: 生成的文件
 | `ops/agents/autoteam.conf` | 配置（[说明](config.md#autoteamconf)） | 人 | ✅ |
 | `ops/agents/registry.yaml` | 计费注册表和团队清单（[说明](config.md#registryyaml)） | 人 | ✅ |
 | `ops/agents/planner.md` 等 4 个 | 角色指令，同步到 Multica | 人 | ✅ |
+| `ops/agents/playbook.md` | 本项目的经验库，Planner 每次开工必读；由 Planner 提议、人批准 | 人 | ✅ |
 | `ops/agents/planner-mcp.json` | Planner 的浏览器自动化（Playwright MCP，可选） | 人 | ✅ |
-| `ops/agents/autopilots/*.md` | 8 个 autopilot 的触发配置和 runbook | 人 | ✅ |
+| `ops/agents/autopilots/*.md` | 10 个 autopilot 的触发配置和 runbook | 人 | ✅ |
 | `ops/agents/scripts/gh-app-token.sh` | 用 App 私钥铸 token，给 agent 提供 GitHub 身份 | 模板 | ✅ |
 | `ops/agents/scripts/loop-guard.sh` | 统计打回、验收不通过、换人次数，判断是否升级 | 模板 | ✅ |
 | `ops/agents/scripts/merge-mode.sh` | 判断这个 PR 由谁放行、由谁合并（platform / staged / reviewer） | 模板 | ✅ |

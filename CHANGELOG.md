@@ -2,6 +2,36 @@
 
 ## 未发布
 
+### 自举：autoteam 开始用 autoteam 开发自己
+
+- 本仓库装上了自己：`ops/agents/`（四个角色、10 个 autopilot、经验库、四个脚本）全部由 `autoteam init` 生成。每一条规则先落在自己身上，模板改坏了先坏的是自己的团队。
+- `make check` 加了 **`selfhost-check`**（`autoteam diff --check`）：模板和本仓库那份副本漂移就挡住 PR。因此改模板的 PR 必须同一个 PR 里跑 `make selfhost` 同步，必然带上 CODEOWNERS 保护的路径——**改规则一律由人批准**，这是设计。
+- 新增 `autoteam diff --check`：有差异退出码 1，跳过 `autoteam.conf` / `registry.yaml`（用户数据）和 `AUTOTEAM_DIFF_IGNORE` 登记的文件。
+- **`autoteam init --force` 现在也尊重 `AUTOTEAM_DIFF_IGNORE`**，不再覆盖你有意改过的文件（显式点名时才动）。这正是 first-run 记录里第 6 条踩过的坑。
+- `make dev` 起沙盒仓库（`tests/dev-sandbox.sh`）：用桩把 init 和 doctor 跑一遍，Implementer 每次开工先跑它确认当前代码是好的。
+- **`make deploy` 和 `make publish` 拆开**。deploy = 打包 + 装进干净仓库真跑一遍，产物 `build/pkg/*.tgz` 由 CI 传成 artifact，Planner 下载它做线上验收——验的是真实可安装的制品，不是代码。publish = 发 npm，**不接进任何自动流程**，由人执行：它撤不回（npm 72 小时后连 unpublish 都不行），而 `package.json` 受 CODEOWNERS 保护，所以"什么时候发版"始终在人手里。
+
+### 规则和频率全部参数化
+
+- 硬编码挪进 `autoteam.conf`：`AUTOTEAM_MAX_IMPLEMENTER_SWITCHES`（原来写死在 loop-guard.sh 里）、`AUTOTEAM_SHIPPING_RECHECK_HOURS`（原来写死在 patrol 正文）、`AUTOTEAM_METRICS_DAYS`，以及 9 个 `AUTOTEAM_CRON_*`。Planner 因此能提出具体到某个参数的改进建议。
+- 阈值和 cron 的处理方式不同：阈值写成"读 conf"，改完立即生效；cron 必须渲染进 front matter（Multica 要具体值），改完要 `autoteam init --force <文件>` 再 `multica --apply`。
+
+### Planner 的经验积累和学习闭环
+
+- 新增 `ops/agents/playbook.md`：本项目的经验库（拆任务、验收口径、选人、参数为什么是这个值、踩过的坑），Planner 每次开工必读，由它提议、由人批准。
+- Planner 多了一条长期的「运营笔记」任务：日常观察随手记，不走 PR。两层记忆的区别是——playbook 约束行为，笔记是素材。
+- 新增「规则复盘」autopilot（每周一 12:00）：读 Auditor 报告 + 人工介入记录 + 运营笔记，产出四类建议（加经验、调参数、改指令、补流程缺口），拆成任务等人批准。判断标准只有一个：**能不能减少下一周的人工介入**。
+- Planner 指令新增「你可以自己决定」清单，和原有的「你不能」对称——自由度要写出来才存在。
+- `health-metrics.sh` 新增 `human_7d`（人自己提交和评审 PR 的次数），[docs/operations/metrics.md](docs/operations/metrics.md) 把它列为第六个指标，**目标是下降**：这是判断规则有没有在变好的唯一客观指标。
+
+### Auditor 的前沿扫描
+
+- 新增「前沿扫描」autopilot（每周一 11:00）：查 agent CLI、模型能力、额度规则、Multica 和 GitHub 平台的变化，判断哪条指令或参数因此不再适配，结论要具体到文件和行。防止项目一直在旧知识下演进。
+
+### 防走偏
+
+- 新增 [docs/concepts/invariants.md](docs/concepts/invariants.md)：把研究文档的四条不变量固化成"改动前对照"的表（由什么保证 / 什么会破坏 / 怎么验证），附已知偏离登记。「路线图对账」autopilot 每周多做一次不变量对账。
+
 - **GitHub 身份从机器账号换成 GitHub App**。研究文档里是三个机器账号，现在是三个 App：不用注册邮箱和两步验证、不占席位，权限按 App 定义而不是靠选 token 范围，而且 Reviewer App 不给 Contents 写权限——它物理上推不了代码，比两个都是 Write 协作者的机器账号更严。核心不变量没变：Implementer 和 Reviewer 是两个不同身份，GitHub 挡住作者批准自己的 PR；两个 App ID 配成同一个时 `github` 和 `doctor` 都会报错。人工账号仍要留一个：CODEOWNERS 不能写 App，规则文件的 Code Owner 是人。
 - 新增 `ops/agents/scripts/gh-app-token.sh`：用 App 私钥签 JWT 换 installation token（缓存到快过期才重铸），`--run` 带身份跑命令、`--setup-git` 配好 clone 的提交身份和凭据助手、`--credential` 做 git 凭据助手。agent 每次工具调用都是新 shell，所以身份必须跟着命令走，不能 `export GH_TOKEN`。
 - `--setup-git` 会先用空值清掉继承来的凭据助手。不清的话，机器上 `gh auth login` 留下的系统钥匙串会抢先应答，**agent 会以人的身份推代码**——这个 bug 在实现时真的复现过。

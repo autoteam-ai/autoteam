@@ -102,7 +102,7 @@ ops/agents/                    配置、团队清单、四个角色指令、8 �
 
 在线文档：<https://autoteam.hdgcs.com/>。根地址默认打开最新发布版本，也可以在页面顶部切换到开发版或历史版本。
 
-- 概念：[为什么要自管理](docs/concepts/why.md) · [四个角色](docs/concepts/roles.md) · [任务状态和唤醒](docs/concepts/lifecycle.md) · [按额度选 agent](docs/concepts/quota-routing.md) · [安全边界和保护等级](docs/concepts/guardrails.md)
+- 概念：[为什么要自管理](docs/concepts/why.md) · [四个角色](docs/concepts/roles.md) · [任务状态和唤醒](docs/concepts/lifecycle.md) · [按额度选 agent](docs/concepts/quota-routing.md) · [安全边界和保护等级](docs/concepts/guardrails.md) · [四条不变量](docs/concepts/invariants.md)
 - 搭建：[前提条件](docs/setup/prerequisites.md) · [快速上手](docs/setup/quickstart.md) · [第 0 步 准备仓库](docs/setup/repo.md) · [第 1–3 步 GitHub](docs/setup/github.md) · [第 4–6 步 Multica](docs/setup/multica.md) · [第 7 步 跑通第一个需求](docs/setup/first-run.md)
 - 日常：[日常操作](docs/operations/daily.md) · [每周指标](docs/operations/metrics.md) · [常见问题](docs/operations/troubleshooting.md)
 - 参考：[autoteam 命令](docs/reference/cli.md) · [配置文件](docs/reference/config.md) · [生成的文件](docs/reference/files.md) · [代价和风险](docs/limitations.md)
