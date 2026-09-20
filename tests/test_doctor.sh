@@ -28,6 +28,24 @@ t_doctor_full_after_setup() {
   assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
 }
 
+t_doctor_detects_autopilot_bound_to_other_project() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  # 项目改名后会新建一个项目，老的 autopilot 还绑在旧项目上：它照常运行，
+  # 只是在旧项目里找任务，什么都找不到，Planner 一直报"无待验收任务"
+  jq 'map(.autopilot.project_id = "旧项目")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
+  mv "$STUB_STATE/mc-autopilots.tmp" "$STUB_STATE/mc-autopilots.json"
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "autopilot「部署结果」绑的是别的项目"
+  assert_eq "$rc" 1 "绑错项目应该算错误"
+
+  # 再 apply 一次要能改回来
+  autoteam_stub multica --apply >/dev/null
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" "autopilot「部署结果」已启用"
+}
+
 t_doctor_detects_instruction_drift() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null

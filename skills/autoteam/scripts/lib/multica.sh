@@ -527,10 +527,13 @@ multica_autopilot_same() {
   local id=$1 agent=$2 mode=$3 body=$4 json agent_id
   json=$(mc autopilot get "$id" --output json 2>/dev/null) || return 1
   agent_id=$(mc agent list --output json | jq -r --arg n "$agent" '[.[] | select(.name == $n)][0].id // empty')
-  jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" '
+  # 项目也要比：项目改名或重建后会有新的 project_id，autopilot 还绑在旧项目上的话，
+  # Planner 会在旧项目里找任务，查不到就报"无待验收任务"，整条链路悄悄断掉。
+  jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" --arg p "$MC_PROJECT_ID" '
     (.autopilot // .) as $ap
     | ($ap.assignee_id == $a)
       and ($ap.execution_mode == $m)
+      and (($ap.project_id // "") == $p)
       and ((($ap.description // "") | rtrimstr("\n")) == ($b | rtrimstr("\n")))
   ' <<<"$json" >/dev/null 2>&1
 }

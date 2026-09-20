@@ -96,8 +96,8 @@ case "$1 $2" in
     id="ap-$((n + 1))"
     agent_id=$(jq -r --arg n "$(flag --agent "$@")" '.[] | select(.name == $n) | .id' "$agents")
     jq --arg id "$id" --arg t "$(flag --title "$@")" --arg a "$agent_id" --arg m "$(flag --mode "$@")" \
-       --arg d "$(flag --description "$@")" \
-       '. + [{autopilot: {id: $id, title: $t, assignee_id: $a, execution_mode: $m, description: $d, status: "active"}, triggers: []}]' \
+       --arg d "$(flag --description "$@")" --arg p "$(flag --project "$@")" \
+       '. + [{autopilot: {id: $id, title: $t, assignee_id: $a, execution_mode: $m, description: $d, project_id: $p, status: "active"}, triggers: []}]' \
        "$autopilots" > "$autopilots.tmp"
     mv "$autopilots.tmp" "$autopilots"
     jq -n --arg id "$id" '{id: $id}' ;;
@@ -106,7 +106,8 @@ case "$1 $2" in
     if st=$(flag --status "$@"); then
       jq --arg id "$id" --arg s "$st" 'map(if .autopilot.id == $id then .autopilot.status = $s else . end)' "$autopilots" > "$autopilots.tmp"
     else
-      jq --arg id "$id" --arg d "$(flag --description "$@")" 'map(if .autopilot.id == $id then .autopilot.description = $d else . end)' "$autopilots" > "$autopilots.tmp"
+      jq --arg id "$id" --arg d "$(flag --description "$@")" --arg p "$(flag --project "$@")" \
+         'map(if .autopilot.id == $id then .autopilot.description = $d | .autopilot.project_id = $p else . end)' "$autopilots" > "$autopilots.tmp"
     fi
     mv "$autopilots.tmp" "$autopilots"
     jq -n --arg id "$id" '{id: $id}' ;;

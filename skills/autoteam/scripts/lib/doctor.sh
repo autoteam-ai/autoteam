@@ -268,11 +268,15 @@ EOF
     cur=$(jq -c --arg t "$title" '[.autopilots[]? | select(.title == $t)][0] // empty' <<<"$list")
     if [ -z "$cur" ]; then fail "autopilot「$title」不存在（autoteam multica --apply）"; continue; fi
     id=$(jq -r '.id' <<<"$cur")
-    local ntrig status
+    local ntrig status bound
     ntrig=$(mc_autopilot_triggers "$id" | jq 'length')
     status=$(jq -r '.status' <<<"$cur")
+    bound=$(jq -r '.project_id // ""' <<<"$cur")
     if [ "$ntrig" = 0 ]; then
       fail "autopilot「$title」没有触发器"
+    elif [ -n "$project" ] && [ "$bound" != "$project" ]; then
+      # 绑错项目时 autopilot 照常运行，只是在别的项目里找任务，什么都找不到
+      fail "autopilot「$title」绑的是别的项目（autoteam multica --apply --only autopilots）"
     elif [ "$status" != active ]; then
       warn "autopilot「$title」是 $status 状态"
     else
