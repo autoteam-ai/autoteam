@@ -10,6 +10,7 @@
 - `autoteam multica --apply` 会纠正绑错项目的 autopilot，`autoteam doctor` 也把它当错误报出来。项目改名或重建后 autopilot 还绑着旧 project_id，它照常运行、照常成功，只是在旧项目里找任务，Planner 一直报"无待验收任务"。
 - 配了 `env_file` 的 agent 每次 apply 都重写环境变量。env 读不回来没法比对，之前只看 mcp 不看 envf，换了机器账号的 token 会报"已是最新"却一次都没同步。
 - `autoteam doctor` 报 agent 运行失败时带上时间：这条是历史记录，登录修好之后也要等下一次成功运行才消失。
+- Planner 换人前先查任务有没有已经开好的 PR。E2E 里 Implementer 开完 PR 才撞到额度上限，巡检只看到运行失败就改派，新人把同一个功能重做了一遍，白花一份额度还留下两个 PR。有 PR 就直接转 `code_review` 交给 Reviewer。
 
 ## 0.1.0（2026-09-20）
 
