@@ -4,7 +4,7 @@
 
 ## GitHub App
 
-GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer 用两个不同的 GitHub App，"写代码的不能评审自己"就由平台保证。用 App 而不是机器账号：不用注册邮箱和两步验证、不占席位、Reviewer 可以连写权限都不给。
+GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer 用两个不同的 GitHub App，"写代码的不能评审自己"就由平台保证。用 App 而不是机器账号：不用注册邮箱和两步验证、不占席位。注意 Reviewer App 也要给 Contents 写权限，否则它的批准不计入必需审批数。
 
 App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做一遍：
 
@@ -15,7 +15,7 @@ App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做
    | App | 权限 |
    |---|---|
    | impl | Contents 读写、Pull requests 读写 |
-   | review | Pull requests 读写、Contents 只读（它不该能推代码） |
+   | review | Pull requests 读写、Contents **读写**（不能省：App 的批准只有在它有写权限时才计入必需审批数） |
    | planner | Actions 读写、Contents 只读、Pull requests 只读 |
 
 4. 记下 App ID，Generate a private key 下载 `.pem`。

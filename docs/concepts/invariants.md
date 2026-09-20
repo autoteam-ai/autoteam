@@ -15,8 +15,10 @@ title: 四条不变量
 | | |
 |---|---|
 | 由什么保证 | Implementer 和 Reviewer 是两个不同的 GitHub App 身份；GitHub 不允许 PR 作者批准自己的 PR。另外 Implementer App 没有 `workflows` 权限，推含 `.github/workflows/` 改动的提交会被 GitHub 直接拒——这条用机器账号做不到 |
-| 什么会破坏它 | 两个角色配成同一个 App ID；用同一个账号的 token 兜底；Reviewer 拿到 Contents 写权限后自己改代码再批准 |
-| 怎么验证 | `autoteam doctor` 会在两个 App ID 相同时报错；`autoteam github` 同样会拦。Reviewer App 不给 Contents 写权限，它物理上推不了代码 |
+| 什么会破坏它 | 两个角色配成同一个 App ID；用同一个账号的 token 兜底；Reviewer 自己改代码再批准（它有写权限，只靠指令拦着） |
+| 怎么验证 | `autoteam doctor` 在两个 App ID 相同、或 Reviewer App 缺 Contents 写权限时报错；真机验证过：Implementer App 批准自己开的 PR 会收到 `Can not approve your own pull request` |
+
+> **Reviewer App 必须有 Contents 写权限。** GitHub 只把「有仓库写权限的身份」提交的批准计入必需审批数：只给 Pull requests 写权限的 App，批准会记录成 APPROVED 但不算数，PR 永远停在 `REVIEW_REQUIRED`。所以「评审者不能推代码」只是指令约束，和机器账号方案一样——**能当硬约束的只有「作者不能批准自己」**。
 
 ## 2. 能不能合并只由代码平台判断
 

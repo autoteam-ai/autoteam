@@ -226,8 +226,8 @@ doctor_apps() {
       row=$(jq -c --argjson id "$id" '.installations[]? | select(.app_id == $id)' <<<"$installed" 2>/dev/null | head -n 1)
       if [ -n "$row" ]; then
         ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已装在 $org"
-        if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" = write ]; then
-          warn "Reviewer App 有 contents 写权限：降成 Read，它不该能推代码"
+        if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" != write ]; then
+          fail "Reviewer App 没有 Contents 写权限：它的批准不计入必需审批数，PR 会卡在等审批"
         fi
       else
         fail "$role App $id 没有装在 $org 上"
