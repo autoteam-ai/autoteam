@@ -370,14 +370,20 @@ multica_agent_update() {
     warn "agent $name 已归档：在界面里恢复（multica agent restore $id）后再运行"
     return 0
   fi
-  if [ -z "$changes" ] && [ "$mcp" = "-" ]; then
+  # MCP 配置和环境变量都读不回来（平台不返回明文），没法比对，所以只要 registry 里
+  # 写了就每次重写一遍。漏掉这一条的后果很隐蔽：换了 Reviewer 的机器账号 token，
+  # agent 其他字段都没变，这里报"已是最新"，token 根本没同步过去。
+  if [ -z "$changes" ] && [ "$mcp" = "-" ] && [ "$envf" = "-" ]; then
     ok "agent $name 已是最新"
     return 0
   fi
   multica_agent_args "$role" "$rid" "$model" "$max" "$mcp"
   if [ -z "$want_model" ] && [ -n "$(jq -r '.model // ""' <<<"$cur")" ]; then MC_AGENT_ARGS+=(--model ""); fi
   if [ -z "$changes" ]; then
-    info "agent $name 已是最新（MCP 配置会重新写入）"
+    local rewrite=""
+    [ "$mcp" != "-" ] && rewrite="MCP 配置"
+    [ "$envf" != "-" ] && rewrite="${rewrite:+$rewrite和}环境变量"
+    info "agent $name 已是最新（$rewrite 会重新写入）"
   else
     planned "更新 agent $name：$changes"
   fi

@@ -58,6 +58,36 @@ t_multica_second_apply_is_noop() {
   assert_no_log "curl POST"
 }
 
+t_multica_rewrites_env_file_every_apply() {
+  setup_ready_repo
+  mkdir -p ops/agents/local
+  echo '{"GITHUB_TOKEN":"bot-token"}' > ops/agents/local/reviewer-env.json
+  # 给一个 reviewer 配上 env_file（机器账号的 token 就是这么给的）
+  python3 - <<'PY'
+import pathlib
+p = pathlib.Path('ops/agents/registry.yaml')
+lines = p.read_text().split('\n')
+for i, l in enumerate(lines):
+    if l.strip().startswith('rev-codex:'):
+        lines[i] = l.replace(' }', ', env_file: ops/agents/local/reviewer-env.json }')
+p.write_text('\n'.join(lines))
+PY
+  grep -q 'env_file' ops/agents/registry.yaml || tfail "registry 没改成功"
+
+  # 首次是 create，env 跟着 agent create 一起传
+  autoteam_stub multica --apply --only agents >/dev/null
+  assert_log "--custom-env-file"
+
+  # 第二次：agent 其他字段都没变，但 env 读不回来没法比对，必须照样重写一遍，
+  # 否则换了 token 之后 apply 会报"已是最新"，token 永远同步不过去
+  : > "$STUB_STATE/mc-agent-env.log"
+  out=$(autoteam_stub multica --apply --only agents)
+  assert_contains "$out" "agent rev-codex 已是最新（环境变量 会重新写入）"
+  assert_contains "$(cat "$STUB_STATE/mc-agent-env.log" 2>/dev/null)" "agent-rev-codex" "第二次 apply 也要重写环境变量"
+  assert_contains "$out" "agent planner 已是最新"
+  assert_not_contains "$(cat "$STUB_STATE/mc-agent-env.log" 2>/dev/null)" "agent-planner" "没配 env_file 的 agent 不该被写"
+}
+
 t_multica_updates_changed_instructions() {
   setup_ready_repo
   autoteam_stub multica --apply --only agents >/dev/null

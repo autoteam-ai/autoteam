@@ -75,6 +75,10 @@ case "$1 $2" in
               max_concurrent_tasks: ($max | tonumber), archived_at: null}]' "$agents" > "$agents.tmp"
     mv "$agents.tmp" "$agents"
     jq -n --arg id "$id" '{id: $id}' ;;
+  "agent env")
+    # env set 的实际内容读不回来，只记一笔"给谁写过"，测试靠它判断有没有同步
+    printf '%s\n' "$4" >> "$state/mc-agent-env.log"
+    echo '{"ok":true}' ;;
   "agent update")
     id=$3
     jq --arg id "$id" --arg rt "$(flag --runtime-id "$@")" --arg ins "$(flag --instructions "$@")" \
