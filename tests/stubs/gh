@@ -4,7 +4,7 @@
 #   org-public     组织的公开仓库（能用合并队列）
 #   org-no-mq      组织仓库，但接口拒绝合并队列
 #   free-private   GitHub Free 的私有仓库（没有规则集、自动合并、environment）
-#   has-ruleset    已经有一个过期的 ai-workflow 规则集
+#   has-ruleset    已经有一个过期的 autoteam 规则集
 set -o pipefail
 scenario=${STUB_SCENARIO:-user-public}
 state=${STUB_STATE:?}
@@ -98,12 +98,12 @@ case "$method $path" in
   "GET repos/acme/shop/rulesets")
     case $scenario in
       free-private) http_error 403 "Upgrade to GitHub Pro or make this repository public to enable this feature." ;;
-      has-ruleset) echo '[{"id":7,"name":"ai-workflow","enforcement":"active"}]' | out ;;
+      has-ruleset) echo '[{"id":7,"name":"autoteam","enforcement":"active"}]' | out ;;
       *) if [ -f "$state/ruleset.json" ]; then jq '[{id: 7, name: .name}]' "$state/ruleset.json"; else echo '[]'; fi | out ;;
     esac ;;
   "GET repos/acme/shop/rulesets/7")
     if [ -f "$state/ruleset.json" ]; then jq '. + {id: 7}' "$state/ruleset.json" | out
-    else jq -n '{id: 7, name: "ai-workflow", enforcement: "active", bypass_actors: [],
+    else jq -n '{id: 7, name: "autoteam", enforcement: "active", bypass_actors: [],
       rules: [{type: "deletion"}, {type: "pull_request", parameters: {required_approving_review_count: 0}}]}' | out
     fi ;;
   "POST repos/acme/shop/rulesets"|"PUT repos/acme/shop/rulesets/7")

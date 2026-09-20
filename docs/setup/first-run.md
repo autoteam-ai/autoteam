@@ -18,7 +18,7 @@
 
 ## 示例项目
 
-[ai-workflow-example](https://github.com/songhuangcn/ai-workflow-example) 是用来演练的示例：一个零依赖的 Node 命令行工具，“线上”就是 GitHub Release（`make deploy` 发布新版本，Planner 下载最新版本按验收标准运行）。下面是 2026-09-19 在这个项目上端到端跑通的记录。
+[autoteam-example](https://github.com/autoteam-ai/autoteam-example) 是用来演练的示例：一个零依赖的 Node 命令行工具，“线上”就是 GitHub Release（`make deploy` 发布新版本，Planner 下载最新版本按验收标准运行）。下面是 2026-09-19 在这个项目上端到端跑通的记录。
 
 ### 环境
 
@@ -31,10 +31,10 @@
 
 ### 装配（约 5 分钟）
 
-1. `npx skills add songhuangcn/ai-workflow --skill ai-workflow` 从私有仓库装好 skill，按 SKILL.md 执行 `aiwf init --workspace hdgcs --human Song`：自动识别出任务前缀 HDGCS，识别出 Free 私有仓库、不声明 environment。
+1. `npx skills add autoteam-ai/autoteam --skill autoteam` 从私有仓库装好 skill，按 SKILL.md 执行 `autoteam init --workspace hdgcs --human Song`：自动识别出任务前缀 HDGCS，识别出 Free 私有仓库、不声明 environment。
 2. gate.yml 加上 Node 22，registry.yaml 填 6 个 agent，开 PR #1。gate 在真实 PR 上通过：规则文件不计入行数，本 PR 只算 41 行。合并后第一次部署发布了 Release。
-3. `aiwf github --apply --trial`：判定为 none 级，合并方式和删分支设置生效，自动合并因套餐限制没生效（如实报出）。
-4. `aiwf multica --apply`：建了 4 个状态、6 个 agent、1 个项目、8 个 autopilot，部署 webhook 地址写进 GitHub secret。再跑一次没有任何改动；`aiwf doctor` 没有错误，3 个提醒都是降级和单账号带来的。
+3. `autoteam github --apply --trial`：判定为 none 级，合并方式和删分支设置生效，自动合并因套餐限制没生效（如实报出）。
+4. `autoteam multica --apply`：建了 4 个状态、6 个 agent、1 个项目、8 个 autopilot，部署 webhook 地址写进 GitHub secret。再跑一次没有任何改动；`autoteam doctor` 没有错误，3 个提醒都是降级和单账号带来的。
 
 ### 跑需求（约 15 分钟，不含等额度恢复）
 
@@ -62,11 +62,11 @@
 | # | 问题 | 修正 |
 |---|---|---|
 | 1 | 接入 PR 新增几百行规则文件，会被 400 行上限和重复代码检查拦下 | 规则文件（由人批准）和 Markdown 不计入这两项检查 |
-| 2 | runtime 显示在线，但 agent CLI 的订阅登录已经过期（两台机器各有一个） | `aiwf doctor` 报出每个 agent 最近一次运行失败的原因 |
+| 2 | runtime 显示在线，但 agent CLI 的订阅登录已经过期（两台机器各有一个） | `autoteam doctor` 报出每个 agent 最近一次运行失败的原因 |
 | 3 | Planner 指令没写所有子任务完成后父任务怎么收尾 | 补上整体验收并关闭父任务 |
 | 4 | agent 每次运行都在试探 CLI 参数（比如 `issue search --project`） | 角色指令加常用命令表 |
 | 5 | 没有平台闸门时，`gh pr merge --auto` 不报错而是立即合并，绕过评审和检查 | 新增 `merge-mode.sh`：只有规则集生效时 Implementer 才开自动合并，降级模式由 Reviewer 批准后合并 |
-| 6 | 升级时 `aiwf init --force` 会覆盖改过的 gate.yml | `aiwf init --force <文件...>` 只处理指定文件 |
+| 6 | 升级时 `autoteam init --force` 会覆盖改过的 gate.yml | `autoteam init --force <文件...>` 只处理指定文件 |
 
 问题 5 最值得记住：在降级模式下，“合并只由平台判断”这条原则完全靠指令维持，一条命令的默认行为就能绕过它。正式使用请让规则集生效（仓库改公开、升级 Pro 或迁到 Team 组织）。
 

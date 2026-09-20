@@ -1,6 +1,6 @@
 # 生成的文件
 
-`aiwf init` 写进目标仓库的所有文件。“受保护”指受 CODEOWNERS 保护，改动必须由人批准。
+`autoteam init` 写进目标仓库的所有文件。“受保护”指受 CODEOWNERS 保护，改动必须由人批准。
 
 | 文件 | 作用 | 谁会改 | 受保护 |
 |---|---|---|---|
@@ -14,7 +14,7 @@
 | `.github/workflows/deploy.yml` | 合并后 `make deploy`，结果通知 Planner | 人 | ✅ |
 | `.github/workflows/rollback.yml` | 手动回滚到指定提交 | 人 | ✅ |
 | `ops/agents/README.md` | 目录说明 | 模板 | ✅ |
-| `ops/agents/aiwf.conf` | 配置（[说明](config.md#aiwfconf)） | 人 | ✅ |
+| `ops/agents/autoteam.conf` | 配置（[说明](config.md#autoteamconf)） | 人 | ✅ |
 | `ops/agents/registry.yaml` | 计费注册表和团队清单（[说明](config.md#registryyaml)） | 人 | ✅ |
 | `ops/agents/planner.md` 等 4 个 | 角色指令，同步到 Multica | 人 | ✅ |
 | `ops/agents/planner-mcp.json` | Planner 的浏览器自动化（Playwright MCP，可选） | 人 | ✅ |
@@ -23,6 +23,6 @@
 | `ops/agents/scripts/merge-mode.sh` | 判断由平台自动合并（platform）还是由 Reviewer 合并（reviewer） | 模板 | ✅ |
 | `ops/agents/scripts/health-metrics.sh` | 代码健康指标 | 模板 | ✅ |
 
-“模板”表示一般不需要手改，升级 ai-workflow 时用 `aiwf diff` / `aiwf init --force` 更新；“人”表示装完后按项目情况修改。
+“模板”表示一般不需要手改，升级 autoteam 时用 `autoteam diff` / `autoteam init --force` 更新；“人”表示装完后按项目情况修改。
 
-aiwf 不会删除任何文件，也不会删除 GitHub 或 Multica 上的任何东西。卸载时手动删掉这些文件和受管块，在 Multica 里删掉对应的 agent 和 autopilot，在 GitHub 上删掉规则集 `ai-workflow` 和 secret `MULTICA_DEPLOY_HOOK`。
+autoteam 不会删除任何文件，也不会删除 GitHub 或 Multica 上的任何东西。卸载时手动删掉这些文件和受管块，在 Multica 里删掉对应的 agent 和 autopilot，在 GitHub 上删掉规则集 `autoteam` 和 secret `MULTICA_DEPLOY_HOOK`。

@@ -1,7 +1,0 @@
-# >>> ai-workflow >>>
-# 约束 agent 的规则文件只能由人批准修改（规则集需要打开 Require review from Code Owners）
-/.github/        @{{AIWF_OWNER}}
-/ops/agents/     @{{AIWF_OWNER}}
-/Makefile        @{{AIWF_OWNER}}
-/.jscpd.json     @{{AIWF_OWNER}}
-# <<< ai-workflow <<<

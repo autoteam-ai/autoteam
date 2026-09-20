@@ -3,14 +3,14 @@
 
 TESTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$TESTS_DIR/.." && pwd)
-AIWF=$ROOT/bin/aiwf
-TPL=$ROOT/skills/ai-workflow/assets/templates
+AUTOTEAM=$ROOT/bin/autoteam
+TPL=$ROOT/skills/autoteam/assets/templates
 REAL_JQ_DIR=$(dirname "$(command -v jq)")
 REAL_GIT_DIR=$(dirname "$(command -v git)")
 
 T_FAILS=0
 # 所有临时仓库都建在这个目录下，run.sh 结束时删除
-TEST_BASE=${TEST_BASE:-$(mktemp -d "${TMPDIR:-/tmp}/aiwf-tests.XXXXXX")}
+TEST_BASE=${TEST_BASE:-$(mktemp -d "${TMPDIR:-/tmp}/autoteam-tests.XXXXXX")}
 
 tfail() { printf '      ✗ %s\n' "$*"; T_FAILS=$((T_FAILS + 1)); }
 assert_eq() { [ "$1" = "$2" ] || tfail "${3:-值不相等}：得到 [$1]，期望 [$2]"; }
@@ -36,25 +36,25 @@ new_repo() {
   export STUB_LOG STUB_STATE
 }
 
-# 带桩运行 aiwf：gh / multica / curl 都换成 tests/stubs 下的桩
-aiwf_stub() {
+# 带桩运行 autoteam：gh / multica / curl 都换成 tests/stubs 下的桩
+autoteam_stub() {
   env PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
     HOME="$WORK/.home" NO_COLOR=1 \
     STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" STUB_FIXTURES="$TESTS_DIR/fixtures" \
     STUB_SCENARIO="${STUB_SCENARIO:-user-public}" STUB_FAILED_RUN="${STUB_FAILED_RUN:-}" \
-    AIWF_MULTICA_BIN="$TESTS_DIR/stubs/multica" \
-    bash "$AIWF" "$@"
+    AUTOTEAM_MULTICA_BIN="$TESTS_DIR/stubs/multica" \
+    bash "$AUTOTEAM" "$@"
 }
 
-# 不带 gh 的环境运行 aiwf（init 的离线路径）
-aiwf_offline() {
-  env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" HOME="$WORK/.home" NO_COLOR=1 bash "$AIWF" "$@"
+# 不带 gh 的环境运行 autoteam（init 的离线路径）
+autoteam_offline() {
+  env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" HOME="$WORK/.home" NO_COLOR=1 bash "$AUTOTEAM" "$@"
 }
 
 # 生成一套可用的配置：init + 把 Makefile 改成真实命令 + registry 用桩里的 runtime
 setup_ready_repo() {
   new_repo "${1:-acme/shop}"
-  aiwf_stub init --owner alice --workspace test >/dev/null
+  autoteam_stub init --owner alice --workspace test >/dev/null
   printf 'check:\n\t@true\ndev:\n\t@true\ndeploy:\n\t@true\n' > Makefile
   cat > ops/agents/registry.yaml <<'EOF'
 accounts:

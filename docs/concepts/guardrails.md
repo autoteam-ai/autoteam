@@ -32,7 +32,7 @@
 
 ## 保护等级
 
-`aiwf github` 会按仓库的归属和套餐判断能做到哪一级：
+`autoteam github` 会按仓库的归属和套餐判断能做到哪一级：
 
 | 等级 | 仓库 | 规则集 | 自动合并 | 合并队列 | 谁来合并 |
 |---|---|---|---|---|---|
@@ -41,20 +41,20 @@
 | none | GitHub Free 的私有仓库 | **没有** | **没有** | 没有 | Reviewer 批准后，等检查全绿自己合并（降级模式） |
 
 - standard 没有合并队列：两个 PR 各自检查通过、先后合并后，主干上的组合可能是坏的。靠合并后的部署、Planner 验收和巡检兜底。
-- none 是降级模式：所有“硬约束”都退化成指令约束，`aiwf doctor` 会一直标黄提醒。适合先试用，正式用请把仓库改公开、升级 Pro，或迁到 Team 套餐的组织，再运行一次 `aiwf github --apply`。
-- 谁来合并由 `ops/agents/scripts/merge-mode.sh` 当场判断：规则集 `ai-workflow` 生效且允许自动合并时输出 platform，Implementer 开自动合并；否则输出 reviewer，Implementer **不能**执行 `gh pr merge --auto`——没有平台闸门时它不会报错，而是立即合并，绕过评审和检查（端到端验证时真的发生过）。
+- none 是降级模式：所有“硬约束”都退化成指令约束，`autoteam doctor` 会一直标黄提醒。适合先试用，正式用请把仓库改公开、升级 Pro，或迁到 Team 套餐的组织，再运行一次 `autoteam github --apply`。
+- 谁来合并由 `ops/agents/scripts/merge-mode.sh` 当场判断：规则集 `autoteam` 生效且允许自动合并时输出 platform，Implementer 开自动合并；否则输出 reviewer，Implementer **不能**执行 `gh pr merge --auto`——没有平台闸门时它不会报错，而是立即合并，绕过评审和检查（端到端验证时真的发生过）。
 
 ## 单账号试用模式
 
-还没准备机器账号时，Implementer 和 Reviewer 只能用同一个 GitHub 账号，GitHub 不允许它批准自己的 PR。`aiwf github --apply --trial` 会把规则集改成不要求审批（也不要求 Code Owner 审批和最后一次推送审批），其余规则不变：
+还没准备机器账号时，Implementer 和 Reviewer 只能用同一个 GitHub 账号，GitHub 不允许它批准自己的 PR。`autoteam github --apply --trial` 会把规则集改成不要求审批（也不要求 Code Owner 审批和最后一次推送审批），其余规则不变：
 
 - Reviewer 的 `gh pr review --approve` 会失败，指令里要求它改用评论评审，并以【批准】或【阻塞】开头，打回次数照样能统计；
-- 评审独立性不再由平台保证，`aiwf doctor` 会标黄；
-- 准备好机器账号后：写进 aiwf.conf 的 `AIWF_IMPL_BOT` / `AIWF_REVIEW_BOT`，在各自机器上登录 gh，然后不加 `--trial` 重新运行 `aiwf github --apply`。
+- 评审独立性不再由平台保证，`autoteam doctor` 会标黄；
+- 准备好机器账号后：写进 autoteam.conf 的 `AUTOTEAM_IMPL_BOT` / `AUTOTEAM_REVIEW_BOT`，在各自机器上登录 gh，然后不加 `--trial` 重新运行 `autoteam github --apply`。
 
 ## 凭据
 
 - 每个机器账号的 token 只授权本仓库、带过期时间、只给最小权限（见[第 1–3 步 GitHub](../setup/github.md#机器账号和-token)）。
 - 不同账号跑在不同机器上，至少是不同的系统用户或容器，避免互相读到凭据。
 - Multica agent 的 `custom_env`（registry 的 `env_file`）以明文存在 Multica 服务端，不要放生产数据库密码这类高价值的长期凭据。
-- 部署 webhook 地址里带凭据，只存在 GitHub secret `MULTICA_DEPLOY_HOOK` 里，aiwf 不会打印它；泄露了就 `aiwf multica --apply --rotate-webhook` 重新生成。
+- 部署 webhook 地址里带凭据，只存在 GitHub secret `MULTICA_DEPLOY_HOOK` 里，autoteam 不会打印它；泄露了就 `autoteam multica --apply --rotate-webhook` 重新生成。

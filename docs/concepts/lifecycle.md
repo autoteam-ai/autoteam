@@ -2,7 +2,7 @@
 
 ## 状态
 
-Multica 的状态有内置的 7 个，另外 `aiwf multica --apply` 会建 4 个自定义状态。命令里写的是 key，看板上显示的是名称。
+Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 4 个自定义状态。命令里写的是 key，看板上显示的是名称。
 
 | 设计中的状态 | key | 类型 | 类别 | 谁设置 | 下一步怎么被叫醒 |
 |---|---|---|---|---|---|
@@ -19,7 +19,7 @@ Multica 的状态有内置的 7 个，另外 `aiwf multica --apply` 会建 4 个
 
 几点注意：
 
-1. **类别创建后不能改**。建错了只能在界面里归档，再重新运行 `aiwf multica --apply`。
+1. **类别创建后不能改**。建错了只能在界面里归档，再重新运行 `autoteam multica --apply`。
 2. **平台自己改状态时只写内置状态**：运行失败回滚到 `todo`，不会回到 `rework`；PR 带关闭关键字合并会直接设为 `done`。所以 PR 标题只写任务编号（建立关联），不写 `Closes XXX-123`。
 3. **“已批准”agent 也能改**。平台拦不住，靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
 
@@ -36,7 +36,7 @@ Multica 的状态有内置的 7 个，另外 `aiwf multica --apply` 会建 4 个
 | agent 派出去的运行最终失败（没有待执行的自动重试） | 平台在父任务上发系统评论，叫醒派活的 agent（Planner）去改派、跳过或结束 |
 | autopilot 定时或 webhook 触发 | 叫醒 autopilot 指派的 agent |
 
-所以 ai-workflow 的做法是：**唤醒下一个角色一律靠显式指派或 @提及，自定义状态只表示看板上的进度**。改状态时加 `--no-start`，避免误触发。另外两条评论规则也要知道：
+所以 autoteam 的做法是：**唤醒下一个角色一律靠显式指派或 @提及，自定义状态只表示看板上的进度**。改状态时加 `--no-start`，避免误触发。另外两条评论规则也要知道：
 
 - agent 发的普通评论不会叫醒任务的指派人；人发的普通评论会叫醒指派的 agent。人只想留个记录时，评论以 `/note` 开头，不会叫醒任何人。
 - 提及人要用成员链接 `[@名字](mention://member/<user_id>)`，它不会启动任何 agent；只写 `@名字` 不会被识别。
@@ -47,10 +47,10 @@ Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。第 1 批全�
 
 ## 防止来回打转
 
-| 情况 | 上限（aiwf.conf） | 到上限后 |
+| 情况 | 上限（autoteam.conf） | 到上限后 |
 |---|---|---|
-| 同一个 PR 被打回 | 2 次（`AIWF_MAX_REVIEW_REJECTIONS`） | Reviewer 不再打回，@Planner；Planner 升级给人 |
-| 同一个任务验收不通过 | 2 次（`AIWF_MAX_ACCEPTANCE_FAILURES`） | Planner 升级给人 |
+| 同一个 PR 被打回 | 2 次（`AUTOTEAM_MAX_REVIEW_REJECTIONS`） | Reviewer 不再打回，@Planner；Planner 升级给人 |
+| 同一个任务验收不通过 | 2 次（`AUTOTEAM_MAX_ACCEPTANCE_FAILURES`） | Planner 升级给人 |
 | 因额度或权限运行失败 | 换 1 次 Implementer | 仍失败则升级给人 |
 | 线上故障 | 不重试 | 先回滚，再升级给人 |
 

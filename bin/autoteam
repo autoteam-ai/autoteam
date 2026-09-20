@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# 薄包装：实现在 skills/autoteam/scripts/autoteam，这样 skill 目录可以单独安装（npx skills add）。
+set -e
+src=${BASH_SOURCE[0]}
+while [ -L "$src" ]; do
+  dir=$(cd -P "$(dirname "$src")" && pwd)
+  src=$(readlink "$src")
+  case $src in /*) ;; *) src=$dir/$src ;; esac
+done
+root=$(cd -P "$(dirname "$src")/.." && pwd)
+exec bash "$root/skills/autoteam/scripts/autoteam" "$@"

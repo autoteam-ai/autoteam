@@ -1,22 +1,22 @@
 # shellcheck shell=bash
-# aiwf doctor 和装进目标仓库的两个脚本
+# autoteam doctor 和装进目标仓库的两个脚本
 
 t_doctor_flags_todo_makefile() {
   new_repo
-  aiwf_offline init --owner alice >/dev/null
-  out=$(aiwf_offline doctor --skip-github --skip-multica)
+  autoteam_offline init --owner alice >/dev/null
+  out=$(autoteam_offline doctor --skip-github --skip-multica)
   rc=$?
   assert_eq "$rc" 1 "Makefile 还是桩时应失败"
-  assert_contains "$out" "AIWF-TODO"
+  assert_contains "$out" "AUTOTEAM-TODO"
   assert_contains "$out" "工作流文件齐全"
   assert_contains "$out" "registry.yaml：6 个 agent"
 }
 
 t_doctor_full_after_setup() {
   setup_ready_repo
-  aiwf_stub github --apply >/dev/null
-  aiwf_stub multica --apply >/dev/null
-  out=$(aiwf_stub doctor)
+  autoteam_stub github --apply >/dev/null
+  autoteam_stub multica --apply >/dev/null
+  out=$(autoteam_stub doctor)
   rc=$?
   assert_contains "$out" "Makefile 有 check / dev / deploy"
   assert_contains "$out" "规则集生效：必须走 PR、1 个审批、必需检查 check"
@@ -30,23 +30,23 @@ t_doctor_full_after_setup() {
 
 t_doctor_detects_instruction_drift() {
   setup_ready_repo
-  aiwf_stub multica --apply >/dev/null
+  autoteam_stub multica --apply >/dev/null
   echo "本地改了但没同步" >> ops/agents/reviewer.md
-  out=$(aiwf_stub doctor --skip-github)
+  out=$(autoteam_stub doctor --skip-github)
   assert_contains "$out" "agent rev-codex 的指令和 ops/agents/reviewer.md 不一致"
 }
 
 t_doctor_reports_failed_last_run() {
   setup_ready_repo
-  aiwf_stub multica --apply >/dev/null
-  out=$(STUB_FAILED_RUN=1 aiwf_stub doctor --skip-github)
+  autoteam_stub multica --apply >/dev/null
+  out=$(STUB_FAILED_RUN=1 autoteam_stub doctor --skip-github)
   assert_contains "$out" "agent rev-codex 最近一次运行失败：Failed to authenticate: OAuth session expired"
   assert_not_contains "$out" "agent planner 最近一次运行失败"
 }
 
 t_loop_guard_counts_rejections_and_markers() {
   new_repo
-  aiwf_offline init --owner alice >/dev/null
+  autoteam_offline init --owner alice >/dev/null
   mkdir -p bin
   cat > bin/gh <<'EOF'
 #!/usr/bin/env bash
@@ -72,7 +72,7 @@ EOF
 
 t_merge_mode_script() {
   new_repo
-  aiwf_offline init --owner alice >/dev/null
+  autoteam_offline init --owner alice >/dev/null
   mkdir -p bin
   # gh 桩：按 GH_AUTO / GH_RULES 返回仓库设置和规则集，并执行 --jq
   cat > bin/gh <<'EOF'
@@ -89,25 +89,25 @@ if [ -n "$expr" ]; then jq -r "$expr" <<<"$out"; else echo "$out"; fi
 EOF
   chmod +x bin/gh
   run() { PATH="$WORK/bin:$PATH" GH_AUTO=$1 GH_RULES=$2 bash ops/agents/scripts/merge-mode.sh; }
-  assert_eq "$(run true '[{"name":"ai-workflow","enforcement":"active"}]')" platform
-  assert_eq "$(run true '[{"name":"ai-workflow","enforcement":"disabled"}]')" reviewer
-  assert_eq "$(run false '[{"name":"ai-workflow","enforcement":"active"}]')" reviewer
+  assert_eq "$(run true '[{"name":"autoteam","enforcement":"active"}]')" platform
+  assert_eq "$(run true '[{"name":"autoteam","enforcement":"disabled"}]')" reviewer
+  assert_eq "$(run false '[{"name":"autoteam","enforcement":"active"}]')" reviewer
   assert_eq "$(run false 403)" reviewer "GitHub Free 私有仓库应该是 reviewer"
 }
 
 t_health_metrics_outputs_json_and_markdown() {
   new_repo
-  aiwf_offline init --owner alice >/dev/null
+  autoteam_offline init --owner alice >/dev/null
   old=$(( $(date +%s) - 400 * 86400 ))
   mid=$(( $(date +%s) - 20 * 86400 ))
   echo a > old.txt && git add old.txt && GIT_AUTHOR_DATE="@$old" GIT_COMMITTER_DATE="@$old" git commit -qm old
   echo b > hot.txt && git add hot.txt && GIT_AUTHOR_DATE="@$mid" GIT_COMMITTER_DATE="@$mid" git commit -qm mid
   echo a2 >> old.txt && echo b2 >> hot.txt && git add old.txt hot.txt && git commit -qm now
-  out=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AIWF_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --json)
+  out=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --json)
   assert_eq "$(jq -r '.duplication_pct' <<<"$out")" null
   assert_eq "$(jq -r '.files_changed' <<<"$out")" 2
   assert_eq "$(jq -r '.legacy_touch_pct' <<<"$out")" 50.0
   assert_eq "$(jq -r '.rework_14d_pct' <<<"$out")" 50.0
-  md=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AIWF_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
+  md=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 老文件改动占比 %（近 30 天，2 个文件） | 50.0 |"
 }

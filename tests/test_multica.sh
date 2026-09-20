@@ -1,10 +1,10 @@
 # shellcheck shell=bash
-# aiwf multica / runtimes：预览、新建、再跑变成无改动、runtime 找不到、webhook 写 secret
+# autoteam multica / runtimes：预览、新建、再跑变成无改动、runtime 找不到、webhook 写 secret
 
 t_multica_preview_makes_no_writes() {
   setup_ready_repo
   : > "$STUB_LOG"
-  out=$(aiwf_stub multica)
+  out=$(autoteam_stub multica)
   assert_contains "$out" "profile：test"
   assert_contains "$out" "[预览] 新建状态 approved（已批准，类别 unstarted）"
   assert_contains "$out" "[预览] 新建 agent planner（planner，runtime rt-c-cla，模型 default，并发 1）"
@@ -19,7 +19,7 @@ t_multica_preview_makes_no_writes() {
 t_multica_apply_creates_everything() {
   setup_ready_repo
   : > "$STUB_LOG"
-  out=$(aiwf_stub multica --apply)
+  out=$(autoteam_stub multica --apply)
   assert_contains "$out" "已新建状态 shipping"
   assert_log 'BODY POST /api/issue-statuses {"key":"approved","name":"已批准","category":"unstarted","color":"#3b82f6"'
   assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
@@ -44,9 +44,9 @@ t_multica_apply_creates_everything() {
 
 t_multica_second_apply_is_noop() {
   setup_ready_repo
-  aiwf_stub multica --apply >/dev/null
+  autoteam_stub multica --apply >/dev/null
   : > "$STUB_LOG"
-  out=$(aiwf_stub multica --apply)
+  out=$(autoteam_stub multica --apply)
   assert_contains "$out" "状态 approved（已批准）已存在"
   assert_contains "$out" "agent planner 已是最新"
   assert_contains "$out" "autopilot「推进巡检」已是最新"
@@ -60,10 +60,10 @@ t_multica_second_apply_is_noop() {
 
 t_multica_updates_changed_instructions() {
   setup_ready_repo
-  aiwf_stub multica --apply --only agents >/dev/null
+  autoteam_stub multica --apply --only agents >/dev/null
   echo "新增一条规则" >> ops/agents/planner.md
   : > "$STUB_LOG"
-  out=$(aiwf_stub multica --apply --only agents)
+  out=$(autoteam_stub multica --apply --only agents)
   assert_contains "$out" "更新 agent planner： 指令"
   assert_log "agent update agent-planner"
   assert_contains "$out" "agent impl-claude 已是最新"
@@ -72,20 +72,20 @@ t_multica_updates_changed_instructions() {
 t_multica_reports_missing_runtime() {
   setup_ready_repo
   sed -i.bak 's/claude@machine-a/claude@nowhere/' ops/agents/registry.yaml && rm -f ops/agents/registry.yaml.bak
-  out=$(aiwf_stub multica --only agents)
+  out=$(autoteam_stub multica --only agents)
   assert_contains "$out" "agent impl-claude：找不到 runtime claude@nowhere"
   assert_contains "$out" "claude@machine-a（online）"
 }
 
 t_multica_paused_flag() {
   setup_ready_repo
-  aiwf_stub multica --apply --paused >/dev/null
+  autoteam_stub multica --apply --paused >/dev/null
   assert_eq "$(jq '[.[] | select(.autopilot.status == "paused")] | length' "$STUB_STATE/mc-autopilots.json")" 8
 }
 
 t_runtimes_lists_selectors() {
   setup_ready_repo
-  out=$(aiwf_stub runtimes)
+  out=$(autoteam_stub runtimes)
   assert_contains "$out" "claude@machine-a"
   assert_contains "$out" "codex@machine-b"
   assert_contains "$out" "offline"

@@ -46,7 +46,7 @@ Planner 把任务设为 blocked 时，会在父任务评论里提及你，说明
 
 - 推荐让 Implementer 改：给 Planner 提需求，走正常流程，最后由你作为 Code Owner 批准 PR；
 - 你自己开 PR 改：没有别的 Code Owner 能批准，需要临时把规则集改成 disabled，合并后恢复（会记在审计日志里）；
-- 改了 `ops/agents/` 下的角色指令、registry 或 autopilot，合并后运行 `aiwf multica --apply` 同步到 Multica，再 `aiwf doctor` 确认。
+- 改了 `ops/agents/` 下的角色指令、registry 或 autopilot，合并后运行 `autoteam multica --apply` 同步到 Multica，再 `autoteam doctor` 确认。
 
 ## 每周
 

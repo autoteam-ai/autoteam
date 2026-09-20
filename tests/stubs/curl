@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# curl 桩：只模拟 aiwf 调的 Multica 状态接口 /api/issue-statuses。
+# curl 桩：只模拟 autoteam 调的 Multica 状态接口 /api/issue-statuses。
 set -o pipefail
 state=${STUB_STATE:?}
 method=GET out="" data="" url="" cfg=""

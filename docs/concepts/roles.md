@@ -7,7 +7,7 @@
 | Reviewer | 评审 PR | 改代码、验收 | 支持 | 不支持 |
 | Auditor | 代码健康审计、agent 成绩单 | 改代码、直接建任务 | 不需要 | 支持 |
 
-角色指令在目标仓库的 `ops/agents/<角色>.md`，是 Multica 里 agent 指令的唯一来源：修改走 PR，合并后 `aiwf multica --apply` 同步。禁止项都带了原因，模型遵守得会好很多。
+角色指令在目标仓库的 `ops/agents/<角色>.md`，是 Multica 里 agent 指令的唯一来源：修改走 PR，合并后 `autoteam multica --apply` 同步。禁止项都带了原因，模型遵守得会好很多。
 
 ## 谁会叫醒谁
 

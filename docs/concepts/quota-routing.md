@@ -13,7 +13,7 @@
 
 ## 计费注册表
 
-`ops/agents/registry.yaml` 同时是计费注册表和团队清单：Planner 读它选人，`aiwf multica` 按它建 agent。受 CODEOWNERS 保护，修改走 PR。
+`ops/agents/registry.yaml` 同时是计费注册表和团队清单：Planner 读它选人，`autoteam multica` 按它建 agent。受 CODEOWNERS 保护，修改走 PR。
 
 ```yaml
 accounts:                       # 同一账号下的 agent 共用额度
@@ -32,7 +32,7 @@ agents:                         # 每个 agent 一行
   auditor:     { role: auditor,     account: claude-max,    runtime: claude@machine-c, model: default, max_tasks: 1 }
 ```
 
-- `runtime` 选的是“哪台机器上的哪个 agent CLI”。Multica daemon 会把机器上每个 agent CLI 注册成一个 runtime，`aiwf runtimes` 列出可以填的值。选不同 runtime，就是选不同厂商的 agent。
+- `runtime` 选的是“哪台机器上的哪个 agent CLI”。Multica daemon 会把机器上每个 agent CLI 注册成一个 runtime，`autoteam runtimes` 列出可以填的值。选不同 runtime，就是选不同厂商的 agent。
 - 按量计费的 agent 和订阅的 agent 可以跑在同一个 runtime 上，区别是 `env_file` 里给了 API key（例如 `{"ANTHROPIC_API_KEY": "..."}`），走按量计费。这个文件放 `ops/agents/local/`，已被 .gitignore 忽略；值会存进 Multica 服务端（明文），不要放高价值的长期凭据。
 - `max_tasks` 是并发上限。Implementer 先设 2，确认评审跟得上再加，否则只是更快地堆积待评审的队列。
 

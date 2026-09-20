@@ -4,7 +4,7 @@
 
 | 工具 | 版本 | 用途 |
 |---|---|---|
-| bash | 3.2 以上（macOS 自带的就行） | 运行 aiwf |
+| bash | 3.2 以上（macOS 自带的就行） | 运行 autoteam |
 | git | 任意近期版本 | |
 | gh | 2.40 以上，已登录，对目标仓库有 admin 权限 | 配置仓库、规则集、secret |
 | jq | 1.6 以上 | 处理 JSON |
@@ -21,8 +21,8 @@ Windows 请在 WSL 里运行。
 
 ## Multica
 
-- 有一个工作区，运行 `aiwf multica` 的人是 owner 或 admin（自定义状态只有他们能建）。
-- 至少一台机器跑着 Multica daemon（桌面端会自动起；服务器上用 `multica setup cloud` 或 `multica daemon start`），机器上的 agent CLI（Claude Code、Codex、Copilot 等）已经登录对应的订阅账号。`aiwf runtimes` 能列出在线的 runtime。
+- 有一个工作区，运行 `autoteam multica` 的人是 owner 或 admin（自定义状态只有他们能建）。
+- 至少一台机器跑着 Multica daemon（桌面端会自动起；服务器上用 `multica setup cloud` 或 `multica daemon start`），机器上的 agent CLI（Claude Code、Codex、Copilot 等）已经登录对应的订阅账号。`autoteam runtimes` 能列出在线的 runtime。
 - 推荐三台机器（或三个隔离的环境）：A 跑 Implementer、B 跑 Reviewer、C 跑 Planner 和 Auditor，每台只登录对应的 GitHub 机器账号。
 - agent 运行时要能访问仓库：daemon 会用机器上的 git 凭据克隆，确认那台机器能 `git clone` 你的仓库。
 

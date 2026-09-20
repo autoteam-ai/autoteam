@@ -3,8 +3,8 @@
 SHELL := /bin/bash
 SHELLCHECK_IMAGE := koalaman/shellcheck:v0.11.0
 ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12
-SCRIPTS := bin/aiwf skills/ai-workflow/scripts/aiwf $(wildcard skills/ai-workflow/scripts/lib/*.sh) \
-  $(wildcard skills/ai-workflow/assets/templates/ops/agents/scripts/*.sh) \
+SCRIPTS := bin/autoteam skills/autoteam/scripts/autoteam $(wildcard skills/autoteam/scripts/lib/*.sh) \
+  $(wildcard skills/autoteam/assets/templates/ops/agents/scripts/*.sh) \
   tests/run.sh tests/lib.sh tests/render-workflows.sh $(wildcard tests/test_*.sh) $(wildcard tests/stubs/*)
 
 .PHONY: check test lint shellcheck actionlint

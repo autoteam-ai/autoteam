@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# autoteam：把自管理 agent 团队流程（Planner / Implementer / Reviewer / Auditor）装进一个项目。
+# 兼容 macOS 自带的 bash 3.2。用法见 `autoteam help`。
+set -eo pipefail
+
+AUTOTEAM_HOME=$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+AUTOTEAM_LIB=$AUTOTEAM_HOME/scripts/lib
+# shellcheck disable=SC2034  # 在 lib 里使用
+AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/assets/templates
+
+for autoteam_lib in common conf render registry init github multica doctor; do
+  # shellcheck source=/dev/null
+  . "$AUTOTEAM_LIB/$autoteam_lib.sh"
+done
+unset autoteam_lib
+
+autoteam_usage() {
+  cat <<'EOF'
+autoteam —— 把自管理 agent 团队流程装进你的项目
+
+用法：autoteam [-C <目录>] <命令> [选项]
+
+命令：
+  init       生成工作流文件（已有文件不覆盖，受管块只追加一次）
+  github     配置 GitHub：仓库设置、规则集、environment、机器账号（默认只预览）
+  multica    配置 Multica：自定义状态、agent、项目、autopilot、部署 webhook（默认只预览）
+  doctor     逐项检查本地文件、GitHub、Multica 是否到位（只读）
+  runtimes   列出 Multica runtime，帮你填 registry.yaml 的 runtime 字段
+  diff       对比已安装文件和当前模板
+  version    打印版本
+
+通用选项：
+  -C <目录>  在指定仓库里执行（默认当前目录）
+  -h         查看命令帮助，例如 autoteam github -h
+
+文档：https://github.com/autoteam-ai/autoteam
+EOF
+}
+
+autoteam_main() {
+  local args=() cmd=""
+  autoteam_tmp_init
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -C) [ -n "$2" ] || die "-C 需要一个目录"; cd "$2" || die "进不去目录：$2"; shift 2 ;;
+      -C*) cd "${1#-C}" || die "进不去目录：${1#-C}"; shift ;;
+      *)
+        if [ -z "$cmd" ]; then cmd=$1; else args+=("$1"); fi
+        shift ;;
+    esac
+  done
+
+  case ${cmd:-help} in
+    init)     cmd_init ${args[@]+"${args[@]}"} ;;
+    github)   cmd_github ${args[@]+"${args[@]}"} ;;
+    multica)  cmd_multica ${args[@]+"${args[@]}"} ;;
+    doctor)   cmd_doctor ${args[@]+"${args[@]}"} ;;
+    runtimes) cmd_runtimes ${args[@]+"${args[@]}"} ;;
+    diff)     cmd_diff ${args[@]+"${args[@]}"} ;;
+    version|--version|-v) echo "autoteam $AUTOTEAM_VERSION" ;;
+    help|--help|-h) autoteam_usage ;;
+    *) autoteam_usage >&2; die "未知命令：$cmd" ;;
+  esac
+}
+
+autoteam_main "$@"

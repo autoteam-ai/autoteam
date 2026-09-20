@@ -35,7 +35,7 @@
 
 | 文档 | 讲什么 |
 |---|---|
-| [aiwf 命令](reference/cli.md) | 每个命令做什么、参数 |
-| [配置文件](reference/config.md) | aiwf.conf、registry.yaml、autopilot 的 front matter |
-| [生成的文件](reference/files.md) | aiwf init 生成的每个文件、谁能改 |
+| [autoteam 命令](reference/cli.md) | 每个命令做什么、参数 |
+| [配置文件](reference/config.md) | autoteam.conf、registry.yaml、autopilot 的 front matter |
+| [生成的文件](reference/files.md) | autoteam init 生成的每个文件、谁能改 |
 | [代价和风险](limitations.md) | 这套流程的代价，以及什么时候不该用 |
