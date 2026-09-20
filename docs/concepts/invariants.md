@@ -14,7 +14,7 @@ title: 四条不变量
 
 | | |
 |---|---|
-| 由什么保证 | Implementer 和 Reviewer 是两个不同的 GitHub App 身份；GitHub 不允许 PR 作者批准自己的 PR |
+| 由什么保证 | Implementer 和 Reviewer 是两个不同的 GitHub App 身份；GitHub 不允许 PR 作者批准自己的 PR。另外 Implementer App 没有 `workflows` 权限，推含 `.github/workflows/` 改动的提交会被 GitHub 直接拒——这条用机器账号做不到 |
 | 什么会破坏它 | 两个角色配成同一个 App ID；用同一个账号的 token 兜底；Reviewer 拿到 Contents 写权限后自己改代码再批准 |
 | 怎么验证 | `autoteam doctor` 会在两个 App ID 相同时报错；`autoteam github` 同样会拦。Reviewer App 不给 Contents 写权限，它物理上推不了代码 |
 
@@ -39,7 +39,7 @@ title: 四条不变量
 | | |
 |---|---|
 | 由什么保证 | CODEOWNERS 把 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 指给人；规则集要求 Code Owner 审批。**CODEOWNERS 不能写 App**，所以这里必须是人工账号 |
-| 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批） |
+| 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批）；给 Implementer App 加上 `workflows` 权限 |
 | 怎么验证 | `autoteam doctor` 检查 CODEOWNERS 和规则集；`--trial` 下 doctor 会一直标黄 |
 
 ## 已知的偏离
