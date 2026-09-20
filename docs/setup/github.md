@@ -74,7 +74,7 @@ GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer �
 |---|---|
 | Bypass list | 留空，管理员也不能豁免 |
 | Restrict deletions、Block force pushes | 打开 |
-| Require a pull request before merging | 1 个审批；新提交作废旧审批；规则文件要 Code Owner 审批；合并方式只留 squash |
+| Require a pull request before merging | 1 个审批；新提交作废旧审批；规则文件要 Code Owner 审批；最后一次推送要别人批准；合并方式只留 squash |
 | Require status checks to pass | `check`，只认 GitHub Actions 上报的结果 |
 | Require merge queue | 只有组织仓库（full 等级）才加 |
 

@@ -61,7 +61,7 @@ title: 第 7 步：跑通第一个需求
 | 1 | 规则集生效了，但单账号下审批数只能设 0，检查一绿平台就合并，Reviewer 来不及看 | 新增 `staged` 模式：Implementer 开 draft PR（draft 不能开自动合并），Reviewer 批准后 `gh pr ready` 放行 |
 | 2 | 项目改名后 autopilot 还绑着旧 `project_id`，照常运行、照常成功，只是在旧项目里找任务，Planner 一直报"无待验收任务" | apply 时比对 `project_id`，doctor 把绑错项目当错误报 |
 | 3 | 给 Reviewer 配了机器账号的 `env_file`，apply 却报"已是最新"——env 读不回来没法比对，判断里又漏了它，token 一次都没同步 | 和 MCP 配置一样：registry 里写了就每次重写 |
-| 4 | `require_last_push_approval` 让人改规则文件时谁都合不了：`ops/agents/` 只有人能批，而人又是推的那个 | 不再开这条。`dismiss_stale_reviews_on_push` 已经覆盖它防的风险，对 agent 流程它不增加任何保护 |
+| 4 | 人改规则文件时一直合不了，GitHub 反复说"最后推送的人不能当批准人"，换机器账号重推也没用 | GitHub 对"最后推送者"的判断有延迟，换完身份要等一会儿才会更新。别急着改规则集，等几分钟重试 |
 
 2 和 3 是同一类错误，都是**比对不全面导致"已是最新"撒谎**。这类问题最难发现：命令返回成功，doctor 全绿，只有跑到那一步才发现链路是断的。现在两条都有回归测试。
 
