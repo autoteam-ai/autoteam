@@ -2,6 +2,11 @@
 
 ## 未发布
 
+### 真机验证修正的两条
+
+- **Reviewer App 必须有 Contents 写权限**。GitHub 只把「有仓库写权限的身份」提交的批准计入必需审批数：只给 Pull requests 写权限的 App，批准会记录成 APPROVED 但不算数，PR 永远停在 `REVIEW_REQUIRED`。原来按「Reviewer 只读、物理上推不了代码」设计，真机一跑就卡住；`github` 和 `doctor` 现在会在 Reviewer App 缺写权限时报错。代价是「评审者不能推代码」退回指令约束，和机器账号方案一样——**能当硬约束的只有「作者不能批准自己」**，这条已真机验证（Implementer App 批准自己开的 PR 收到 `Can not approve your own pull request`）。
+- **Implementer App 不能改 `.github/workflows/`**，GitHub 直接拒（缺 `workflows` 权限）。这是意外收获：原来只是指令约束的一条，现在是平台硬约束，机器账号做不到。已写进不变量表和保护等级表。
+
 ### 自举：autoteam 开始用 autoteam 开发自己
 
 - 本仓库装上了自己：`ops/agents/`（四个角色、10 个 autopilot、经验库、四个脚本）全部由 `autoteam init` 生成。每一条规则先落在自己身上，模板改坏了先坏的是自己的团队。
