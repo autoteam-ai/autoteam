@@ -185,15 +185,7 @@ doctor_github() {
   else
     warn "默认分支上还没有 CODEOWNERS"
   fi
-  local role user
-  for role in IMPL REVIEW PLANNER; do
-    eval "user=\${AUTOTEAM_${role}_BOT:-}"
-    [ -n "$user" ] || continue
-    if gh_call GET "repos/$AUTOTEAM_REPO/collaborators/$user"; then ok "机器账号 $user 已是协作者"; else fail "机器账号 $user 还不是协作者"; fi
-  done
-  if [ -z "$AUTOTEAM_IMPL_BOT$AUTOTEAM_REVIEW_BOT" ]; then
-    warn "没有配置机器账号：Implementer 和 Reviewer 用同一个 GitHub 账号时，GitHub 不允许批准自己的 PR"
-  fi
+  doctor_apps
   local run
   run=$(gh run list --repo "$AUTOTEAM_REPO" --workflow gate.yml --limit 1 --json conclusion,status,headBranch,url 2>/dev/null | jq -c '.[0] // empty')
   if [ -z "$run" ]; then
@@ -204,6 +196,56 @@ doctor_github() {
     warn "最近一次 gate：$(jq -r '.status + " " + (.conclusion // "")' <<<"$run")  $(jq -r '.url' <<<"$run")"
   fi
   : "$level"
+}
+
+# App 的安装和私钥。doctor 可能跑在人的机器上（没有私钥），也可能跑在 agent 机器上，
+# 两种情况要给出不同的结论，不要把"本机没有私钥"报成错误。
+doctor_apps() {
+  local role key_role id org installed row pem
+  org=${AUTOTEAM_REPO%%/*}
+  installed=""
+  if gh_call GET "orgs/$org/installations"; then installed=$GH_OUT; fi
+
+  if [ -z "$AUTOTEAM_IMPLEMENTER_APP_ID$AUTOTEAM_REVIEWER_APP_ID" ]; then
+    warn "没有配置 GitHub App：写代码和评审是同一个身份，GitHub 不允许作者批准自己的 PR，评审独立性只剩指令约束"
+    return 0
+  fi
+  if [ "$AUTOTEAM_IMPLEMENTER_APP_ID" = "$AUTOTEAM_REVIEWER_APP_ID" ]; then
+    fail "Implementer 和 Reviewer 是同一个 App：评审独立性失效，必须用两个不同的 App"
+    return 0
+  fi
+
+  for role in impl review planner; do
+    case $role in
+      impl) id=$AUTOTEAM_IMPLEMENTER_APP_ID; key_role=implementer ;;
+      review) id=$AUTOTEAM_REVIEWER_APP_ID; key_role=reviewer ;;
+      planner) id=$AUTOTEAM_PLANNER_APP_ID; key_role=planner ;;
+    esac
+    [ -n "$id" ] || { warn "$role 没有配置 App ID"; continue; }
+    if [ -n "$installed" ]; then
+      row=$(jq -c --argjson id "$id" '.installations[]? | select(.app_id == $id)' <<<"$installed" 2>/dev/null | head -n 1)
+      if [ -n "$row" ]; then
+        ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已装在 $org"
+        if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" = write ]; then
+          warn "Reviewer App 有 contents 写权限：降成 Read，它不该能推代码"
+        fi
+      else
+        fail "$role App $id 没有装在 $org 上"
+      fi
+    else
+      info "$role App $id：核对不了安装状态（需要组织 admin），到 App 的 Install 页面自己确认"
+    fi
+    pem=ops/agents/local/$key_role.pem
+    if [ -r "$pem" ]; then
+      if ops/agents/scripts/gh-app-token.sh "$key_role" >/dev/null 2>&1; then
+        ok "$role 的私钥能铸出 token（本机可以用这个身份操作 GitHub）"
+      else
+        fail "$role 有私钥但铸不出 token：跑 ops/agents/scripts/gh-app-token.sh $key_role 看报错"
+      fi
+    else
+      info "本机没有 $pem：只有跑 $role 的那台机器需要它"
+    fi
+  done
 }
 
 doctor_multica() {

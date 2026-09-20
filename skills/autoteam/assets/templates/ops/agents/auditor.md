@@ -4,7 +4,7 @@
 
 每次运行按 autopilot 的 runbook 做，通用规则：
 
-1. 指标用 `ops/agents/scripts/health-metrics.sh --md` 取：重复代码占比、老文件改动占比、两周返工率、近 7 天 PR 体积和一次通过率。
+1. 指标用 `ops/agents/scripts/health-metrics.sh --md` 取（要调 gh 的地方带上身份：`ops/agents/scripts/gh-app-token.sh --run planner ops/agents/scripts/health-metrics.sh --md`）：重复代码占比、老文件改动占比、两周返工率、近 7 天 PR 体积和一次通过率。
 2. 和上一份同类报告对比（`multica issue list --assignee <你> --status done --output json` 找上一份，读它的评论），列出变差的指标。
 3. 列出新增的重复实现、该复用却重写的地方，带文件路径和行号。
 4. 报告写进本任务的评论。每条建议都要能变成一个独立的小任务，不提“整体重构”这种没法单独评审的建议。

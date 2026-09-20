@@ -1,0 +1,61 @@
+# 合并闸门：规则集把 check 设为必需检查。受 CODEOWNERS 保护，只能由人批准修改。
+name: gate
+
+on:
+  pull_request:
+  merge_group:            # 启用合并队列必须加
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # 本仓库特有：make check 有 docker 回退，但直接装二进制快得多。
+      # 版本和 Makefile 里的镜像 tag 保持一致，避免本地和 CI 的检查结果不一样
+      - name: install linters
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJ -C "$RUNNER_TEMP" --strip-components=1 "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          bash <(curl -fsSL "https://raw.githubusercontent.com/rhysd/actionlint/v${ACTIONLINT_VERSION}/scripts/download-actionlint.bash") "$ACTIONLINT_VERSION" "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # 上限和不计入的路径都在 ops/agents/autoteam.conf：AUTOTEAM_PR_MAX_LINES（默认 400，
+      # 参考 AI PR 的 75 分位 408 行）、AUTOTEAM_PR_SIZE_EXCLUDE（lock 文件，以及受
+      # CODEOWNERS 保护、由人批准的规则文件——它们不该占 agent 的代码行数预算）
+      - name: pr-size
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          conf=ops/agents/autoteam.conf
+          max=$(sed -n 's/^AUTOTEAM_PR_MAX_LINES=//p' "$conf" | head -n 1 | tr -d '[:space:]')
+          max=${max:-400}
+          skip=$(sed -n 's/^AUTOTEAM_PR_SIZE_EXCLUDE=//p' "$conf" | head -n 1 | tr -d '[:space:]')
+          skip=${skip:-'**/*.lock,**/*.md,.github/**,ops/agents/**'}
+          set --
+          IFS=,
+          for pat in $skip; do set -- "$@" ":(exclude,glob)$pat"; done
+          unset IFS
+          changed=$(git diff --numstat "origin/$BASE"...HEAD -- . "$@" \
+            | awk '{s += $1 + $2} END {print s + 0}')
+          echo "本 PR 改动 $changed 行，上限 $max 行"
+          if [ "$changed" -gt "$max" ]; then
+            echo "::error::PR 改动 $changed 行，超过上限 $max 行：拆成更小的任务"
+            exit 1
+          fi
+
+      # 重复代码占比上限在 .jscpd.json 的 threshold：老项目按现状定值，只降不升
+      - name: duplication
+        run: npx --yes jscpd@5 --config .jscpd.json .
+
+      - name: check
+        run: make check

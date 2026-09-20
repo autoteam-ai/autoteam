@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# autoteam github：仓库设置、规则集、environment、机器账号。默认只预览。
+# autoteam github：仓库设置、规则集、environment、GitHub App。默认只预览。
 
 github_usage() {
   cat <<'EOF'
@@ -8,9 +8,9 @@ github_usage() {
 按 ops/agents/autoteam.conf 配置 GitHub 仓库。默认只预览，加 --apply 才执行。
 
   --apply                  执行改动
-  --trial                  单账号试用模式：规则集不要求审批（写代码和评审用同一个 GitHub 账号时用）
-  --bots impl=<用户>,review=<用户>,planner=<用户>
-                           邀请机器账号为协作者（也可以写在 autoteam.conf 的 AUTOTEAM_*_BOT）
+  --trial                  单身份试用模式：规则集不要求审批（写代码和评审用同一个身份时用）
+  --apps impl=<App ID>,review=<App ID>,planner=<App ID>
+                           三个角色各自的 GitHub App ID（也可以写在 autoteam.conf 的 AUTOTEAM_*_APP_ID）
   --repo <owner/name>      覆盖 autoteam.conf 里的仓库
 
 会做的事：
@@ -19,7 +19,7 @@ github_usage() {
      新提交作废旧审批、规则文件要 Code Owner 审批、最后一次推送要别人批准、
      必需检查 check（只认 GitHub Actions 上报）、组织仓库再加合并队列
   3. 部署 environment（autoteam.conf 的 AUTOTEAM_DEPLOY_ENVIRONMENT）
-  4. 邀请机器账号，打印每个账号的 token 权限
+  4. 核对三个 GitHub App 装好没有、权限对不对（App 只能由人创建和安装，autoteam 不代做）
 EOF
 }
 
@@ -38,12 +38,12 @@ gh_call() {
 }
 
 cmd_github() {
-  local trial=0 bots=""
+  local trial=0 apps=""
   while [ $# -gt 0 ]; do
     case $1 in
       --apply) AUTOTEAM_APPLY=1; shift ;;
       --trial) trial=1; shift ;;
-      --bots) bots=$2; shift 2 ;;
+      --apps) apps=$2; shift 2 ;;
       --repo) AUTOTEAM_REPO=$2; shift 2 ;;
       -h|--help) github_usage; return 0 ;;
       *) github_usage >&2; die "未知选项：$1" ;;
@@ -95,8 +95,8 @@ cmd_github() {
   section "部署 environment"
   github_environment "$level"
 
-  section "机器账号"
-  github_bots "$bots" "$owner_type"
+  section "GitHub App"
+  github_apps "$apps" "$owner_type"
 
   section "其他检查"
   github_extra_checks
@@ -265,67 +265,77 @@ github_environment() {
   fi
 }
 
-github_bots() {
-  local bots=$1 owner_type=$2 pair role user any=0
-  local impl=$AUTOTEAM_IMPL_BOT review=$AUTOTEAM_REVIEW_BOT planner=$AUTOTEAM_PLANNER_BOT
-  if [ -n "$bots" ]; then
-    for pair in $(printf '%s' "$bots" | tr ',' ' '); do
-      role=${pair%%=*} user=${pair#*=}
+github_apps() {
+  local spec=$1 owner_type=$2 pair role id org any=0
+  local impl=$AUTOTEAM_IMPLEMENTER_APP_ID review=$AUTOTEAM_REVIEWER_APP_ID planner=$AUTOTEAM_PLANNER_APP_ID
+  if [ -n "$spec" ]; then
+    for pair in $(printf '%s' "$spec" | tr ',' ' '); do
+      role=${pair%%=*} id=${pair#*=}
       case $role in
-        impl|implementer) impl=$user ;;
-        review|reviewer) review=$user ;;
-        planner) planner=$user ;;
-        *) die "--bots 只认 impl / review / planner：$pair" ;;
+        impl|implementer) impl=$id ;;
+        review|reviewer) review=$id ;;
+        planner) planner=$id ;;
+        *) die "--apps 只认 impl / review / planner：$pair" ;;
       esac
     done
   fi
+
+  # 这是整套方案里最关键的一条：两个不同的 App 身份，才能让平台挡住"作者批准自己的 PR"
+  if [ -n "$impl" ] && [ "$impl" = "$review" ]; then
+    fail "Implementer 和 Reviewer 配成了同一个 App（$impl）：GitHub 不允许作者批准自己的 PR，评审独立性会失效"
+    hint "建两个 App，或者先用 --trial 走单身份模式（评审只剩指令约束）"
+    return 0
+  fi
+
+  org=${AUTOTEAM_REPO%%/*}
+  local installed=""
+  if [ "$owner_type" = Organization ] && gh_call GET "orgs/$org/installations"; then
+    installed=$GH_OUT
+  fi
+
   for pair in "impl:$impl" "review:$review" "planner:$planner"; do
-    role=${pair%%:*} user=${pair#*:}
-    [ -n "$user" ] || continue
+    role=${pair%%:*} id=${pair#*:}
+    [ -n "$id" ] || continue
     any=1
-    github_invite "$role" "$user"
+    github_app_check "$role" "$id" "$installed"
   done
+
   if [ "$any" = 0 ]; then
-    warn "没有配置机器账号：写代码和评审用的是同一个 GitHub 账号，GitHub 不允许作者批准自己的 PR"
-    hint "准备好账号后写进 autoteam.conf 的 AUTOTEAM_IMPL_BOT / AUTOTEAM_REVIEW_BOT / AUTOTEAM_PLANNER_BOT，或用 --bots 传入"
-    return 0
+    warn "还没有配置 GitHub App：写代码和评审会是同一个身份，GitHub 不允许作者批准自己的 PR"
+    hint "按 docs/setup/github.md 建好 App，把 App ID 写进 autoteam.conf 的 AUTOTEAM_*_APP_ID，或用 --apps 传入"
   fi
-  github_token_table "$owner_type"
+  github_app_table
 }
 
-github_invite() {
-  local role=$1 user=$2
-  if gh_call GET "repos/$AUTOTEAM_REPO/collaborators/$user"; then
-    ok "$role 账号 $user 已是协作者"
+# App 不能用 API 创建和安装，只能核对；核对不到时如实说不知道，不要假装通过
+github_app_check() {
+  local role=$1 id=$2 installed=$3 row
+  if [ -z "$installed" ]; then
+    info "$role App $id：这个仓库核对不了安装状态（需要组织 admin），到 App 的 Install 页面自己确认"
     return 0
   fi
-  if gh_call GET "repos/$AUTOTEAM_REPO/invitations" \
-    && jq -e --arg u "$user" '.[] | select(.invitee.login == $u)' <<<"$GH_OUT" >/dev/null; then
-    warn "$role 账号 $user 的邀请还没接受：用该账号登录 GitHub 接受邀请"
+  row=$(jq -c --argjson id "$id" '.installations[]? | select(.app_id == $id)' <<<"$installed" 2>/dev/null | head -n 1)
+  if [ -z "$row" ]; then
+    fail "$role App $id 没有装在 $org 上：到 App 的 Install 页面把它装到 $AUTOTEAM_REPO"
     return 0
   fi
-  planned "PUT repos/$AUTOTEAM_REPO/collaborators/$user（permission=push）"
-  [ "$AUTOTEAM_APPLY" = 1 ] || return 0
-  if gh_call PUT "repos/$AUTOTEAM_REPO/collaborators/$user" '{"permission":"push"}'; then
-    ok "已邀请 $user，需要用该账号接受邀请"
-  else
-    fail "邀请 $user 失败：$GH_OUT"
+  ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已安装"
+  # Reviewer 不该有写代码的权限：这是 App 方案比机器账号强的地方，别把它浪费掉
+  if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" = write ]; then
+    warn "Reviewer App 有 contents 写权限：它本来就不该能推代码，去 App 设置里降成 Read"
+  fi
+  if [ "$(jq -r '.repository_selection // ""' <<<"$row")" = all ]; then
+    warn "$role App 装在了组织的全部仓库上：改成只选 $AUTOTEAM_REPO，缩小私钥泄露时的影响面"
   fi
 }
 
-github_token_table() {
+github_app_table() {
   info ""
-  info "每个机器账号只在自己的机器上登录 gh，token 只给最小权限、设过期时间："
-  if [ "$1" = Organization ]; then
-    info "  impl    fine-grained，只选本仓库：Contents 读写、Pull requests 读写（推分支、开 PR、开自动合并）"
-    info "  review  fine-grained，只选本仓库：Pull requests 读写、Contents 只读（提交评审）"
-    info "  planner fine-grained，只选本仓库：Actions 读写、Contents 只读、Pull requests 只读（查 PR、触发回滚）"
-    hint "机器账号要是组织成员才能用 fine-grained token；组织需要允许 fine-grained token"
-  else
-    info "  个人账号的仓库：协作者不能用 fine-grained token，只能用 classic token（repo 范围，设过期时间）"
-    info "  impl 的 token 不要勾 workflow 范围，这样它推不了 .github/workflows 的改动"
-    hint "想按最小权限给 token，把仓库迁到组织下，机器账号作为组织成员"
-  fi
+  info "三个 App 各自的权限（都只装本仓库，私钥放各自机器的 ops/agents/local/<角色>.pem）："
+  info "  impl     Contents 读写、Pull requests 读写   推分支、开 PR、开自动合并"
+  info "  review   Pull requests 读写、Contents 只读   提交评审；没有写权限，它推不了代码"
+  info "  planner  Actions 读写、Contents 只读、Pull requests 只读   查 PR、触发回滚"
+  hint "App 由人在 GitHub 上创建和安装，autoteam 不会也不能代做；建完把 App ID 填进 autoteam.conf"
 }
 
 github_extra_checks() {

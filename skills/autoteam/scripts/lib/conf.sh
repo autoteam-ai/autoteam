@@ -10,9 +10,9 @@ autoteam_conf_defaults() {
 AUTOTEAM_REPO=
 AUTOTEAM_DEFAULT_BRANCH=main
 AUTOTEAM_OWNER=
-AUTOTEAM_IMPL_BOT=
-AUTOTEAM_REVIEW_BOT=
-AUTOTEAM_PLANNER_BOT=
+AUTOTEAM_IMPLEMENTER_APP_ID=
+AUTOTEAM_REVIEWER_APP_ID=
+AUTOTEAM_PLANNER_APP_ID=
 AUTOTEAM_MULTICA_WORKSPACE=
 AUTOTEAM_MULTICA_PROJECT=
 AUTOTEAM_HUMAN=
@@ -27,7 +27,8 @@ AUTOTEAM_TIMEZONE=Asia/Shanghai
 EOF
 }
 
-# 读取一个 KEY=VALUE 文件；只设置还没有值的变量（环境变量优先）
+# 读取一个 KEY=VALUE 文件；只设置还没有值的变量（环境变量优先）。
+# 同一个键出现多次时第一条生效——ops/agents/scripts/ 下的脚本也要按这个规则读（head -n 1）。
 conf_load_file() {
   local file=$1 line key val re_skip='^[[:space:]]*(#|$)' re_key='^AUTOTEAM_[A-Z0-9_]+$'
   [ -f "$file" ] || return 0

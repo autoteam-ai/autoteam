@@ -21,13 +21,13 @@ Windows 请在 WSL 里运行。
 
 - 目标仓库在 GitHub 上，你是 admin。
 - 套餐决定平台闸门能做到什么程度，见[保护等级](../concepts/guardrails.md#保护等级)。GitHub Free 的私有仓库没有规则集和自动合并，只能用降级模式。
-- 推荐准备机器账号：至少 impl、review 两个（planner 可选），见[机器账号和 token](github.md#机器账号和-token)。没有就先用单账号试用模式。
+- 要建 GitHub App：至少 impl、review 两个（planner 推荐），见[三个 GitHub App](github.md#三个-github-app)。没有就先用单身份试用模式。
 
 ## Multica
 
 - 有一个工作区，运行 `autoteam multica` 的人是 owner 或 admin（自定义状态只有他们能建）。
 - 至少一台机器跑着 Multica daemon（桌面端会自动起；服务器上用 `multica setup cloud` 或 `multica daemon start`），机器上的 agent CLI（Claude Code、Codex、Copilot 等）已经登录对应的订阅账号。`autoteam runtimes` 能列出在线的 runtime。
-- 推荐三台机器（或三个隔离的环境）：A 跑 Implementer、B 跑 Reviewer、C 跑 Planner 和 Auditor，每台只登录对应的 GitHub 机器账号。
+- 推荐三台机器（或三个隔离的环境）：A 跑 Implementer、B 跑 Reviewer、C 跑 Planner 和 Auditor，每台只放对应角色的 App 私钥。
 - agent 运行时要能访问仓库：daemon 会用机器上的 git 凭据克隆，确认那台机器能 `git clone` 你的仓库。
 
 ## 仓库本身

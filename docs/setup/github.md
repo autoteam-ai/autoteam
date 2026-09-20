@@ -11,60 +11,71 @@ autoteam github                    # 预览：识别保护等级，列出要做�
 autoteam github --apply            # 执行
 ```
 
-## 机器账号和 token
+## 三个 GitHub App
 
-GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer 用不同账号，就能在平台层面保证写代码的不能评审自己。
+GitHub 不允许 PR 作者批准自己的 PR。只要 Implementer 和 Reviewer 是**两个不同的 GitHub 身份**，"写代码的不能评审自己"就由平台保证，agent 绕不过去。
 
-| 账号 | 机器 | 给谁用 | 仓库权限 |
-|---|---|---|---|
-| `acme-impl-bot` | A | 所有 Implementer | Write：推分支、开 PR、开自动合并 |
-| `acme-review-bot` | B | 所有 Reviewer | Write：提交评审 |
-| `acme-planner-bot` | C | Planner、Auditor | Write，但 token 只开读取和 Actions：查 PR、触发回滚 |
+身份用 GitHub App，不用机器账号：不用注册邮箱和两步验证、不占席位、权限按 App 定义而不是靠选 token 范围，而且 **Reviewer App 可以连写权限都不给——它物理上推不了代码**。
 
-1. 注册账号（每个一个邮箱，开两步验证），写进 `ops/agents/autoteam.conf`：
+| App | 给谁用 | 权限（都只装本仓库） |
+|---|---|---|
+| `<前缀>-impl` | 所有 Implementer | Contents 读写、Pull requests 读写 |
+| `<前缀>-review` | 所有 Reviewer | Pull requests 读写、Contents **只读** |
+| `<前缀>-planner` | Planner、Auditor | Actions 读写、Contents 只读、Pull requests 只读 |
 
-   ```
-   AUTOTEAM_IMPL_BOT=acme-impl-bot
-   AUTOTEAM_REVIEW_BOT=acme-review-bot
-   AUTOTEAM_PLANNER_BOT=acme-planner-bot
-   ```
+### 建 App
 
-2. `autoteam github --apply` 会邀请它们为协作者（permission=push），用各自账号登录 GitHub 接受邀请。仓库在组织下时，也可以把它们加成组织成员（基础权限 No permission）再单独给本仓库 Write。
-3. 生成 token，只授权本仓库、设过期时间：
+App 不能用 API 创建和安装，这一步必须由人做（`autoteam github` 只核对，不会代建）。三个 App 各做一遍：
 
-   | 账号 | 组织仓库：fine-grained token | 个人仓库：classic token |
-   |---|---|---|
-   | impl | Contents 读写、Pull requests 读写 | `repo`；不勾 `workflow`，它就推不了工作流文件 |
-   | review | Pull requests 读写、Contents 只读 | `repo` |
-   | planner | Actions 读写、Contents 只读、Pull requests 只读 | `repo` |
+1. 组织的 Settings → Developer settings → GitHub Apps → **New GitHub App**（个人仓库就在个人 Settings 下）。
+2. 名字按上表；Homepage URL 随便填一个（比如仓库地址）；**取消勾选 Webhook 的 Active**——这套方案不需要 webhook 服务，App 只当身份用。
+3. Repository permissions 按上表勾。**Where can this GitHub App be installed** 选 Only on this account。
+4. 建好后记下 **App ID**，点 Generate a private key 下载 `.pem`。
+5. 左侧 Install App → 装到本仓库，Repository access 选 **Only select repositories**，只选这一个仓库。
 
-   个人账号的仓库，协作者不能用 fine-grained token（resource owner 只能选自己或所在的组织），只能用 classic token，没法按仓库细分权限。想按最小权限给，就把仓库放到组织下，机器账号作为组织成员。
+### 配置
 
-4. 把 token 交给 agent。两种方式，按 agent 怎么分布选：
+App ID 写进 `ops/agents/autoteam.conf`：
 
-   **一台机器一个账号**：在那台机器上登录，`gh` 和 `git` 全局用这个身份。
+```
+AUTOTEAM_IMPLEMENTER_APP_ID=1234567
+AUTOTEAM_REVIEWER_APP_ID=1234568
+AUTOTEAM_PLANNER_APP_ID=1234569
+```
 
-   ```bash
-   gh auth login --with-token < token.txt
-   git config --global user.name acme-impl-bot
-   git config --global user.email <账号邮箱>
-   ```
+私钥按角色放到**各自那台机器**的仓库里，文件名固定：
 
-   **一台机器跑多个角色**（常见：agent 都在同一个容器里）：全局登录只能有一个身份，这时用 registry 的 `env_file` 给每个 agent 单独的 token——Multica 把它注入 agent 进程，`gh` 会优先用 `GITHUB_TOKEN`：
+```
+ops/agents/local/implementer.pem
+ops/agents/local/reviewer.pem
+ops/agents/local/planner.pem
+```
 
-   ```yaml
-   ex-rev-claude: { role: reviewer, ..., env_file: ops/agents/local/reviewer-env.json }
-   ```
+`ops/agents/local/` 已经在 `.gitignore` 里，不会被提交。权限设 `chmod 600`。
 
-   ```json
-   { "GITHUB_TOKEN": "<review 账号的 token>", "GH_TOKEN": "<同一个>" }
-   ```
+### agent 怎么用
 
-   文件放 `ops/agents/local/`（已被 gitignore），权限设 0600，改完跑 `autoteam multica --apply --only agents` 同步。注意这份 env 以明文存在 Multica 服务端，只放这类可随时吊销的 token。
+`ops/agents/scripts/gh-app-token.sh` 负责用私钥签 JWT、换 1 小时有效的 installation token，并缓存到快过期才重铸。角色指令里已经写好了，不用你操心，但你要知道它怎么工作：
 
-不同账号尽量跑在不同机器上（至少是不同系统用户或容器），避免互相读到凭据。
+```bash
+# 任何 gh 命令，身份跟着命令走
+ops/agents/scripts/gh-app-token.sh --run implementer gh pr create --title "..."
 
-还没准备账号时，用单账号试用模式：`autoteam github --apply --trial`，见[单账号试用模式](../concepts/guardrails.md#单账号试用模式)。
+# 每次 clone / checkout 之后配一次：提交身份 + git push 的凭据
+ops/agents/scripts/gh-app-token.sh --setup-git implementer
+```
+
+**不能用 `export GH_TOKEN=...`**：agent 每次工具调用都是新 shell，导出的变量活不到下一条命令。
+
+`--setup-git` 会先用空值清掉机器上继承来的凭据助手，再配上 App 的。这一步不能省：机器上如果登录过 `gh`，系统钥匙串会抢先应答，agent 就会**以你本人的身份推代码**。
+
+### 代价
+
+私钥是长期凭据，比"只授权本仓库、带过期时间"的 fine-grained token 权限更宽、活得更久。所以：App 只装这一个仓库、权限按上表给到最小、私钥只放需要它的那台机器、不同角色尽量不同机器（至少不同系统用户或容器）。私钥泄露了就到 App 设置里删掉那把 key 再生成一把，已经铸出去的 token 最多 1 小时后失效。
+
+人工账号仍然要留一个：**CODEOWNERS 不能写 App**，所以规则文件的 Code Owner 是你本人，规则文件的改动必须你批准。这正是研究文档要的那条——规则文件只能由人批准。
+
+还没建 App 时，用单身份试用模式：`autoteam github --apply --trial`，见[单身份试用模式](../concepts/guardrails.md#单账号试用模式)。
 
 ## 合并规则
 

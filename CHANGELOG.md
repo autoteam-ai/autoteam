@@ -2,6 +2,14 @@
 
 ## 未发布
 
+- **GitHub 身份从机器账号换成 GitHub App**。研究文档里是三个机器账号，现在是三个 App：不用注册邮箱和两步验证、不占席位，权限按 App 定义而不是靠选 token 范围，而且 Reviewer App 不给 Contents 写权限——它物理上推不了代码，比两个都是 Write 协作者的机器账号更严。核心不变量没变：Implementer 和 Reviewer 是两个不同身份，GitHub 挡住作者批准自己的 PR；两个 App ID 配成同一个时 `github` 和 `doctor` 都会报错。人工账号仍要留一个：CODEOWNERS 不能写 App，规则文件的 Code Owner 是人。
+- 新增 `ops/agents/scripts/gh-app-token.sh`：用 App 私钥签 JWT 换 installation token（缓存到快过期才重铸），`--run` 带身份跑命令、`--setup-git` 配好 clone 的提交身份和凭据助手、`--credential` 做 git 凭据助手。agent 每次工具调用都是新 shell，所以身份必须跟着命令走，不能 `export GH_TOKEN`。
+- `--setup-git` 会先用空值清掉继承来的凭据助手。不清的话，机器上 `gh auth login` 留下的系统钥匙串会抢先应答，**agent 会以人的身份推代码**——这个 bug 在实现时真的复现过。
+- 真机验证时发现的一条额外收获：**用 Implementer App 推含工作流的提交会被 GitHub 拒绝**（缺 `workflows` 权限）。这把"Implementer 不能改 `.github/workflows/`"从指令约束变成了平台硬约束，机器账号做不到这一点。
+- `autoteam.conf` 的 `AUTOTEAM_*_BOT` 换成 `AUTOTEAM_<角色>_APP_ID`；`autoteam github` 的 `--bots` 换成 `--apps`，行为从"邀请协作者"变成"核对 App 装好没有、权限对不对"——App 不能用 API 创建和安装，autoteam 不代做也不假装做了。
+- `make check` 的 docker 回退改用 `--format=gcc`：镜像里的 shellcheck 是静态二进制、没有 locale 数据，默认格式要回显源码行，遇到中文就崩在 `commitBuffer: invalid argument`。设 `LANG` / `LC_ALL` 没用（四种组合都试过）。
+- 统一 conf 读取：同名键第一条生效。CLI 一直是这样，而 `loop-guard.sh` 等脚本用 `tail -n 1` 是最后一条生效，用户追加一行覆盖时两边会读出不同的值。
+
 - 新增基于 Starlight 的版本化文档站和 GitHub Pages 工作流：`docs/` 只维护开发版，构建时从所有 `v*` tag 提取历史文档，页面可在开发版与各发布版本之间切换。
 - 新增 npm 包 `autoteam` 的清单（`package.json`，`bin` 指向 `bin/autoteam`）和 `make deploy`：发布前核对三处版本号、把打出的包装到临时目录跑一遍，再 `npm publish`；版本已发过则跳过，`DRY_RUN=1` 只演练。还没有真正发布过。
 - 项目改名为 **autoteam**（原 ai-workflow）：CLI、skill、`ops/agents/autoteam.conf`、`AUTOTEAM_*` 变量、受管块标记和规则集名一并跟随。原名撞的是整个赛道——n8n、Dify、LangGraph 都自称 "AI workflow"，而这套东西做的是 agent 团队自治和合并闸门。

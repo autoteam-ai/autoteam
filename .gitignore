@@ -5,3 +5,5 @@
 /dist/
 /node_modules/
 .DS_Store
+# GitHub App 私钥、按量计费的 key：绝对不能提交
+/ops/agents/local/
