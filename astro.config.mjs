@@ -5,7 +5,7 @@ import mermaid from 'astro-mermaid';
 const base = process.env.AUTOTEAM_DOCS_BASE || '/';
 
 export default defineConfig({
-  site: 'https://autoteam.hdgcs.com',
+  site: 'https://autoteam-ai.github.io',
   base,
   outDir: process.env.AUTOTEAM_DOCS_OUT_DIR || './dist',
   integrations: [
