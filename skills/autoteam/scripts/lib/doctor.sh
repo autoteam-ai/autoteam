@@ -251,6 +251,21 @@ doctor_apps() {
   done
 }
 
+# 读一次 Multica：退出码为 0 且输出是合法 JSON 才算读到，结果放在 MC_READ_OUT。
+# 读不到就报错并返回 1，调用方跳过依赖它的检查——不能把"没读到"当成空或不一致。
+# 用法：doctor_mc_read <描述> <mc 参数...>
+doctor_mc_read() {
+  local what=$1
+  shift
+  if MC_READ_OUT=$(mc "$@" --output json 2>/dev/null) && jq -e . >/dev/null 2>&1 <<<"$MC_READ_OUT"; then
+    return 0
+  fi
+  MC_READ_OUT=""
+  fail "读不到 $what（mc $* 失败或输出不是 JSON）"
+  hint "多半是网络或服务端慢：调大 MULTICA_HTTP_TIMEOUT 后重跑 autoteam doctor；这不代表配置有问题，先别去同步指令"
+  return 1
+}
+
 doctor_multica() {
   local profile=$1 ws=$2 rows=$3 runtimes agents cur name role rid want catalog list f title id project last
   mc_resolve_bin
@@ -273,18 +288,22 @@ EOF
     warn "读不到状态列表，没法检查自定义状态"
   fi
 
-  runtimes=$(mc runtime list --output json)
-  agents=$(mc agent list --output json)
-  if [ -n "$rows" ]; then
+  runtimes="" agents=""
+  doctor_mc_read "runtime 列表" runtime list && runtimes=$MC_READ_OUT
+  doctor_mc_read "agent 列表" agent list && agents=$MC_READ_OUT
+  if [ -n "$rows" ] && [ -n "$agents" ]; then
     while IFS=$'\t' read -r name role _; do
       [ -n "$name" ] || continue
       id=$(jq -r --arg n "$name" '[.[] | select(.name == $n)][0].id // empty' <<<"$agents")
       if [ -z "$id" ]; then fail "agent $name 不存在（autoteam multica --apply）"; continue; fi
-      cur=$(mc agent get "$id" --output json)
+      doctor_mc_read "agent $name 的配置" agent get "$id" || continue
+      cur=$MC_READ_OUT
       rid=$(jq -r '.runtime_id' <<<"$cur")
       want=$(read_file "ops/agents/$role.md")
       if [ "$(jq -r '.instructions' <<<"$cur")" != "${want%$'\n'}" ] && [ "$(jq -r '.instructions' <<<"$cur")" != "$want" ]; then
         fail "agent $name 的指令和 ops/agents/$role.md 不一致（指令漂移）：autoteam multica --apply"
+      elif [ -z "$runtimes" ]; then
+        ok "agent $name（$role）指令一致（runtime 列表没读到，没核对是否在线）"
       elif [ "$(jq -r --arg id "$rid" '.[] | select(.id == $id) | .status' <<<"$runtimes")" != online ]; then
         warn "agent $name 的 runtime 不在线"
       else
@@ -303,18 +322,24 @@ $rows
 EOF
   fi
 
-  project=$(mc project list --output json | jq -r --arg t "${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}}" '[.[] | select(.title == $t)][0].id // empty')
-  if [ -n "$project" ]; then ok "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 存在"; else fail "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 不存在（autoteam multica --apply）"; fi
+  project=""
+  if doctor_mc_read "项目列表" project list; then
+    project=$(jq -r --arg t "${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}}" '[.[] | select(.title == $t)][0].id // empty' <<<"$MC_READ_OUT")
+    if [ -n "$project" ]; then ok "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 存在"; else fail "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 不存在（autoteam multica --apply）"; fi
+  fi
 
-  list=$(mc autopilot list --output json)
+  doctor_mc_read "autopilot 列表" autopilot list || return 0
+  list=$MC_READ_OUT
   for f in ops/agents/autopilots/*.md; do
     [ -f "$f" ] || continue
     title=$(fm_get "$f" title)
     cur=$(jq -c --arg t "$title" '[.autopilots[]? | select(.title == $t)][0] // empty' <<<"$list")
     if [ -z "$cur" ]; then fail "autopilot「$title」不存在（autoteam multica --apply）"; continue; fi
     id=$(jq -r '.id' <<<"$cur")
-    local ntrig status bound
-    ntrig=$(mc_autopilot_triggers "$id" | jq 'length')
+    local ntrig status bound triggers
+    doctor_mc_read "autopilot「$title」的触发器" autopilot get "$id" || continue
+    triggers=$(jq -c '.triggers // (.autopilot.triggers // [])' <<<"$MC_READ_OUT")
+    ntrig=$(jq 'length' <<<"$triggers")
     status=$(jq -r '.status' <<<"$cur")
     bound=$(jq -r '.project_id // ""' <<<"$cur")
     if [ "$ntrig" = 0 ]; then

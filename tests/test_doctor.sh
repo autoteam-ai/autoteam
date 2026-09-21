@@ -54,6 +54,33 @@ t_doctor_detects_instruction_drift() {
   assert_contains "$out" "agent rev-codex 的指令和 ops/agents/reviewer.md 不一致"
 }
 
+t_doctor_reports_read_failure_not_drift() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  for mode in fail garbage; do
+    out=$(STUB_AGENT_GET=$mode autoteam_stub doctor --skip-github)
+    rc=$?
+    assert_contains "$out" "读不到 agent rev-codex 的配置" "$mode"
+    assert_contains "$out" "MULTICA_HTTP_TIMEOUT" "$mode"
+    assert_not_contains "$out" "指令漂移" "$mode"
+    assert_not_contains "$out" "autoteam multica --apply）" "$mode 不该建议 --apply"
+    assert_eq "$rc" 1 "读不到应算错误（$mode）"
+  done
+}
+
+t_doctor_reports_autopilot_read_failure_with_valid_json() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  # 退出码非 0 但输出是合法 JSON：不能当成读取成功
+  out=$(STUB_AUTOPILOT_GET=fail autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "读不到 autopilot「部署结果」的触发器"
+  assert_contains "$out" "MULTICA_HTTP_TIMEOUT"
+  assert_not_contains "$out" "autopilot「部署结果」已启用"
+  assert_not_contains "$out" "没有触发器"
+  assert_eq "$rc" 1 "读不到触发器应算错误"
+}
+
 t_doctor_reports_failed_last_run() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
