@@ -36,12 +36,19 @@ new_repo() {
   export STUB_LOG STUB_STATE
 }
 
-# 带桩运行 autoteam：gh / multica / curl 都换成 tests/stubs 下的桩
+# 带桩运行 autoteam：gh / multica / curl 都换成 tests/stubs 下的桩。
+# 宿主的 MULTICA_SERVER_URL / MULTICA_TOKEN（agent runtime 里有）不能漏进来；要测环境变量
+# 凭据就设 TEST_MULTICA_SERVER_URL / TEST_MULTICA_TOKEN。
 autoteam_stub() {
-  env PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
-    HOME="$WORK/.home" NO_COLOR=1 MULTICA_SERVER_URL= MULTICA_TOKEN= \
+  env -u MULTICA_SERVER_URL -u MULTICA_TOKEN \
+    ${TEST_MULTICA_SERVER_URL:+MULTICA_SERVER_URL="$TEST_MULTICA_SERVER_URL"} \
+    ${TEST_MULTICA_TOKEN:+MULTICA_TOKEN="$TEST_MULTICA_TOKEN"} \
+    PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
+    HOME="$WORK/.home" NO_COLOR=1 \
     STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" STUB_FIXTURES="$TESTS_DIR/fixtures" \
     STUB_SCENARIO="${STUB_SCENARIO:-user-public}" STUB_FAILED_RUN="${STUB_FAILED_RUN:-}" \
+    STUB_AGENT_GET="${STUB_AGENT_GET:-}" STUB_LOCAL_RUNTIMES="${STUB_LOCAL_RUNTIMES:-}" \
+    STUB_AUTOPILOT_GET="${STUB_AUTOPILOT_GET:-}" \
     AUTOTEAM_MULTICA_BIN="$TESTS_DIR/stubs/multica" \
     bash "$AUTOTEAM" "$@"
 }

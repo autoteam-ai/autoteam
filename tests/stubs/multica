@@ -67,9 +67,14 @@ case "$1 $2" in
     fi ;;
   "workspace get") jq -n '{id: "ws-0000", name: "Test", slug: "test", issue_prefix: "TST"}' ;;
   "runtime list") cat "$STUB_FIXTURES/runtimes.json" ;;
+  "daemon status") jq -n --arg ids "${STUB_LOCAL_RUNTIMES:-}" '{workspaces: [{id: "ws-0000", runtimes: ($ids | split(",") | map(select(. != "")))}]}' ;;
   "user profile") jq -n '{name: "Alice"}' ;;
   "agent list") cat "$agents" ;;
-  "agent get") jq --arg id "$3" '.[] | select(.id == $id)' "$agents" ;;
+  "agent get")
+    # STUB_AGENT_GET=fail 模拟超时（退出码非 0）；=garbage 模拟输出不是 JSON
+    [ "${STUB_AGENT_GET:-}" = fail ] && { echo "context deadline exceeded" >&2; exit 1; }
+    [ "${STUB_AGENT_GET:-}" = garbage ] && { echo "<html>502 Bad Gateway</html>"; exit 0; }
+    jq --arg id "$3" '.[] | select(.id == $id)' "$agents" ;;
   "agent tasks")
     if [ "$3" = agent-rev-codex ] && [ -n "${STUB_FAILED_RUN:-}" ]; then
       echo '[{"id":"t1","status":"failed","error":"Failed to authenticate: OAuth session expired"}]'
@@ -113,7 +118,10 @@ case "$1 $2" in
         echo '{"id":"res-1"}' ;;
     esac ;;
   "autopilot list") jq '{autopilots: [.[] | .autopilot], total: length}' "$autopilots" ;;
-  "autopilot get") jq --arg id "$3" '.[] | select(.autopilot.id == $id)' "$autopilots" ;;
+  "autopilot get")
+    # STUB_AUTOPILOT_GET=fail：输出合法 JSON 但退出码非 0（超时前吐了半截结果的情形）
+    [ "${STUB_AUTOPILOT_GET:-}" = fail ] && { echo '{"triggers":[{"kind":"schedule"}]}'; exit 1; }
+    jq --arg id "$3" '.[] | select(.autopilot.id == $id)' "$autopilots" ;;
   "autopilot create")
     n=$(jq length "$autopilots")
     id="ap-$((n + 1))"
