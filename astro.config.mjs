@@ -1,9 +1,13 @@
+import {existsSync} from 'node:fs';
+import path from 'node:path';
+import {markdownLinks} from './scripts/docs-links.mjs';
 import starlight from '@astrojs/starlight';
 import {satteri} from '@astrojs/markdown-satteri';
 import {defineConfig} from 'astro/config';
 import {renderMermaidSVG} from 'beautiful-mermaid';
 
 const base = process.env.AUTOTEAM_DOCS_BASE || '/';
+const source = process.env.AUTOTEAM_DOCS_SOURCE || './docs';
 const mermaidPlugin = {
   name: 'mermaid',
   code(node, context) {
@@ -33,7 +37,7 @@ export default defineConfig({
   base,
   outDir: process.env.AUTOTEAM_DOCS_OUT_DIR || './dist',
   markdown: {
-    processor: satteri({mdastPlugins: [mermaidPlugin]}),
+    processor: satteri({mdastPlugins: [markdownLinks({base, source}), mermaidPlugin]}),
   },
   integrations: [
     starlight({
@@ -56,6 +60,9 @@ export default defineConfig({
           label: '概念',
           items: [
             'concepts/why',
+            // Historical versions may predate this page.
+            ...(existsSync(path.join(source, 'concepts/invariants.md'))
+              ? ['concepts/invariants'] : []),
             'concepts/roles',
             'concepts/lifecycle',
             'concepts/quota-routing',
@@ -93,7 +100,7 @@ export default defineConfig({
       ],
       customCss: ['./src/styles/docs.css'],
       markdown: {
-        processedDirs: [process.env.AUTOTEAM_DOCS_SOURCE || './docs'],
+        processedDirs: [source],
       },
       components: {
         LanguageSelect: './src/components/VersionSelect.astro',

@@ -1,6 +1,7 @@
 import {execFileSync, spawnSync} from 'node:child_process';
 import {mkdir, readFile, readdir, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
+import {checkDocsLinks} from './check-docs-links.mjs';
 
 const root = process.cwd();
 const output = path.join(root, 'build', 'docs-site');
@@ -80,6 +81,7 @@ await writeFile(
 `
 );
 
+await checkDocsLinks(output, siteRoot);
 await rm(temp, {recursive: true, force: true});
 console.log(
   `文档站已生成：${path.relative(root, output)}（${versions.length} 个发布版本 + 开发版，默认 ${defaultVersion}）`
