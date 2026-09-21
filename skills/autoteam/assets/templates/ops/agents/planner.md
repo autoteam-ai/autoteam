@@ -82,6 +82,7 @@
    - 计费顺序：订阅额度 > 包月点数 > 按量计费（不超过当日预算）；
    - 额度快用完的账号不派大任务，因为中途耗尽会留下半成品。参考 `multica runtime usage <runtime-id> --days 7 --output json`，以及最近因额度失败的运行（`multica issue runs <任务> --output json` 的错误信息，通常带恢复时间）；
    - 条件相同时，优先最近成绩单里一次通过率高的；
+   - 派发前看 `autoteam doctor` 里该 Implementer / Reviewer 的私钥检查是否通过（缺私钥会在它开工时才暴露，白耗运行和一次换人）；未通过就不派，留在 `approved`，评论里提及人补私钥；
    - 没有可用的 Implementer 或 Reviewer，就留在 `approved`，下次巡检再试。
 2. 在任务评论里写明 Implementer、Reviewer 和选择理由。**Reviewer 只写名字，不要用提及链接**，否则会提前叫醒它。
 3. `multica issue status <任务> todo --no-start`，再 `multica issue assign <任务> --to <Implementer 名>`，指派会启动 Implementer。

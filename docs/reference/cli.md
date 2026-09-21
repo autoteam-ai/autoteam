@@ -75,7 +75,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--skip-multica` | 不检查 Multica |
 | `--profile`、`--workspace` | 同 autoteam multica |
 
-检查项：工作流文件和受管块、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的自定义状态、agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目、autopilot 和触发器。
+检查项：工作流文件和受管块、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的自定义状态、agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目、autopilot 和触发器；以及 registry 里每个 agent 的 runtime 上有没有它角色的 App 私钥（按 `gh-app-token.sh --find-key` 的顺序查）——runtime 就是本机（本机 daemon 管着它）而缺私钥报 ❌，远端 runtime 从这里看不到磁盘，只提示到那台机器上跑 doctor。
 
 ## autoteam runtimes
 

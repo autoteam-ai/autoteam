@@ -162,3 +162,53 @@ t_health_metrics_outputs_json_and_markdown() {
   md=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 老文件改动占比 %（近 30 天，2 个文件） | 50.0 |"
 }
+
+# 私钥检查：registry 里 planner 在 machine-c、impl-claude 在 machine-a、rev-codex 在 machine-b
+doctor_keys_repo() {
+  setup_ready_repo
+  sed -e 's/^AUTOTEAM_IMPLEMENTER_APP_ID=.*/AUTOTEAM_IMPLEMENTER_APP_ID=111/' -e 's/^AUTOTEAM_REVIEWER_APP_ID=.*/AUTOTEAM_REVIEWER_APP_ID=222/' \
+    -e 's/^AUTOTEAM_PLANNER_APP_ID=.*/AUTOTEAM_PLANNER_APP_ID=333/' ops/agents/autoteam.conf > ops/agents/autoteam.conf.new
+  mv ops/agents/autoteam.conf.new ops/agents/autoteam.conf
+  autoteam_stub multica --apply >/dev/null
+  mkdir -p ops/agents/local "$WORK/.home/.autoteam"
+}
+
+t_doctor_keys_missing_on_local_runtime_fails() {
+  doctor_keys_repo
+  out=$(STUB_LOCAL_RUNTIMES=rt-a-claude-0000 autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_eq "$rc" 1 "本机 runtime 缺私钥应算错误"
+  assert_contains "$out" "本机没有 implementer 的私钥，但 agent impl-claude 的 runtime claude@machine-a 在这台机器上"
+  assert_contains "$out" "AUTOTEAM_KEYS_DIR"
+  assert_contains "$out" "~/.autoteam" "要给出应该放的位置"
+  assert_contains "$out" "AUTOTEAM_IMPLEMENTER_APP_KEY"
+  assert_not_contains "$out" "本机没有 reviewer 的私钥" "不在本机的 runtime 不判错"
+  assert_contains "$out" "agent rev-codex 的 runtime codex@machine-b 不在本机"
+}
+
+t_doctor_keys_in_repo_local_passes() {
+  doctor_keys_repo
+  : > ops/agents/local/implementer.pem
+  out=$(STUB_LOCAL_RUNTIMES=rt-a-claude-0000 autoteam_stub doctor --skip-github)
+  assert_contains "$out" "本机有 implementer 的私钥"
+  assert_not_contains "$out" "本机没有 implementer 的私钥"
+}
+
+t_doctor_keys_in_keys_dir_passes() {
+  doctor_keys_repo
+  : > "$WORK/.home/.autoteam/autoteam-implementer.2026-01-01.private-key.pem"
+  out=$(STUB_LOCAL_RUNTIMES=rt-a-claude-0000 autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "本机有 implementer 的私钥"
+  assert_not_contains "$out" "本机没有 implementer 的私钥"
+  assert_eq "$rc" 0 "私钥齐全时不应有错误：$(printf '%s' "$out" | grep '❌')"
+}
+
+t_doctor_keys_remote_runtime_only_hints() {
+  doctor_keys_repo
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_not_contains "$out" "本机没有"
+  assert_contains "$out" "agent impl-claude 的 runtime claude@machine-a 不在本机"
+  assert_eq "$rc" 0 "runtime 都不在本机时缺私钥只是提示：$(printf '%s' "$out" | grep '❌')"
+}
