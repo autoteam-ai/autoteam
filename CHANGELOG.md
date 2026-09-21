@@ -2,6 +2,12 @@
 
 ## 未发布
 
+### 私钥要放机器上，不是仓库里
+
+- **新增 `AUTOTEAM_KEYS_DIR`（默认 `~/.autoteam`）**，App 私钥的机器级目录。查找顺序：`AUTOTEAM_<角色大写>_APP_KEY` 指的路径 > 仓库的 `ops/agents/local/` > `AUTOTEAM_KEYS_DIR`。两处都支持 `~` 开头（shell 只展开字面量里的波浪号，从配置文件和环境变量读出来的要自己处理）。
+- 起因是真机上两个 Implementer 同时卡住：`gh-app-token.sh --setup-git implementer` 退出码 1，`ops/agents/local/` 里没有私钥。**agent 每接一个任务都可能重新 checkout 一份仓库**，私钥只放在仓库里不会跟过去——这是个会反复发生、每次都要人去补的坑。两个 Implementer 都中枪之后 Planner 按规则换人一次、再失败升级给人，行为完全正确，但根因在这里。
+- 借这次把 `doctor` 的私钥检查也改了：原来它只看 `ops/agents/local/<角色>.pem` 存不存在，私钥放别处就会误报"本机没有"。现在直接铸一次 token 看结果，并把"没有私钥"（正常，只有那台机器需要）和"有私钥但铸不出来"（真问题）分开报。
+
 ### 开始试行：团队自己跑这个仓库
 
 - **六个 agent 全部搬到本地 runtime**。云端 runtime 上的 Claude 登录会过期（真机上 auditor 和 impl-claude 就因为 `OAuth session expired` 一起卡住，整条审计链停摆），本地 runtime 的登录跟着你自己的机器走，出问题也看得见。

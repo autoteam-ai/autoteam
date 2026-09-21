@@ -14,8 +14,11 @@
 #   ops/agents/scripts/gh-app-token.sh --run implementer gh pr create --title ...
 #
 # 角色是 implementer / reviewer / planner，对应 autoteam.conf 里的 AUTOTEAM_<角色大写>_APP_ID。
-# 私钥放 ops/agents/local/（这个目录不提交）：文件名只要带上角色名就行，GitHub 下载时
-# 的原始名字也可以；要指到别处用 AUTOTEAM_<角色大写>_APP_KEY。
+# 私钥按这个顺序找，文件名只要带上角色名就行（GitHub 下载时的原始名字也可以）：
+#   1. AUTOTEAM_<角色大写>_APP_KEY  环境变量直接给路径
+#   2. ops/agents/local/            仓库里，不提交
+#   3. autoteam.conf 的 AUTOTEAM_KEYS_DIR（默认 ~/.autoteam）  机器上的固定位置
+# 第 3 条是给 agent 用的：它每次 checkout 都是新目录，私钥放仓库里就要跟着重放一遍。
 #
 # token 有效期 1 小时，缓存在 ~/.cache/autoteam 下（权限 600），剩余不足 5 分钟才重铸。
 # 依赖 openssl、curl、jq。不要把输出写进日志或评论。
@@ -55,25 +58,56 @@ done
 root=$(git rev-parse --show-toplevel 2>/dev/null) || die "不在 git 仓库里"
 conf="$root/ops/agents/autoteam.conf"
 conf_get() { sed -n "s/^$1=//p" "$conf" 2>/dev/null | head -n 1 | tr -d '[:space:]'; }
+# 把开头的 ~ 展开成 $HOME。shell 只对字面量里的波浪号做展开，从配置文件或环境变量
+# 读出来的是普通字符，要自己处理。
+# shellcheck disable=SC2088  # 下面 case 的 pattern 是字面量 ~，本来就不该展开
+expand_tilde() {
+  case $1 in
+    "~") printf '%s' "$HOME" ;;
+    "~/"*) printf '%s/%s' "$HOME" "${1#\~/}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+# 路径类的配置不能像上面那样删掉所有空白——目录名里可能有空格，只去掉首尾
+conf_get_path() {
+  local v
+  v=$(sed -n "s/^$1=//p" "$conf" 2>/dev/null | head -n 1) || return 0
+  v=${v#"${v%%[![:space:]]*}"}
+  v=${v%"${v##*[![:space:]]}"}
+  expand_tilde "$v"
+}
 
 app_id=${!conf_key:-}
 [ -n "$app_id" ] || app_id=$(conf_get "$conf_key")
 [ -n "$app_id" ] || die "autoteam.conf 里没有 $conf_key：先按 docs 建好 App 并把 App ID 填进去"
 
+# 在一个目录里找这个角色的私钥：先按约定名字，再按角色名匹配——这样 GitHub 下载时
+# 带日期的原始文件名（autoteam-implementer.2026-01-01.private-key.pem）不用改名也能用
+find_key_in() {
+  local dir=$1 found count
+  [ -d "$dir" ] || return 1
+  if [ -r "$dir/$role.pem" ]; then printf '%s' "$dir/$role.pem"; return 0; fi
+  found=$(find "$dir" -maxdepth 1 -name "*$role*.pem" 2>/dev/null | sort)
+  count=$(printf '%s\n' "$found" | grep -c . || true)
+  case $count in
+    1) printf '%s' "$found"; return 0 ;;
+    0) return 1 ;;
+    *) die "$dir 里有多个匹配 $role 的 .pem，留一个或用 $key_env 指定：$(printf '%s ' "$found" | tr '\n' ' ')" ;;
+  esac
+}
+
+# 和 App ID 一样：环境变量优先于配置文件，方便临时覆盖
+keys_dir=${AUTOTEAM_KEYS_DIR:-}
+[ -n "$keys_dir" ] || keys_dir=$(conf_get_path AUTOTEAM_KEYS_DIR)
+[ -n "$keys_dir" ] || keys_dir="$HOME/.autoteam"
+keys_dir=$(expand_tilde "$keys_dir")
+
 key=${!key_env:-}
 if [ -z "$key" ]; then
-  # 先按约定名字找；找不到就在 local/ 里按角色名匹配，这样 GitHub 下载时带日期的
-  # 原始文件名（autoteam-implementer.2026-01-01.private-key.pem）不用改名也能用
-  key="$root/ops/agents/local/$role.pem"
-  if [ ! -r "$key" ]; then
-    found=$(find "$root/ops/agents/local" -maxdepth 1 -name "*$role*.pem" 2>/dev/null | sort)
-    count=$(printf '%s\n' "$found" | grep -c . || true)
-    case $count in
-      1) key=$found ;;
-      0) die "ops/agents/local/ 里没有 $role 的私钥：把 App 的 .pem 放进去（文件名带上 $role，目录不会被提交）" ;;
-      *) die "ops/agents/local/ 里有多个匹配 $role 的 .pem，留一个或用 $key_env 指定：$(printf '%s ' "$found" | tr '\n' ' ')" ;;
-    esac
-  fi
+  key=$(find_key_in "$root/ops/agents/local") \
+    || key=$(find_key_in "$keys_dir") \
+    || die "找不到 $role 的私钥。把 App 的 .pem 放进 ops/agents/local/（不会被提交）或 $keys_dir，文件名带上 $role；也可以用 $key_env 直接指路径"
 fi
 [ -r "$key" ] || die "读不到私钥 $key"
 

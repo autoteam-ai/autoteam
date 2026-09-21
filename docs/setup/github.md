@@ -47,15 +47,16 @@ AUTOTEAM_REVIEWER_APP_ID=1234568
 AUTOTEAM_PLANNER_APP_ID=1234569
 ```
 
-私钥按角色放到**各自那台机器**的仓库里，文件名固定：
+私钥按角色放到**各自那台机器**上。放哪里有两个选择：
 
-```
-ops/agents/local/implementer.pem
-ops/agents/local/reviewer.pem
-ops/agents/local/planner.pem
-```
+| 位置 | 适合 | 说明 |
+|---|---|---|
+| `AUTOTEAM_KEYS_DIR`（默认 `~/.autoteam`） | **跑 agent 的机器** | 机器级的固定位置，跟仓库无关 |
+| 仓库里的 `ops/agents/local/` | 你自己的机器 | 已在 `.gitignore` 里，不会被提交 |
 
-`ops/agents/local/` 已经在 `.gitignore` 里，不会被提交。权限设 `chmod 600`。
+文件名只要带上角色名就行（`implementer.pem`，或 GitHub 下载时的 `autoteam-implementer.2026-01-01.private-key.pem`），权限设 `chmod 600`。两个位置都有时仓库里的优先；也可以用 `AUTOTEAM_<角色大写>_APP_KEY` 直接指一个路径。
+
+> **给 agent 用的私钥一定要放 `AUTOTEAM_KEYS_DIR`，不要只放仓库里。** agent 每接一个任务都可能重新 checkout 一份仓库，放在 `ops/agents/local/` 的私钥不会跟过去，下一个任务就会卡在「找不到私钥」——真机上两个 Implementer 同时中过这一枪。
 
 ### agent 怎么用
 
