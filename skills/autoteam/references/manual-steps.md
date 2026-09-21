@@ -14,7 +14,7 @@ App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做
 
    | App | 权限 |
    |---|---|
-   | impl | Contents 读写、Pull requests 读写 |
+   | impl | Contents 读写、Pull requests 读写、**Workflows 读写**（没有它连含工作流改动的 PR 都提不了） |
    | review | Pull requests 读写、Contents **读写**（不能省：App 的批准只有在它有写权限时才计入必需审批数） |
    | planner | Actions 读写、Contents 只读、Pull requests 只读 |
 

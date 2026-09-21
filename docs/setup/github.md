@@ -21,9 +21,11 @@ GitHub 不允许 PR 作者批准自己的 PR。只要 Implementer 和 Reviewer �
 
 | App | 给谁用 | 权限（都只装本仓库） |
 |---|---|---|
-| `<前缀>-impl` | 所有 Implementer | Contents 读写、Pull requests 读写 |
+| `<前缀>-impl` | 所有 Implementer | Contents 读写、Pull requests 读写、Workflows 读写 |
 | `<前缀>-review` | 所有 Reviewer | Pull requests 读写、Contents 读写（**不能省**，见下） |
 | `<前缀>-planner` | Planner、Auditor | Actions 读写、Contents 只读、Pull requests 只读 |
+
+`Workflows 读写` 不能省：没有它，Implementer 推含 `.github/workflows/` 改动的提交会被 GitHub 直接拒，连 PR 都提不了。**闸门是「人批准」不是「agent 不能碰」**——工作流也是项目的一部分，agent 得能提议改它，拦住它的是 CODEOWNERS 要求的人工批准。
 
 ### 建 App
 

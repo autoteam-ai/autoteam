@@ -226,6 +226,9 @@ doctor_apps() {
       row=$(jq -c --argjson id "$id" '.installations[]? | select(.app_id == $id)' <<<"$installed" 2>/dev/null | head -n 1)
       if [ -n "$row" ]; then
         ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已装在 $org"
+        if [ "$role" = impl ] && [ "$(jq -r '.permissions.workflows // "none"' <<<"$row")" != write ]; then
+          warn "Implementer App 没有 Workflows 权限：提不了含 .github/workflows/ 改动的 PR"
+        fi
         if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" != write ]; then
           fail "Reviewer App 没有 Contents 写权限：它的批准不计入必需审批数，PR 会卡在等审批"
         fi

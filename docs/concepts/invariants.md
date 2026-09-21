@@ -14,7 +14,7 @@ title: 四条不变量
 
 | | |
 |---|---|
-| 由什么保证 | Implementer 和 Reviewer 是两个不同的 GitHub App 身份；GitHub 不允许 PR 作者批准自己的 PR。另外 Implementer App 没有 `workflows` 权限，推含 `.github/workflows/` 改动的提交会被 GitHub 直接拒——这条用机器账号做不到 |
+| 由什么保证 | Implementer 和 Reviewer 是两个不同的 GitHub App 身份；GitHub 不允许 PR 作者批准自己的 PR |
 | 什么会破坏它 | 两个角色配成同一个 App ID；用同一个账号的 token 兜底；Reviewer 自己改代码再批准（它有写权限，只靠指令拦着） |
 | 怎么验证 | `autoteam doctor` 在两个 App ID 相同、或 Reviewer App 缺 Contents 写权限时报错；真机验证过：Implementer App 批准自己开的 PR 会收到 `Can not approve your own pull request` |
 
@@ -41,8 +41,10 @@ title: 四条不变量
 | | |
 |---|---|
 | 由什么保证 | CODEOWNERS 把 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 指给人；规则集要求 Code Owner 审批。**CODEOWNERS 不能写 App**，所以这里必须是人工账号 |
-| 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批）；给 Implementer App 加上 `workflows` 权限 |
+| 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批） |
 | 怎么验证 | `autoteam doctor` 检查 CODEOWNERS 和规则集；`--trial` 下 doctor 会一直标黄 |
+
+> **闸门是「人批准」，不是「agent 不能碰」。** agent 必须能对规则文件提 PR——工作流、角色指令、阈值都是项目的一部分，禁止 agent 提议改它们，等于每次改 CI 都要人自己写代码，agent 团队就没用了。所以 Implementer App 要给 `Workflows: 读写`（否则它推含 `.github/workflows/` 的提交会被 GitHub 直接拒），拦住它的是 CODEOWNERS 要求的人工批准，不是推送权限。
 
 ## 已知的偏离
 
