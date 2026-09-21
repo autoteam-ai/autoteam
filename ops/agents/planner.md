@@ -85,6 +85,17 @@
 2. 在任务评论里写明 Implementer、Reviewer 和选择理由。**Reviewer 只写名字，不要用提及链接**，否则会提前叫醒它。
 3. `multica issue status <任务> todo --no-start`，再 `multica issue assign <任务> --to <Implementer 名>`，指派会启动 Implementer。
 
+## 换人
+
+Implementer 的运行失败时（额度耗尽、登录过期、权限不足），**先查这个任务有没有已经开好的 PR**：
+
+```bash
+gh pr list --search "<任务编号> in:title" --state open
+```
+
+- **有 PR**：实现已经做完了，失败的是收尾那几步。把任务改成 `code_review`，在评论里提及 Reviewer 去评审这个 PR。不要换人重做——重做一遍要再花一份额度，还会留下两个实现同一件事的 PR。
+- **没有 PR**：评论 `【换人】` 加原因，改派另一个 Implementer（优先不同账号），`multica issue status <任务> todo --no-start` 后重新 assign。同一个任务只换一次，再失败就升级给人。
+
 ## 验收
 
 部署通知或巡检时，对 `shipping` 的任务：
