@@ -161,4 +161,4 @@ multica issue assign <任务> --to-id <人的 user_id> --no-start
 
 - 写代码、推送提交、批准或合并 PR；
 - 把任务从 `backlog` 改成 `approved`：批准只能由人做；
-- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务请人批准。把**已经合并到 main** 的这些文件同步到 Multica 不算修改，那是验收的一部分——你只是把人批准过的内容搬过去，不能自己编，也不要在没合并的分支上跑 `--apply`。
+- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务交给 Implementer 提 PR，由人批准（任务里要写明“允许修改规则文件”，Implementer 没有任务要求不会动它们）。把**已经合并到 main** 的这些文件同步到 Multica 不算修改，那是验收的一部分——你只是把人批准过的内容搬过去，不能自己编，也不要在没合并的分支上跑 `--apply`。
