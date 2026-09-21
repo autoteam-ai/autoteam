@@ -41,7 +41,7 @@ title: 四条不变量
 | | |
 |---|---|
 | 由什么保证 | CODEOWNERS 把 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 指给人；规则集要求 Code Owner 审批。**CODEOWNERS 不能写 App**，所以这里必须是人工账号 |
-| 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批） |
+| 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批）；Planner 在没合并的分支上跑 `autoteam multica --apply`（指令里明令禁止：只能同步 main） |
 | 怎么验证 | `autoteam doctor` 检查 CODEOWNERS 和规则集；`--trial` 下 doctor 会一直标黄 |
 
 > **闸门是「人批准」，不是「agent 不能碰」。** agent 必须能对规则文件提 PR——工作流、角色指令、阈值都是项目的一部分，禁止 agent 提议改它们，等于每次改 CI 都要人自己写代码，agent 团队就没用了。所以 Implementer App 要给 `Workflows: 读写`（否则它推含 `.github/workflows/` 的提交会被 GitHub 直接拒），拦住它的是 CODEOWNERS 要求的人工批准，不是推送权限。
@@ -56,6 +56,7 @@ title: 四条不变量
 | 唤醒 | 自定义状态"进入即唤醒" | 全部靠显式指派和评论里的 @提及 | Multica 0.5 改了状态模型，自定义状态不再继承这类行为 |
 | 合并模式 | 只有"平台自动合并" | 加了 `staged` 和 `reviewer` 两种降级 | GitHub Free 私有仓库没有规则集；单身份时审批数只能设 0，检查一绿就合并，Reviewer 来不及看 |
 | 每日摘要 | 直接运行 | 先建任务再运行（create_issue） | run_only 的结果只在运行历史里，人收不到通知 |
+| Multica 配置同步 | 没提（默认规则文件合并即生效） | Planner 验收时跑 `autoteam multica --apply`，用的是人的 multica 凭据 | 合并到 main 不等于 Multica 上的 agent 换了指令，这一步原来没有归属、漂移是静默的。交给 Planner 的前提是它只能搬 main 上人已批准的内容。**代价是 Planner 手里有人的工作区权限，能改所有 agent 的配置，这是目前最宽的一处授权**；等 Multica 支持更细的 agent 权限再收窄 |
 
 ## 谁来对账
 

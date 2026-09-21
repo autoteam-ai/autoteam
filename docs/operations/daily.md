@@ -15,10 +15,9 @@ title: 日常操作
 | 规则文件 PR 的批准 | GitHub | 规则集要求 Code Owner 审批，而 CODEOWNERS 不支持 GitHub App，只能写人 | agent 每次要改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` |
 | 任务从「待审核」改成「已批准」 | Multica | 只有指令约束——agent 技术上改得了，靠每日摘要里的批准核对发现 | 日常最频繁，Planner 每拆一批就提及你 |
 | 处理 blocked 的升级 | Multica | 指令约束 | 打回 2 次 / 验收不通过 2 次 / 换人后仍失败 / 线上故障已回滚 |
-| 改完规则文件跑 `autoteam multica --apply` | 你的机器 | 同步用的是你的 multica profile；agent 身份能不能改 agent 配置还没验证过，先按只有你能做处理 | 含 `ops/agents/` 的 PR 合并之后，「部署结果」autopilot 会查出漂移并提醒你 |
 | `make publish` 发版 | 你的机器 | 不接进任何自动流程，`package.json` 和 `scripts/release.sh` 又受 CODEOWNERS 保护 | 你想发版的时候（仅 autoteam 自己这个仓库） |
 
-前两行是日常的，后三行只在特定事件后出现。**这张表里的每一项都是"人还要介入"的成本**，「规则复盘」autopilot 每周盯的就是怎么把它变短。
+中间两行是日常的，另外两行只在特定事件后出现。规则文件合并后同步到 Multica（`autoteam multica --apply`）**不用你管**：Planner 在验收时自己跑，用的是你的 multica 凭据，这条记在[已知的偏离](../concepts/invariants.md#已知的偏离)里。**这张表里的每一项都是"人还要介入"的成本**，「规则复盘」autopilot 每周盯的就是怎么把它变短。
 
 ## 提需求
 
@@ -64,7 +63,7 @@ Planner 把任务设为 blocked 时，会在父任务评论里提及你，说明
 
 - 推荐让 Implementer 改：给 Planner 提需求，走正常流程，最后由你作为 Code Owner 批准 PR；
 - 你自己开 PR 改：没有别的 Code Owner 能批准，需要临时把规则集改成 disabled，合并后恢复（会记在审计日志里）；
-- 改了 `ops/agents/` 下的角色指令、registry 或 autopilot，合并后运行 `autoteam multica --apply` 同步到 Multica，再 `autoteam doctor` 确认。
+- 改了 `ops/agents/` 下的角色指令、registry 或 autopilot，合并后要同步到 Multica 才生效——这一步 Planner 在验收时自己做（`autoteam multica --apply` + `autoteam doctor`），你不用管。它跑不起来会在运营笔记里提及你。
 
 ## 每周
 

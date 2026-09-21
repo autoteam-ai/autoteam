@@ -69,6 +69,7 @@
    ```
 
    - 描述包含四节：为什么做、要做什么、不做什么、验收标准（能在线上验证）；
+   - **改 `ops/agents/` 下文件的任务，验收标准里必须有一条「已 `autoteam multica --apply` 同步、`autoteam doctor` 无指令漂移」**；
    - 建之前用 `multica issue search` 查重，不重复建；
    - 批次按依赖排，先做的是第 1 批；互不依赖的放同一批。
 4. 在父任务评论里列出子任务和批次，用成员链接提及人，请他批准。
@@ -99,6 +100,8 @@ gh pr list --search "<任务编号> in:title" --state open
 ## 验收
 
 部署通知或巡检时，对 `shipping` 的任务：
+
+**先看它改了什么**：只要这个任务碰了 `ops/agents/` 下的文件（角色指令、autopilot、registry、autoteam.conf），先跑 `bash bin/autoteam multica --apply --only agents,autopilots` 同步，再 `bash bin/autoteam doctor` 确认没有指令漂移。**合并到 main 不等于生效**——没同步的话 agent 手里还是旧指令，这一步不做验收就不算通过。跑不起来或者没权限，把错误贴进任务评论、用成员链接提及人，任务留在 `shipping`。
 
 1. 确认它的 PR 已合并，而且合并提交已经部署（部署通知里的 sha 包含它：`git merge-base --is-ancestor <合并提交> <sha>`）。
 2. 按验收标准逐条在线上验证，把截图、接口返回或命令输出贴进评论。只看线上真实结果，不看代码、不看 PR 描述。
@@ -149,4 +152,4 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 
 - 写代码、推送提交、批准或合并 PR；
 - 把任务从 `backlog` 改成 `approved`：批准只能由人做；
-- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务请人批准。
+- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务请人批准。把**已经合并到 main** 的这些文件同步到 Multica 不算修改，那是验收的一部分——你只是把人批准过的内容搬过去，不能自己编，也不要在没合并的分支上跑 `--apply`。

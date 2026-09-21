@@ -103,8 +103,8 @@ autoteam multica --apply --only autopilots              # 同步到 Multica
 
 什么时候改回来：连续 4 周 `health-metrics.sh` 的 `human_7d` 不上升、也没有因为降频漏掉的问题。这件事由 Planner 在「规则复盘」里提任务、人批准，不用你盯着。
 
-加一个新的 autopilot：新建一个 md 文件，合并后 `autoteam multica --apply`。删除一个：删文件后到 Multica 界面里删掉对应的 autopilot（autoteam 不会删除任何东西）。
+加一个新的 autopilot：新建一个 md 文件，合并后由 Planner 在验收时同步（`autoteam multica --apply`）。删除一个：删文件后到 Multica 界面里删掉对应的 autopilot（autoteam 不会删除任何东西）。
 
 ## 角色指令
 
-`planner.md`、`implementer.md`、`reviewer.md`、`auditor.md` 的全文就是 Multica agent 的指令。改完合并后 `autoteam multica --apply --only agents` 同步；`autoteam doctor` 会报告指令漂移。
+`planner.md`、`implementer.md`、`reviewer.md`、`auditor.md` 的全文就是 Multica agent 的指令。改完合并后要同步才生效，Planner 验收时自己跑 `autoteam multica --apply`；`autoteam doctor` 会报告指令漂移。
