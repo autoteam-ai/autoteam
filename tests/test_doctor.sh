@@ -54,6 +54,20 @@ t_doctor_detects_instruction_drift() {
   assert_contains "$out" "agent rev-codex 的指令和 ops/agents/reviewer.md 不一致"
 }
 
+t_doctor_reports_read_failure_not_drift() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  for mode in fail garbage; do
+    out=$(STUB_AGENT_GET=$mode autoteam_stub doctor --skip-github)
+    rc=$?
+    assert_contains "$out" "读不到 agent rev-codex 的配置" "$mode"
+    assert_contains "$out" "MULTICA_HTTP_TIMEOUT" "$mode"
+    assert_not_contains "$out" "指令漂移" "$mode"
+    assert_not_contains "$out" "autoteam multica --apply）" "$mode 不该建议 --apply"
+    assert_eq "$rc" 1 "读不到应算错误（$mode）"
+  done
+}
+
 t_doctor_reports_failed_last_run() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null

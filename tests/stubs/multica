@@ -58,7 +58,11 @@ case "$1 $2" in
   "runtime list") cat "$STUB_FIXTURES/runtimes.json" ;;
   "user profile") jq -n '{name: "Alice"}' ;;
   "agent list") cat "$agents" ;;
-  "agent get") jq --arg id "$3" '.[] | select(.id == $id)' "$agents" ;;
+  "agent get")
+    # STUB_AGENT_GET=fail 模拟超时（退出码非 0）；=garbage 模拟输出不是 JSON
+    [ "${STUB_AGENT_GET:-}" = fail ] && { echo "context deadline exceeded" >&2; exit 1; }
+    [ "${STUB_AGENT_GET:-}" = garbage ] && { echo "<html>502 Bad Gateway</html>"; exit 0; }
+    jq --arg id "$3" '.[] | select(.id == $id)' "$agents" ;;
   "agent tasks")
     if [ "$3" = agent-rev-codex ] && [ -n "${STUB_FAILED_RUN:-}" ]; then
       echo '[{"id":"t1","status":"failed","error":"Failed to authenticate: OAuth session expired"}]'
