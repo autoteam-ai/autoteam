@@ -337,13 +337,8 @@ EOF
     if [ -z "$cur" ]; then fail "autopilot「$title」不存在（autoteam multica --apply）"; continue; fi
     id=$(jq -r '.id' <<<"$cur")
     local ntrig status bound triggers
-    triggers=$(mc_autopilot_triggers "$id")
-    # mc 失败或输出不是 JSON 时这里是空串（有触发器也至少是 []）
-    if [ -z "$triggers" ]; then
-      fail "读不到 autopilot「$title」的触发器（mc autopilot get $id 失败或输出不是 JSON）"
-      hint "多半是网络或服务端慢：调大 MULTICA_HTTP_TIMEOUT 后重跑 autoteam doctor"
-      continue
-    fi
+    doctor_mc_read "autopilot「$title」的触发器" autopilot get "$id" || continue
+    triggers=$(jq -c '.triggers // (.autopilot.triggers // [])' <<<"$MC_READ_OUT")
     ntrig=$(jq 'length' <<<"$triggers")
     status=$(jq -r '.status' <<<"$cur")
     bound=$(jq -r '.project_id // ""' <<<"$cur")

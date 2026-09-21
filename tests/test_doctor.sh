@@ -68,6 +68,19 @@ t_doctor_reports_read_failure_not_drift() {
   done
 }
 
+t_doctor_reports_autopilot_read_failure_with_valid_json() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  # 退出码非 0 但输出是合法 JSON：不能当成读取成功
+  out=$(STUB_AUTOPILOT_GET=fail autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "读不到 autopilot「部署结果」的触发器"
+  assert_contains "$out" "MULTICA_HTTP_TIMEOUT"
+  assert_not_contains "$out" "autopilot「部署结果」已启用"
+  assert_not_contains "$out" "没有触发器"
+  assert_eq "$rc" 1 "读不到触发器应算错误"
+}
+
 t_doctor_reports_failed_last_run() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
