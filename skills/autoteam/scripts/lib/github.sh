@@ -322,6 +322,10 @@ github_app_check() {
   ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已安装"
   # App 的批准只有在它有仓库写权限时才计入必需审批数（真机验证过：只给 Pull requests
   # 写权限的 App，审批不算数，PR 会一直停在 REVIEW_REQUIRED）
+  if [ "$role" = impl ] && [ "$(jq -r '.permissions.workflows // "none"' <<<"$row")" != write ]; then
+    warn "Implementer App 没有 Workflows 权限：它提不了含 .github/workflows/ 改动的 PR"
+    hint "去 App 设置把 Workflows 改成 Read and write。闸门是 CODEOWNERS 的人工批准，不是不让它提"
+  fi
   if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" != write ]; then
     fail "Reviewer App 没有 Contents 写权限：它的批准不会计入必需审批数，PR 会永远卡在等审批"
     hint "去 App 设置把 Contents 改成 Read and write，再到 Install 页面接受新权限"
@@ -334,7 +338,8 @@ github_app_check() {
 github_app_table() {
   info ""
   info "三个 App 各自的权限（都只装本仓库，私钥放各自机器的 ops/agents/local/<角色>.pem）："
-  info "  impl     Contents 读写、Pull requests 读写   推分支、开 PR、开自动合并"
+  info "  impl     Contents 读写、Pull requests 读写、Workflows 读写   推分支、开 PR、开自动合并；"
+  info "                                              没有 Workflows 连含工作流改动的 PR 都提不了"
   info "  review   Contents 读写、Pull requests 读写   提交评审。写权限不能省：App 的批准"
   info "                                              只有在它有写权限时才计入必需审批数"
   info "  planner  Actions 读写、Contents 只读、Pull requests 只读   查 PR、触发回滚"

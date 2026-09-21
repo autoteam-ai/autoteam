@@ -7,7 +7,7 @@ cron: {{AUTOTEAM_CRON_PATROL}}
 按 ops/agents/planner.md 做一次推进巡检：
 
 1. 派发 approved 且前面批次已经全部 done 的任务。
-2. 处理失败和卡住的任务：todo 状态但最近一次运行失败的，看失败原因；因额度或权限失败的换一次 Implementer（评论【换人】加原因），换过仍失败的升级。
+2. 处理失败和卡住的任务：todo 或 in_progress 状态但最近一次运行失败的，按 ops/agents/planner.md 的「换人」处理——先查任务有没有已经开好的 PR，有就交给 Reviewer 评审，没有才换人。换过仍失败的升级。
 3. 补查 shipping 超过 `AUTOTEAM_SHIPPING_RECHECK_HOURS` 小时（读 ops/agents/autoteam.conf，默认 1）还没验收的任务，逐条线上验收（部署通知可能因为你的 runtime 离线被跳过）。
 4. 把各任务评论里的“范围外发现”拆进 backlog，先查重。
 5. 对 in_progress、code_review、rework 的任务跑 ops/agents/scripts/loop-guard.sh，到上限的升级给人。

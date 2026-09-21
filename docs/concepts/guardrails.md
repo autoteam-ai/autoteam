@@ -18,7 +18,6 @@ title: 安全边界和保护等级
 | 约束 | 由什么保证 | agent 能绕过吗 |
 |---|---|---|
 | 写代码的不能评审自己 | Implementer、Reviewer 用两个不同的 GitHub App；GitHub 不允许作者批准自己的 PR | 不能（前提是两个 App 不同） |
-| Implementer 不能改工作流 | impl App 没有 `workflows` 权限，推含 `.github/workflows/` 的提交会被 GitHub 拒 | 不能 |
 | 不过检查不能合并 | 规则集的必需检查 `check`，只认 GitHub Actions 上报的结果（integration_id 15368），防止用 API 伪造状态 | 不能 |
 | 新提交会作废旧批准 | 规则集：dismiss stale reviews、require approval of the most recent push | 不能 |
 | 规则文件只能由人改 | CODEOWNERS 保护 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json`，规则集要求 Code Owner 审批 | 不能 |
