@@ -337,7 +337,7 @@ github_app_check() {
 
 github_app_table() {
   info ""
-  info "三个 App 各自的权限（都只装本仓库，私钥放各自机器的 ops/agents/local/<角色>.pem）："
+  info "三个 App 各自的权限（都只装本仓库，私钥放各自机器的 AUTOTEAM_KEYS_DIR 或仓库的 ops/agents/local/）："
   info "  impl     Contents 读写、Pull requests 读写、Workflows 读写   推分支、开 PR、开自动合并；"
   info "                                              没有 Workflows 连含工作流改动的 PR 都提不了"
   info "  review   Contents 读写、Pull requests 读写   提交评审。写权限不能省：App 的批准"

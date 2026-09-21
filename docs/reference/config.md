@@ -15,7 +15,8 @@ title: 配置文件
 | `AUTOTEAM_REPO` | 从 git remote 识别 | GitHub 仓库 owner/name |
 | `AUTOTEAM_DEFAULT_BRANCH` | 仓库默认分支 | deploy.yml 监听的分支 |
 | `AUTOTEAM_OWNER` | 当前 gh 用户 | 规则文件的负责人，写进 CODEOWNERS |
-| `AUTOTEAM_IMPLEMENTER_APP_ID` / `AUTOTEAM_REVIEWER_APP_ID` / `AUTOTEAM_PLANNER_APP_ID` | 空 | 三个角色各自的 GitHub App ID。impl 和 review 必须不同，否则作者要批准自己的 PR，GitHub 会拒。私钥放 `ops/agents/local/<角色>.pem` |
+| `AUTOTEAM_IMPLEMENTER_APP_ID` / `AUTOTEAM_REVIEWER_APP_ID` / `AUTOTEAM_PLANNER_APP_ID` | 空 | 三个角色各自的 GitHub App ID。impl 和 review 必须不同，否则作者要批准自己的 PR，GitHub 会拒 |
+| `AUTOTEAM_KEYS_DIR` | `~/.autoteam` | App 私钥的机器级目录，`~` 按运行的那台机器展开。查找顺序：`AUTOTEAM_<角色大写>_APP_KEY` 指的路径 > 仓库的 `ops/agents/local/` > 这里。**跑 agent 的机器要用这个**——agent 每次 checkout 都是新目录，放仓库里的私钥不会跟过去 |
 | `AUTOTEAM_MULTICA_WORKSPACE` | 空 | Multica 工作区 slug |
 | `AUTOTEAM_MULTICA_PROJECT` | 仓库名 | Multica 项目标题 |
 | `AUTOTEAM_HUMAN` | 空（运行 autoteam 的人） | 负责批准、接收升级的成员名；每日摘要的订阅人 |

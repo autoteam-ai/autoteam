@@ -97,3 +97,36 @@ t_ghapp_rejects_bad_role_and_missing_config() {
   assert_eq "$rc" 1
   assert_contains "$out" "AUTOTEAM_REVIEWER_APP_ID" "没配 App ID 要说清楚缺哪个键"
 }
+
+# agent 每次 checkout 都是新目录，私钥只放仓库里就要跟着重放一遍——真机上两个
+# Implementer 就是这么同时卡住的。仓库里没有时要能回退到机器上的固定目录。
+t_ghapp_falls_back_to_keys_dir() {
+  ghapp_repo
+  rm -f ops/agents/local/implementer.pem
+  mkdir -p "$WORK/.home/machine-keys"
+  cp "$TEST_BASE/app.pem" "$WORK/.home/machine-keys/autoteam-implementer.2026-01-01.private-key.pem"
+  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> ops/agents/autoteam.conf
+  out=$(ghapp implementer 2>&1) ; rc=$?
+  assert_eq "$rc" 0 "$out"
+  assert_eq "$out" "ghs_stubtoken" "机器级目录里的私钥也要能铸出 token"
+}
+
+t_ghapp_prefers_repo_key_over_keys_dir() {
+  ghapp_repo
+  mkdir -p "$WORK/.home/machine-keys"
+  : > "$WORK/.home/machine-keys/implementer.pem"   # 坏的私钥，被选中就会铸不出来
+  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> ops/agents/autoteam.conf
+  out=$(ghapp implementer 2>&1)
+  assert_eq "$out" "ghs_stubtoken" "仓库里的私钥优先于机器级目录"
+}
+
+t_ghapp_reports_all_searched_locations() {
+  ghapp_repo
+  rm -f ops/agents/local/implementer.pem
+  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> ops/agents/autoteam.conf
+  out=$(ghapp implementer 2>&1) ; rc=$?
+  assert_eq "$rc" 1
+  assert_contains "$out" "找不到 implementer 的私钥"
+  assert_contains "$out" "ops/agents/local/" "要说清两个位置都找过了"
+  assert_contains "$out" "machine-keys"
+}

@@ -11,7 +11,7 @@ title: 生成的文件
 | `AGENTS.md`（受管块） | 四条全局规则：怎么跑检查、不谎报验证、PR 标题、规则文件 | 模板 | |
 | `Makefile` | `check` / `dev` / `deploy`（只在不存在时创建） | 人 | ✅ |
 | `.jscpd.json` | 重复代码阈值 3%、忽略目录 | 人 | ✅ |
-| `.gitignore`（受管块） | 忽略 jscpd 报告目录和 `ops/agents/local/`（App 私钥、按量计费的 key 都在这里） | 模板 | |
+| `.gitignore`（受管块） | 忽略 jscpd 报告目录和 `ops/agents/local/`（App 私钥、按量计费的 key 都在这里；跑 agent 的机器用 `AUTOTEAM_KEYS_DIR`，见[配置](config.md)） | 模板 | |
 | `.github/CODEOWNERS`（受管块） | 规则文件的负责人 | 模板 | ✅ |
 | `.github/pull_request_template.md` | PR 正文：任务编号、检查结果、范围外发现 | 人 | ✅ |
 | `.github/workflows/gate.yml` | 必需检查 `check`：PR 行数、重复代码、`make check` | 人 | ✅ |

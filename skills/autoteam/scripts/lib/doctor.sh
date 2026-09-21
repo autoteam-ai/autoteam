@@ -201,7 +201,7 @@ doctor_github() {
 # App 的安装和私钥。doctor 可能跑在人的机器上（没有私钥），也可能跑在 agent 机器上，
 # 两种情况要给出不同的结论，不要把"本机没有私钥"报成错误。
 doctor_apps() {
-  local role key_role id org installed row pem
+  local role key_role id org installed row err
   org=${AUTOTEAM_REPO%%/*}
   installed=""
   if gh_call GET "orgs/$org/installations"; then installed=$GH_OUT; fi
@@ -238,15 +238,15 @@ doctor_apps() {
     else
       info "$role App $id：核对不了安装状态（需要组织 admin），到 App 的 Install 页面自己确认"
     fi
-    pem=ops/agents/local/$key_role.pem
-    if [ -r "$pem" ]; then
-      if ops/agents/scripts/gh-app-token.sh "$key_role" >/dev/null 2>&1; then
-        ok "$role 的私钥能铸出 token（本机可以用这个身份操作 GitHub）"
-      else
-        fail "$role 有私钥但铸不出 token：跑 ops/agents/scripts/gh-app-token.sh $key_role 看报错"
-      fi
+    # 私钥可能在 ops/agents/local/、AUTOTEAM_KEYS_DIR 或环境变量指的路径，别去猜它在哪，
+    # 直接铸一次看结果：铸得出就是好的，没有私钥和有私钥但坏了要分开报
+    if err=$(ops/agents/scripts/gh-app-token.sh "$key_role" 2>&1 >/dev/null); then
+      ok "$role 的私钥能铸出 token（本机可以用这个身份操作 GitHub）"
     else
-      info "本机没有 $pem：只有跑 $role 的那台机器需要它"
+      case $err in
+        *"找不到 $key_role 的私钥"*) info "本机没有 $key_role 的私钥：只有跑 $role 的那台机器需要它" ;;
+        *) fail "$role 铸不出 token：${err:-跑 ops/agents/scripts/gh-app-token.sh $key_role 看报错}" ;;
+      esac
     fi
   done
 }
