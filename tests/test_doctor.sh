@@ -180,6 +180,7 @@ t_doctor_keys_missing_on_local_runtime_fails() {
   assert_eq "$rc" 1 "本机 runtime 缺私钥应算错误"
   assert_contains "$out" "本机没有 implementer 的私钥，但 agent impl-claude 的 runtime claude@machine-a 在这台机器上"
   assert_contains "$out" "AUTOTEAM_KEYS_DIR"
+  # shellcheck disable=SC2088  # doctor 原样输出配置里的 ~/.autoteam，这里要匹配字面量
   assert_contains "$out" "~/.autoteam" "要给出应该放的位置"
   assert_contains "$out" "AUTOTEAM_IMPLEMENTER_APP_KEY"
   assert_not_contains "$out" "本机没有 reviewer 的私钥" "不在本机的 runtime 不判错"
