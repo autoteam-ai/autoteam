@@ -33,6 +33,17 @@ while [ $# -gt 0 ]; do
   esac
 done
 set -- "${args[@]}"
+printf 'http-timeout=%s\n' "${MULTICA_HTTP_TIMEOUT:-30s}" >> "$STUB_LOG"
+# 故障次数放文件里，跨 CLI 子进程递减；-1 表示持续失败。
+if [ -f "$state/mc-fail-command" ] && [ "$*" = "$(cat "$state/mc-fail-command")" ]; then
+  remaining=$(cat "$state/mc-fail-count")
+  if [ "$remaining" != 0 ]; then
+    [ "$remaining" -lt 0 ] || echo "$((remaining - 1))" > "$state/mc-fail-count"
+    echo 'Request timed out' >&2
+    exit 2
+  fi
+fi
+
 
 # 取出 --flag 的值
 flag() {
@@ -91,8 +102,16 @@ case "$1 $2" in
     mv "$projects.tmp" "$projects"
     echo '{"id":"proj-1"}' ;;
   "project resource")
-    [ "$3" = list ] && echo '[{"resource_type":"github_repo","resource_ref":{"url":"https://github.com/acme/shop.git"}}]'
-    [ "$3" = add ] && echo '{"id":"res-1"}' ;;
+    case $3 in
+      list)
+        if [ -f "$state/mc-resource-empty" ]; then echo '[]'
+        else echo '[{"resource_type":"github_repo","resource_ref":{"url":"https://github.com/acme/shop.git"}}]'; fi ;;
+      add)
+        if [ -f "$state/mc-resource-conflict" ]; then
+          echo 'Request conflict: this resource is already attached' >&2; exit 1
+        fi
+        echo '{"id":"res-1"}' ;;
+    esac ;;
   "autopilot list") jq '{autopilots: [.[] | .autopilot], total: length}' "$autopilots" ;;
   "autopilot get") jq --arg id "$3" '.[] | select(.autopilot.id == $id)' "$autopilots" ;;
   "autopilot create")

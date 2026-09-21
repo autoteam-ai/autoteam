@@ -102,7 +102,7 @@ t_multica_updates_changed_instructions() {
 t_multica_reports_missing_runtime() {
   setup_ready_repo
   sed -i.bak 's/claude@machine-a/claude@nowhere/' ops/agents/registry.yaml && rm -f ops/agents/registry.yaml.bak
-  out=$(autoteam_stub multica --only agents)
+  out=$(autoteam_stub multica --only agents) && tfail "缺失 runtime 应返回非零"
   assert_contains "$out" "agent impl-claude：找不到 runtime claude@nowhere"
   assert_contains "$out" "claude@machine-a（online）"
 }
@@ -119,4 +119,131 @@ t_runtimes_lists_selectors() {
   assert_contains "$out" "claude@machine-a"
   assert_contains "$out" "codex@machine-b"
   assert_contains "$out" "offline"
+}
+
+
+t_multica_partial_failure_summary() {
+  setup_ready_repo
+  echo 'project list' > "$STUB_STATE/mc-fail-command"
+  echo -1 > "$STUB_STATE/mc-fail-count"
+  out=$(autoteam_stub multica --apply 2>&1) && tfail "读取失败应返回非零"
+  assert_contains "$out" "同步不完整"
+  assert_contains "$out" "已完成： statuses agents"
+  assert_contains "$out" "失败或部分完成： project"
+  assert_contains "$out" "未执行： autopilots"
+  assert_eq "$(grep -c 'project list' "$STUB_LOG")" 3
+  assert_no_log "autopilot create"
+}
+
+t_multica_transient_read_recovers() {
+  setup_ready_repo
+  echo 'project list' > "$STUB_STATE/mc-fail-command"
+  echo 1 > "$STUB_STATE/mc-fail-count"
+  out=$(autoteam_stub multica --apply 2>&1)
+  assert_eq "$?" 0
+  assert_not_contains "$out" "同步不完整"
+  assert_eq "$(grep -c 'project list' "$STUB_LOG")" 2
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10
+}
+
+t_multica_resource_read_failure_does_not_attach() {
+  setup_ready_repo
+  autoteam_stub multica --apply --only project >/dev/null
+  : > "$STUB_LOG"
+  echo 'project resource list proj-1' > "$STUB_STATE/mc-fail-command"
+  echo -1 > "$STUB_STATE/mc-fail-count"
+  out=$(autoteam_stub multica --apply --only project 2>&1) && tfail "资源读取失败应返回非零"
+  assert_contains "$out" "同步不完整"
+  assert_no_log 'resource add'
+}
+
+t_multica_resource_conflict_is_current() {
+  setup_ready_repo
+  autoteam_stub multica --apply --only project >/dev/null
+  touch "$STUB_STATE/mc-resource-empty" "$STUB_STATE/mc-resource-conflict"
+  out=$(autoteam_stub multica --apply --only project)
+  assert_eq "$?" 0
+  assert_contains "$out" "仓库已是最新"
+  assert_not_contains "$out" "同步不完整"
+}
+
+t_multica_write_failure_is_not_retried() {
+  setup_ready_repo
+  autoteam_stub multica --apply --only project >/dev/null
+  touch "$STUB_STATE/mc-resource-empty"
+  : > "$STUB_LOG"
+  echo 'project resource add proj-1 --type github_repo --url https://github.com/acme/shop' > "$STUB_STATE/mc-fail-command"
+  echo -1 > "$STUB_STATE/mc-fail-count"
+  out=$(autoteam_stub multica --apply --only project 2>&1) && tfail "写入失败应返回非零"
+  assert_contains "$out" "同步不完整"
+  assert_eq "$(grep -c 'resource add' "$STUB_LOG")" 1
+}
+
+t_multica_api_timeout_and_only_statuses() {
+  setup_ready_repo
+  touch "$STUB_STATE/curl-timeout"
+  : > "$STUB_LOG"
+  out=$(MULTICA_HTTP_TIMEOUT=1m30s autoteam_stub multica --apply --only statuses 2>&1) && tfail "API 超时应返回非零"
+  assert_contains "$out" "同步不完整"
+  assert_contains "$out" "Operation timed out"
+  assert_log 'curl max-time=90.000000000'
+  assert_log 'http-timeout=1m30s'
+  assert_eq "$(grep -c 'curl GET' "$STUB_LOG")" 3
+  assert_no_log 'runtime list'
+}
+
+t_multica_timeout_formats() {
+  setup_ready_repo
+  local value expected
+  for value in 45 45s 2m 500ms 1.5h .5s; do
+    case $value in
+      45|45s) expected=45.000000000 ;;
+      2m) expected=120.000000000 ;;
+      500ms|.5s) expected=0.500000000 ;;
+      1.5h) expected=5400.000000000 ;;
+    esac
+    : > "$STUB_LOG"
+    MULTICA_HTTP_TIMEOUT=$value autoteam_stub multica --only statuses >/dev/null
+    assert_log "curl max-time=$expected"
+  done
+  for value in 0 -1 bad; do
+    out=$(MULTICA_HTTP_TIMEOUT=$value autoteam_stub multica --apply 2>&1) && tfail "无效超时应失败"
+    assert_contains "$out" "同步不完整"
+    assert_contains "$out" "MULTICA_HTTP_TIMEOUT 必须"
+  done
+}
+
+t_multica_fatal_local_error_summary() {
+  setup_ready_repo
+  rm ops/agents/implementer.md
+  out=$(autoteam_stub multica --apply 2>&1) && tfail "缺失指令应失败"
+  assert_contains "$out" "已完成： statuses"
+  assert_contains "$out" "失败或部分完成： agents"
+  assert_contains "$out" "未执行： project autopilots"
+}
+
+
+t_multica_autopilot_read_failure_does_not_update() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  : > "$STUB_LOG"
+  echo 'autopilot get ap-1' > "$STUB_STATE/mc-fail-command"
+  echo -1 > "$STUB_STATE/mc-fail-count"
+  out=$(autoteam_stub multica --apply --only autopilots 2>&1) && tfail "autopilot 读取失败应返回非零"
+  assert_contains "$out" "同步不完整"
+  assert_contains "$out" "未执行更新"
+  assert_no_log 'autopilot update ap-1 '
+  assert_no_log 'autopilot trigger-add ap-1 '
+  assert_no_log 'autopilot trigger-update ap-1 '
+  assert_eq "$(grep -c 'autopilot get ap-1 ' "$STUB_LOG")" 3
+}
+
+t_multica_api_failure_keeps_independent_steps() {
+  setup_ready_repo
+  touch "$STUB_STATE/curl-timeout"
+  out=$(autoteam_stub multica --apply 2>&1) && tfail "状态读取失败应返回非零"
+  assert_contains "$out" "已完成： agents project autopilots"
+  assert_contains "$out" "失败或部分完成： statuses"
+  assert_contains "$out" "未执行：无"
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10
 }

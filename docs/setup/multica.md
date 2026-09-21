@@ -79,6 +79,12 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 
 Settings → GitHub 连接仓库后，Multica 会按任务编号把 PR 关联到任务（分支名或 PR 标题里写 `XXX-123`），在卡片上显示 CI 状态和能否合并。它只读仓库，从不推代码、写评论或状态检查，所以闸门仍然在 GitHub 上。PR 正文写 `Closes XXX-123` 这类关闭关键字，合并时会直接把任务设为完成，所以角色指令要求不写。
 
+## 同步失败与超时
+
+同步读取失败最多尝试 3 次；写操作不自动重试。失败时会以非零退出码结束，输出“同步不完整”，按所选部分列出已完成、失败或部分完成、未执行的清单；已写入的改动不回滚，修复后可重新运行。重复挂载同一个仓库视为已是最新。`--only statuses` 不读取 runtime。
+
+CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 30 秒，支持正秒数或 Go duration（如 `45`、`45s`、`2m`、`1m30s`）；无效或非正值会在同步前报错。格式依据 [Multica CLI 官方说明](https://github.com/multica-ai/multica/blob/main/CLI_AND_DAEMON.md)。
+
 ## 检查
 
 ```bash

@@ -69,7 +69,87 @@ mc_resolve_profile() {
 }
 
 mc() {
-  "$MC_BIN" ${MC_ARGS[@]+"${MC_ARGS[@]}"} "$@"
+  local attempts=1 attempt=1 rc out
+  if [ "${MC_SYNC_ACTIVE:-0}" = 1 ]; then
+    case "${1:-} ${2:-} ${3:-}" in
+      "workspace get "*|"runtime list "*|"agent list "*|"agent get "*|"project list "*|"project resource list"|"autopilot list "*|"autopilot get "*|"user profile get") attempts=3 ;;
+    esac
+  fi
+  if [ "$attempts" = 1 ]; then
+    "$MC_BIN" ${MC_ARGS[@]+"${MC_ARGS[@]}"} "$@"
+    return $?
+  fi
+  out=$(mktemp "$(autoteam_tmpdir)/mc-read.XXXXXX")
+  while :; do
+    if "$MC_BIN" ${MC_ARGS[@]+"${MC_ARGS[@]}"} "$@" >"$out"; then
+      cat "$out"
+      return 0
+    else
+      rc=$?
+    fi
+    [ "$attempt" -lt "$attempts" ] || { cat "$out"; return "$rc"; }
+    attempt=$((attempt + 1))
+    printf 'Multica 读取失败，重试 %s/%s\n' "$attempt" "$attempts" >&2
+  done
+}
+
+# CLI 接受秒数或 Go duration；curl 只接受秒数。无效值直接报错，避免无限等待。
+mc_timeout_seconds() {
+  LC_ALL=C awk -v value="${MULTICA_HTTP_TIMEOUT:-30s}" '
+    BEGIN {
+      if (value ~ /^[+]?[0-9]+([.][0-9]+)?$/) total = value + 0
+      else {
+        sub(/^[+]/, "", value)
+        while (length(value)) {
+          if (!match(value, /^([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)/)) exit 1
+          part = substr(value, 1, RLENGTH)
+          value = substr(value, RLENGTH + 1)
+          unit = part; sub(/^[0-9.]+/, "", unit)
+          factor = (unit == "h" ? 3600 : unit == "m" ? 60 : unit == "s" ? 1 : unit == "ms" ? .001 : unit == "ns" ? .000000001 : .000001)
+          total += (part + 0) * factor
+        }
+      }
+      if (total <= 0) exit 1
+      printf "%.9f\n", total
+    }'
+}
+
+# EXIT 汇总也覆盖 die / set -e 的提前退出；保留公共临时文件清理。
+multica_sync_exit() {
+  local rc=$1 part completed="" pending="" failed=$MC_SYNC_FAILED
+  [ -z "$MC_SYNC_CURRENT" ] || failed="$failed $MC_SYNC_CURRENT"
+  trap - EXIT
+  if [ "$rc" -ne 0 ] || [ "$AUTOTEAM_ERRORS" -gt 0 ]; then
+    for part in $MC_SYNC_PARTS; do
+      case " $MC_SYNC_DONE " in
+        *" $part "*) completed="$completed $part" ;;
+        *) case " $MC_SYNC_STARTED " in *" $part "*) ;; *) pending="$pending $part" ;; esac ;;
+      esac
+    done
+    section "同步不完整"
+    info "已完成：${completed:-无}"
+    info "失败或部分完成：${failed:-无}"
+    info "未执行：${pending:-无}"
+    info "已写入的改动不会回滚；修复错误后重新运行同步。"
+    rc=1
+  fi
+  rm -rf "$AUTOTEAM_TMP"
+  exit "$rc"
+}
+
+multica_sync_begin() {
+  MC_SYNC_CURRENT=$1
+  MC_SYNC_STARTED="$MC_SYNC_STARTED $1"
+  MC_SYNC_ERRORS=$AUTOTEAM_ERRORS
+}
+
+multica_sync_end() {
+  if [ "$AUTOTEAM_ERRORS" -eq "$MC_SYNC_ERRORS" ]; then
+    MC_SYNC_DONE="$MC_SYNC_DONE $MC_SYNC_CURRENT"
+  else
+    MC_SYNC_FAILED="$MC_SYNC_FAILED $MC_SYNC_CURRENT"
+  fi
+  MC_SYNC_CURRENT=""
 }
 
 # 工作区 slug / 前缀 / UUID → 工作区 JSON
@@ -108,16 +188,30 @@ mc_resolve_api() {
 
 # 调 Multica HTTP API；token 通过 stdin 交给 curl，不出现在进程参数里
 mc_api() {
-  local method=$1 path=$2 body=${3:-} tmp code data_args=()
+  local attempt=1 attempts=1
+  if [ "${MC_SYNC_ACTIVE:-0}" = 1 ] && [ "$1" = GET ]; then attempts=3; fi
+  while :; do
+    if mc_api_once "$@"; then return 0; fi
+    [ "$attempt" -lt "$attempts" ] || return 1
+    attempt=$((attempt + 1))
+    printf 'Multica API 读取失败，重试 %s/%s\n' "$attempt" "$attempts" >&2
+  done
+}
+
+mc_api_once() {
+  local method=$1 path=$2 body=${3:-} tmp code timeout data_args=()
+  timeout=$(mc_timeout_seconds) || { MC_API_OUT="MULTICA_HTTP_TIMEOUT 无效"; return 1; }
   tmp=$(autoteam_tmpdir)
   if [ -n "$body" ]; then
     printf '%s' "$body" > "$tmp/mc-body.json"
     data_args=(--data-binary "@$tmp/mc-body.json")
   fi
+  : > "$tmp/mc-resp.json"
   code=$(printf 'header = "Authorization: Bearer %s"\nheader = "X-Workspace-ID: %s"\n' "$MC_TOKEN" "$MC_WS_ID" \
-    | curl -sS -K - -X "$method" -H 'Content-Type: application/json' -o "$tmp/mc-resp.json" -w '%{http_code}' \
+    | curl -sS --max-time "$timeout" -K - -X "$method" -H 'Content-Type: application/json' -o "$tmp/mc-resp.json" -w '%{http_code}' \
         ${data_args[@]+"${data_args[@]}"} "$MC_SERVER$path" 2>"$tmp/mc-err") || code=000
   MC_API_OUT=$(cat "$tmp/mc-resp.json" 2>/dev/null || cat "$tmp/mc-err" 2>/dev/null || true)
+  [ -s "$tmp/mc-resp.json" ] || MC_API_OUT=$(cat "$tmp/mc-err")
   case $code in 2??) return 0 ;; *) MC_API_OUT="HTTP $code $MC_API_OUT"; return 1 ;; esac
 }
 
@@ -143,6 +237,17 @@ cmd_multica() {
       *) multica_usage >&2; die "未知选项：$1" ;;
     esac
   done
+  MC_SYNC_ACTIVE=1 MC_SYNC_STARTED="" MC_SYNC_DONE="" MC_SYNC_FAILED="" MC_SYNC_CURRENT=连接
+  MC_SYNC_PARTS=""
+  multica_want() { [ -z "$only" ] || case $only in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+  local part
+  for part in statuses agents project autopilots; do
+    if multica_want "$part" || { [ "$part" = project ] && multica_want autopilots; }; then
+      MC_SYNC_PARTS="$MC_SYNC_PARTS $part"
+    fi
+  done
+  trap 'multica_sync_exit "$?"' EXIT
+  mc_timeout_seconds >/dev/null || die "MULTICA_HTTP_TIMEOUT 必须是正秒数或 Go duration（如 45s、2m）"
   need_cmd jq
   need_cmd curl
   local root rows
@@ -156,26 +261,32 @@ cmd_multica() {
   section "连接 Multica"
   multica_setup "$profile" "${ws:-$AUTOTEAM_MULTICA_WORKSPACE}"
 
-  multica_want() { [ -z "$only" ] || case $only in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
-
   if multica_want statuses; then
     section "自定义状态"
+    multica_sync_begin statuses
     multica_statuses
+    multica_sync_end
   fi
   local runtimes
-  runtimes=$(mc runtime list --output json) || die "读取 runtime 列表失败"
   if multica_want agents; then
     section "agent"
+    multica_sync_begin agents
+    runtimes=$(mc runtime list --output json) || die "读取 runtime 列表失败"
     multica_agents "$rows" "$runtimes"
+    multica_sync_end
   fi
   MC_PROJECT_ID=""
   if multica_want project || multica_want autopilots; then
     section "项目"
+    multica_sync_begin project
     multica_project
+    multica_sync_end
   fi
   if multica_want autopilots; then
     section "autopilot"
+    multica_sync_begin autopilots
     multica_autopilots "$rows" "$paused" "$rotate"
+    multica_sync_end
   fi
 
   section "需要你在 Multica 界面里做的事"
@@ -197,12 +308,12 @@ mc_category_ok() {
 multica_statuses() {
   mc_resolve_api
   if [ -z "$MC_TOKEN" ] || [ -z "$MC_SERVER" ]; then
-    warn "读不到 multica 的登录 token，不能自动建状态"
+    fail "读不到 multica 的登录 token，不能自动建状态"
     multica_status_manual
     return 0
   fi
   if ! mc_api GET /api/issue-statuses; then
-    warn "读取状态列表失败：$MC_API_OUT"
+    fail "读取状态列表失败：$MC_API_OUT"
     multica_status_manual
     return 0
   fi
@@ -367,7 +478,7 @@ multica_agent_update() {
   [ "$(jq -r '.model // ""' <<<"$cur")" = "$want_model" ] || changes="$changes 模型"
   if [ "$max" != "-" ] && [ "$(jq -r '.max_concurrent_tasks' <<<"$cur")" != "$max" ]; then changes="$changes 并发"; fi
   if [ "$(jq -r '.archived_at // empty' <<<"$cur")" != "" ]; then
-    warn "agent $name 已归档：在界面里恢复（multica agent restore $id）后再运行"
+    fail "agent $name 已归档：在界面里恢复（multica agent restore $id）后再运行"
     return 0
   fi
   # MCP 配置和环境变量都读不回来（平台不返回明文），没法比对，所以只要 registry 里
@@ -415,11 +526,11 @@ multica_project() {
       MC_PROJECT_ID=$(jq -r '.id' <<<"$out")
       ok "已新建项目 $title（${MC_PROJECT_ID:0:8}）"
     else
-      fail "新建项目失败：$out"
+      die "新建项目失败：$out"
     fi
     return 0
   fi
-  res=$(mc project resource list "$MC_PROJECT_ID" --output json 2>/dev/null || echo '[]')
+  res=$(mc project resource list "$MC_PROJECT_ID" --output json) || die "读取项目仓库资源失败"
   if jq -e --arg u "$url" '.[] | select(.resource_type == "github_repo" and ((.resource_ref.url // "") | sub("\\.git$"; "") | ascii_downcase) == ($u | ascii_downcase))' <<<"$res" >/dev/null; then
     ok "项目 $title 已存在，已挂仓库"
   else
@@ -428,7 +539,10 @@ multica_project() {
     if out=$(mc project resource add "$MC_PROJECT_ID" --type github_repo --url "$url" --output json 2>&1); then
       ok "已挂上仓库"
     else
-      fail "挂仓库失败：$out"
+      case $out in
+        *"Request conflict: this resource is already attached"*) ok "项目 $title 仓库已是最新" ;;
+        *) fail "挂仓库失败：$out" ;;
+      esac
     fi
   fi
 }
@@ -485,7 +599,7 @@ multica_autopilot() {
   # 传 ID 不传名字：Multica 按名字解析是模糊匹配，工作区里只要有另一个 agent 的名字
   # 包含这个名字（比如 ex-planner 之于 planner），就会报 ambiguous agent
   local agent_ref
-  agent_ref=$(mc_agent_id "$agent")
+  agent_ref=$(mc_agent_id "$agent") || { fail "读取 agent $agent 失败，未执行 autopilot 同步"; return 0; }
   [ -n "$agent_ref" ] || agent_ref=$agent
 
   args=(--agent "$agent_ref" --mode "$mode" --description "$body")
@@ -493,7 +607,12 @@ multica_autopilot() {
   if [ "$mode" = create_issue ]; then
     [ -n "$issue_title" ] && args+=(--issue-title-template "$issue_title")
     if [ "$subscriber" = human ]; then
-      subscriber=${AUTOTEAM_HUMAN:-$(mc user profile get --output json 2>/dev/null | jq -r '.name // empty')}
+      subscriber=${AUTOTEAM_HUMAN:-}
+      if [ -z "$subscriber" ]; then
+        subscriber=$(mc user profile get --output json | jq -r '.name // empty') || {
+          fail "读取订阅人失败，未执行 autopilot「$title」同步"; return 0;
+        }
+      fi
     fi
     [ -n "$subscriber" ] && args+=(--subscriber "$subscriber")
   fi
@@ -510,7 +629,12 @@ multica_autopilot() {
       fi
     fi
   else
-    if multica_autopilot_same "$id" "$agent" "$mode" "$body"; then
+    local same_rc=0
+    multica_autopilot_same "$id" "$agent" "$mode" "$body" || same_rc=$?
+    if [ "$same_rc" = 2 ]; then
+      fail "读取 autopilot「$title」失败，未执行更新"
+      return 0
+    elif [ "$same_rc" = 0 ]; then
       ok "autopilot「$title」已是最新"
     else
       planned "更新 autopilot「$title」"
@@ -534,7 +658,7 @@ multica_autopilot() {
     if mc autopilot update "$id" --status paused --output json >/dev/null 2>&1; then
       info "已暂停「$title」"
     else
-      warn "暂停「$title」失败"
+      fail "暂停「$title」失败"
     fi
   fi
 }
@@ -542,8 +666,8 @@ multica_autopilot() {
 # 已有 autopilot 的指派、模式、runbook 是否和文件一致
 multica_autopilot_same() {
   local id=$1 agent=$2 mode=$3 body=$4 json agent_id
-  json=$(mc autopilot get "$id" --output json 2>/dev/null) || return 1
-  agent_id=$(mc_agent_id "$agent")
+  json=$(mc autopilot get "$id" --output json) || return 2
+  agent_id=$(mc_agent_id "$agent") || return 2
   # 项目也要比：项目改名或重建后会有新的 project_id，autopilot 还绑在旧项目上的话，
   # Planner 会在旧项目里找任务，查不到就报"无待验收任务"，整条链路悄悄断掉。
   jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" --arg p "$MC_PROJECT_ID" '
@@ -562,7 +686,7 @@ mc_autopilot_triggers() {
 multica_schedule_trigger() {
   local id=$1 title=$2 cron=$3 triggers tid have_cron have_tz out
   [ -n "$cron" ] || { fail "「$title」是定时触发，但没写 cron"; return 0; }
-  triggers=$(mc_autopilot_triggers "$id")
+  triggers=$(mc_autopilot_triggers "$id") || { fail "读取「$title」触发器失败，未执行触发器同步"; return 0; }
   tid=$(jq -r '[.[] | select(.kind == "schedule")][0].id // empty' <<<"$triggers")
   if [ -z "$tid" ]; then
     planned "给「$title」加定时触发 $cron（$AUTOTEAM_TIMEZONE）"
@@ -591,13 +715,13 @@ multica_schedule_trigger() {
 
 multica_webhook_trigger() {
   local id=$1 title=$2 rotate=$3 triggers tid out url
-  triggers=$(mc_autopilot_triggers "$id")
+  triggers=$(mc_autopilot_triggers "$id") || { fail "读取「$title」触发器失败，未执行触发器同步"; return 0; }
   tid=$(jq -r '[.[] | select(.kind == "webhook")][0].id // empty' <<<"$triggers")
   if [ -n "$tid" ] && [ "$rotate" != 1 ]; then
     if gh secret list --repo "$AUTOTEAM_REPO" --json name --jq '.[].name' 2>/dev/null | grep -qx MULTICA_DEPLOY_HOOK; then
       ok "部署 webhook 已存在，GitHub secret MULTICA_DEPLOY_HOOK 已设置"
     else
-      warn "部署 webhook 已存在，但 GitHub 上没有 secret MULTICA_DEPLOY_HOOK：加 --rotate-webhook 重新生成并写入"
+      fail "部署 webhook 已存在，但 GitHub 上没有 secret MULTICA_DEPLOY_HOOK：加 --rotate-webhook 重新生成并写入"
     fi
     return 0
   fi

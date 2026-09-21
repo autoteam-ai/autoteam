@@ -39,7 +39,7 @@ new_repo() {
 # 带桩运行 autoteam：gh / multica / curl 都换成 tests/stubs 下的桩
 autoteam_stub() {
   env PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
-    HOME="$WORK/.home" NO_COLOR=1 \
+    HOME="$WORK/.home" NO_COLOR=1 MULTICA_SERVER_URL= MULTICA_TOKEN= \
     STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" STUB_FIXTURES="$TESTS_DIR/fixtures" \
     STUB_SCENARIO="${STUB_SCENARIO:-user-public}" STUB_FAILED_RUN="${STUB_FAILED_RUN:-}" \
     AUTOTEAM_MULTICA_BIN="$TESTS_DIR/stubs/multica" \
