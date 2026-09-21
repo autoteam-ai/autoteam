@@ -59,6 +59,10 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 `autoteam doctor`，逐条解释 ⚠️ 和 ❌。处理完后，建议用户跑一个小需求演练一遍（autoteam 文档的 `docs/setup/first-run.md`）。
 
+## Planner 推进已有任务
+
+人工评论、补充说明、回答问题或状态变化后，先核对原任务描述和验收标准；仍成立就在原任务继续派发、返工或验收。建子任务前除搜索查重，还要检查有没有可以直接推进的原任务。验收失败、评审打回和人工反馈均回原任务处理，父任务整体验收失败回对应原子任务返工；仍遵守批准要求及升级次数上限。只有目标或范围确实变化且无法在原任务继续时，才新建子任务，并在描述里写明「为什么不能在原任务上继续」。首次拆分大需求的规则和 PR 行数上限不变。
+
 ## 升级和排查
 
 - autoteam 更新后：`npx skills update autoteam`（或 `git pull`）→ `autoteam init` 补上新增的文件 → `autoteam diff` 看已有文件的差异 → 用户同意后只覆盖没被改过的文件：`autoteam init --force <文件...>`；改过的（比如加了运行时的 gate.yml）手动合并 → 提交合并 → `autoteam multica --apply` 同步指令。
