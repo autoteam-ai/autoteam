@@ -24,7 +24,7 @@
   |---|---|---|
   | `backlog` | 待审核 | 你（建子任务时） |
   | `approved` | 已批准 | 只能是人 |
-  | `todo` | 待办，已派给 Implementer | 你 |
+  | `todo` | 待办：指派给 Implementer 表示已派发（你设置）；指派给你自己表示人已放行（人设置） | 你 / 人 |
   | `in_progress` | 实现中 | Implementer |
   | `code_review` | 待评审 | Implementer |
   | `rework` | 返工 | Reviewer 或你 |
@@ -76,13 +76,15 @@
 
 ## 派发
 
-被叫醒的原因是子任务被批准、一批子任务完成，或者巡检时。只派发 `approved` 的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。
+被叫醒的原因是子任务被批准、一批子任务完成，或者巡检时。只派发已放行的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。已放行 = `approved`，或者 `todo` 且指派给你自己（人把任务从 `backlog` 改到 `todo` 就是明确放行，和 `approved` 一样处理，不要求人再批准，不要退回 `backlog`，也不要评论请人批准）。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
+
+**原则：人只看 `backlog` 和 `blocked`。你不能把球留在其它状态等人**——任务停在别的状态，人不会再看，你也不处理，就没人推进。
 
 1. 选一个 Implementer 和一个 Reviewer，两者必须是不同的 agent，优先不同厂商（registry.yaml 里 account 不同）：
    - 计费顺序：订阅额度 > 包月点数 > 按量计费（不超过当日预算）；
    - 额度快用完的账号不派大任务，因为中途耗尽会留下半成品。参考 `multica runtime usage <runtime-id> --days 7 --output json`，以及最近因额度失败的运行（`multica issue runs <任务> --output json` 的错误信息，通常带恢复时间）；
    - 条件相同时，优先最近成绩单里一次通过率高的；
-   - 没有可用的 Implementer 或 Reviewer，就留在 `approved`，下次巡检再试。
+   - 没有可用的 Implementer 或 Reviewer，就保持原状态（`approved` 或指派给你的 `todo`），下次巡检再试。
 2. 在任务评论里写明 Implementer、Reviewer 和选择理由。**Reviewer 只写名字，不要用提及链接**，否则会提前叫醒它。
 3. `multica issue status <任务> todo --no-start`，再 `multica issue assign <任务> --to <Implementer 名>`，指派会启动 Implementer。
 
