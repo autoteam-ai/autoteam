@@ -10,7 +10,8 @@
   - `SKILL.md`、`references/` 是给编码 agent 看的。
 - `bin/autoteam` 只是薄包装，不要在这里加逻辑。
 - `package.json` 和 `scripts/release.sh` 是 npm 包（包名 `autoteam`）的清单和发布脚本；`files` 只放 `bin/`、`skills/autoteam/`、`docs/`，新增顶层目录要同步它。
-- `docs/` 是给人看的文档，`tests/` 是测试（`stubs/` 下是 gh、multica、curl 的桩）。
+- `docs/` 是给人看的文档，也是文档站的内容源；`scripts/build-docs.mjs` 把每个 `v*` tag 和 main 各构建一份，**默认进开发版（`next`，也就是 main）**——项目还在活跃开发，发布版本往往落后于正在改的规则，默认落在旧版本会让人按过期说明操作。稳定之后把 `AUTOTEAM_DOCS_DEFAULT` 设成 `latest`。
+- `tests/` 是测试（`stubs/` 下是 gh、multica、curl 的桩）。
 
 ## 约定
 
@@ -56,7 +57,7 @@ make publish   # 发版：发到 npm，由人执行；DRY_RUN=1 只演练
 - 因此每个改模板的 PR 都会带上受保护路径，必然要人批准。这是设计：**改规则由人拍板**，不是麻烦。
 - 三个工作流（gate / deploy / rollback）按本仓库需要改过，登记在 `ops/agents/autoteam.conf` 的 `AUTOTEAM_DIFF_IGNORE` 里，`make selfhost` 不会覆盖它们。改模板里的工作流时，记得手工看一眼本仓库这份要不要跟。
 - 一律用仓库里的 `bash bin/autoteam`，不要用全局装的 skill——自举的前提是永远跑正在开发的这一版。
-- `dist/` 是文档站的构建输出（会发布到 autoteam.hdgcs.com），npm 包放 `build/pkg/`，别放错。
+- `dist/` 是文档站的构建输出（会发布到 autoteam-ai.github.io/autoteam/），npm 包放 `build/pkg/`，别放错。
 
 <!-- >>> autoteam >>> -->
 ## AI 团队工作流
