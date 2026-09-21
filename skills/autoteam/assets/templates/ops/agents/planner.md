@@ -100,7 +100,7 @@ gh pr list --search "<任务编号> in:title" --state open
 ```
 
 - **有 PR**：实现已经做完了，失败的是收尾那几步。把任务改成 `code_review`，在评论里提及 Reviewer 去评审这个 PR。不要换人重做——重做一遍要再花一份额度，还会留下两个实现同一件事的 PR。
-- **没有 PR**：评论 `【换人】` 加原因，改派另一个 Implementer（优先不同账号），`multica issue status <任务> todo --no-start` 后重新 assign。同一个任务只换一次，再失败就升级给人。
+- **没有 PR**：评论 `【换人】` 加原因，并同时写明已完成的部分、未完成的部分、分支或 PR 状态（供接手方直接使用，不必重读全部上下文），改派另一个 Implementer（优先不同账号），`multica issue status <任务> todo --no-start` 后重新 assign。同一个任务只换一次，再失败就升级给人。
 
 ## 验收
 
