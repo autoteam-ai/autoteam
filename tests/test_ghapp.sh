@@ -74,11 +74,22 @@ t_ghapp_setup_git_sets_bot_identity() {
   # 模拟机器上已有的全局凭据助手：不清掉它，agent 会以人的身份推代码
   git config --local credential.helper "osxkeychain"
   ghapp --setup-git implementer >/dev/null
-  assert_eq "$(git config --local --get user.name)" "acme-impl[bot]"
-  assert_eq "$(git config --local --get user.email)" "4242+acme-impl[bot]@users.noreply.github.com"
+  assert_eq "$(git config --get user.name)" "acme-impl[bot]"
+  assert_eq "$(git config --get user.email)" "4242+acme-impl[bot]@users.noreply.github.com"
   first=$(git config --local --get-all credential.helper | head -n 1)
   assert_eq "$first" "" "第一个助手要是空串，用来清掉继承来的凭据助手"
   assert_contains "$(git config --local --get-all credential.helper | tail -n 1)" "--credential implementer"
+}
+
+# Multica 托管 checkout 的 config.worktree 里带着人的身份，比 --local 优先：必须写 worktree 级
+t_ghapp_setup_git_overrides_worktree_identity() {
+  ghapp_repo
+  git config --local extensions.worktreeConfig true
+  git config --worktree user.name "Human"
+  git config --worktree user.email "human@example.com"
+  ghapp --setup-git implementer >/dev/null
+  assert_eq "$(git config --get user.name)" "acme-impl[bot]"
+  assert_eq "$(git config --get user.email)" "4242+acme-impl[bot]@users.noreply.github.com"
 }
 
 t_ghapp_identity_prints_name_and_email() {

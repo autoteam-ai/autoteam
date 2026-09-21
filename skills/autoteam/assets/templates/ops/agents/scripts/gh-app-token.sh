@@ -183,14 +183,20 @@ if [ "$mode" = identity ] || [ "$mode" = setup-git ]; then
     printf '%s\t%s\n' "$name" "$email"
     exit 0
   fi
-  # 提交身份要是 App 自己，否则代码会算在人的账号头上，成绩单和"谁写的"就都不对了
-  git -C "$root" config --local user.name "$name" || die "配置 user.name 失败"
-  git -C "$root" config --local user.email "$email" || die "配置 user.email 失败"
+  # 提交身份要是 App 自己，否则代码会算在人的账号头上，成绩单和"谁写的"就都不对了。
+  # 一律写 worktree 级：托管 checkout 是共享 bare 仓库上的 worktree，--local 写进的是
+  # 所有任务共用的 config，而且 config.worktree 里 include 的人的身份优先级更高，会盖掉它。
+  # 没启用 extensions.worktreeConfig 时 --worktree 等同 --local。
+  git -C "$root" config --worktree user.name "$name" || die "配置 user.name 失败"
+  git -C "$root" config --worktree user.email "$email" || die "配置 user.email 失败"
   # git push 的凭据现铸现用，不落盘。先用空值清掉从 ~/.gitconfig 继承来的助手，
   # 否则机器上 gh auth login 留下的钥匙串会先应答，agent 就会以人的身份推代码。
-  git -C "$root" config --local --replace-all credential.helper "" || die "清空凭据助手失败"
-  git -C "$root" config --local --add credential.helper \
+  git -C "$root" config --worktree --replace-all credential.helper "" || die "清空凭据助手失败"
+  git -C "$root" config --worktree --add credential.helper \
     "!'$root/ops/agents/scripts/gh-app-token.sh' --credential $role" || die "配置凭据助手失败"
+  # 回读生效值：别处（如 include 进来的配置）盖掉了就在这里报错，不要等提交完才发现
+  [ "$(git -C "$root" config --get user.email)" = "$email" ] ||
+    die "提交身份没有生效，当前是 $(git -C "$root" config --get user.email)：检查 git config --show-origin user.email"
   printf '已把这个 clone 配成 %s：提交身份 %s，git push 用 App token\n' "$role" "$name"
   exit 0
 fi
