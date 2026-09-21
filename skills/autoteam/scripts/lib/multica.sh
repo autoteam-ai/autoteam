@@ -8,8 +8,8 @@ multica_usage() {
 按 ops/agents/ 下的文件配置 Multica 工作区。默认只预览，加 --apply 才执行。
 
   --apply                 执行改动
-  --profile <名字>        multica CLI 的 profile（默认：已配置的默认 profile，
-                          否则 ~/.multica/profiles 下唯一的 profile；也可用 AUTOTEAM_MULTICA_PROFILE）
+  --profile <名字>        multica CLI 的 profile（默认：环境变量 MULTICA_SERVER_URL + MULTICA_TOKEN，
+                          否则已配置的默认 profile，再否则 ~/.multica/profiles 下唯一的 profile；也可用 AUTOTEAM_MULTICA_PROFILE）
   --workspace <slug|ID>   工作区（默认 autoteam.conf 的 AUTOTEAM_MULTICA_WORKSPACE）
   --only <部分>           只处理其中几部分，逗号分隔：statuses,agents,project,autopilots
   --paused                新建的 autopilot 立即暂停（先配好、以后再启用）
@@ -49,11 +49,14 @@ mc_resolve_bin() {
   fi
 }
 
-# profile：参数 > AUTOTEAM_MULTICA_PROFILE > 已配置的默认 profile > ~/.multica/profiles 下唯一的 profile
+# profile：参数 > AUTOTEAM_MULTICA_PROFILE > 环境变量 MULTICA_SERVER_URL + MULTICA_TOKEN（agent runtime，CLI 自己读）
+# > 已配置的默认 profile > ~/.multica/profiles 下唯一的 profile
 mc_resolve_profile() {
   MC_PROFILE=${1:-${AUTOTEAM_MULTICA_PROFILE:-}}
   MC_ARGS=()
-  if [ -z "$MC_PROFILE" ] && ! "$MC_BIN" config show 2>/dev/null | grep -Eq '^server_url:[[:space:]]+https?://'; then
+  if [ -z "$MC_PROFILE" ] && [ -n "${MULTICA_SERVER_URL:-}" ] && [ -n "${MULTICA_TOKEN:-}" ]; then
+    :
+  elif [ -z "$MC_PROFILE" ] && ! "$MC_BIN" config show 2>/dev/null | grep -Eq '^server_url:[[:space:]]+https?://'; then
     local dirs n
     dirs=$(ls -1 "$HOME/.multica/profiles" 2>/dev/null || true)
     n=$(printf '%s\n' "$dirs" | grep -c . || true)

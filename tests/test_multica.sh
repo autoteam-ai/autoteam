@@ -120,3 +120,36 @@ t_runtimes_lists_selectors() {
   assert_contains "$out" "codex@machine-b"
   assert_contains "$out" "offline"
 }
+
+# 无 profile 目录、多个 profile、仅环境变量：agent runtime 只有环境变量
+t_multica_profile_missing_dir_dies() {
+  setup_ready_repo
+  rm -rf "$WORK/.home/.multica"
+  out=$(autoteam_stub multica 2>&1) && tfail "没有 profile 也没有环境变量应报错"
+  assert_contains "$out" "multica 默认 profile 没有配置服务器"
+}
+
+t_multica_profile_multiple_dies() {
+  setup_ready_repo
+  mkdir -p "$WORK/.home/.multica/profiles/other"
+  out=$(autoteam_stub multica 2>&1) && tfail "多个 profile 应报错"
+  assert_contains "$out" "multica 默认 profile 没有配置服务器"
+  assert_contains "$out" "other"
+}
+
+t_multica_env_only_needs_no_profile() {
+  setup_ready_repo
+  rm -rf "$WORK/.home/.multica"
+  : > "$STUB_LOG"
+  out=$(TEST_MULTICA_SERVER_URL=https://api.multica.test TEST_MULTICA_TOKEN=mul_test_token autoteam_stub multica --apply --only statuses)
+  assert_contains "$out" "已新建状态 approved"
+  assert_no_log "--profile"
+  assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
+}
+
+t_multica_env_needs_both_vars() {
+  setup_ready_repo
+  rm -rf "$WORK/.home/.multica"
+  out=$(TEST_MULTICA_TOKEN=mul_test_token autoteam_stub multica 2>&1) && tfail "只有 token 没有 server 应报错"
+  assert_contains "$out" "multica 默认 profile 没有配置服务器"
+}
