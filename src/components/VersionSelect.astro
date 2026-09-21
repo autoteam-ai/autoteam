@@ -17,7 +17,7 @@ const currentBase = process.env.AUTOTEAM_DOCS_BASE || '/';
   >
     {versions.map((version) => (
       <option value={version} selected={version === currentVersion}>
-        {version === 'next' ? '开发版' : `v${version}`}
+        {version === 'next' ? '开发版（默认）' : `v${version}`}
       </option>
     ))}
   </select>

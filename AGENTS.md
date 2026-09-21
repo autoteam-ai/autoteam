@@ -10,7 +10,8 @@
   - `SKILL.md`、`references/` 是给编码 agent 看的。
 - `bin/autoteam` 只是薄包装，不要在这里加逻辑。
 - `package.json` 和 `scripts/release.sh` 是 npm 包（包名 `autoteam`）的清单和发布脚本；`files` 只放 `bin/`、`skills/autoteam/`、`docs/`，新增顶层目录要同步它。
-- `docs/` 是给人看的文档，`tests/` 是测试（`stubs/` 下是 gh、multica、curl 的桩）。
+- `docs/` 是给人看的文档，也是文档站的内容源；`scripts/build-docs.mjs` 把每个 `v*` tag 和 main 各构建一份，**默认进开发版（`next`，也就是 main）**——项目还在活跃开发，发布版本往往落后于正在改的规则，默认落在旧版本会让人按过期说明操作。稳定之后把 `AUTOTEAM_DOCS_DEFAULT` 设成 `latest`。
+- `tests/` 是测试（`stubs/` 下是 gh、multica、curl 的桩）。
 
 ## 约定
 

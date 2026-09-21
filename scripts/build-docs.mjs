@@ -17,6 +17,9 @@ const tags = execFileSync('git', ['tag', '--list', 'v[0-9]*', '--sort=-v:refname
   .filter(Boolean);
 const versions = tags.map((tag) => tag.replace(/^v/, ''));
 const publishedVersions = ['next', ...versions].join(',');
+// 项目还在活跃开发，文档默认进开发版（main 分支）：发布版本往往落后于正在改的规则，
+// 让默认落在旧版本会让人按过期的说明操作。稳定之后把它改成 latest（或设这个环境变量）。
+const defaultTarget = process.env.AUTOTEAM_DOCS_DEFAULT || 'next';
 
 await rm(output, {recursive: true, force: true});
 await rm(temp, {recursive: true, force: true});
@@ -52,9 +55,13 @@ for (const [index, tag] of tags.entries()) {
 }
 
 const latest = versions[0] || 'next';
+const defaultVersion = defaultTarget === 'latest' ? latest : defaultTarget;
+if (defaultVersion !== 'next' && !versions.includes(defaultVersion)) {
+  throw new Error(`AUTOTEAM_DOCS_DEFAULT=${defaultTarget} 指向的版本不存在：${publishedVersions}`);
+}
 await writeFile(
   path.join(output, 'versions.json'),
-  `${JSON.stringify({latest, versions, development: 'next'}, null, 2)}\n`
+  `${JSON.stringify({latest, default: defaultVersion, versions, development: 'next'}, null, 2)}\n`
 );
 await writeFile(path.join(output, '.nojekyll'), '');
 await writeFile(
@@ -64,17 +71,19 @@ await writeFile(
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta http-equiv="refresh" content="0;url=./${latest}/">
+    <meta http-equiv="refresh" content="0;url=./${defaultVersion}/">
     <title>autoteam 文档</title>
-    <script>location.replace('./${latest}/' + location.search + location.hash)</script>
+    <script>location.replace('./${defaultVersion}/' + location.search + location.hash)</script>
   </head>
-  <body><a href="./${latest}/">前往 autoteam 文档</a></body>
+  <body><a href="./${defaultVersion}/">前往 autoteam 文档</a></body>
 </html>
 `
 );
 
 await rm(temp, {recursive: true, force: true});
-console.log(`文档站已生成：${path.relative(root, output)}（${versions.length} 个发布版本 + 开发版）`);
+console.log(
+  `文档站已生成：${path.relative(root, output)}（${versions.length} 个发布版本 + 开发版，默认 ${defaultVersion}）`
+);
 
 function buildVersion({source, version, base, destination}) {
   console.log(`构建文档版本 ${version}`);
