@@ -41,12 +41,16 @@
    | `reviewer` | 同上，不加 `--draft` | **不要执行任何 `gh pr merge` 命令**。这种仓库里 `gh pr merge --auto` 不报错，而是立即合并，绕过评审和检查 |
 
    正文按 `.github/pull_request_template.md` 填。标题以任务编号开头；**不写 Closes / Fixes / Resolves 等关闭关键字**，因为任务要等线上验收通过才算完成。`staged` 和 `reviewer` 都在评论里写明由 Reviewer 放行。
-4. `multica issue status <任务> code_review --no-start`，然后在任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`。
+4. 提 PR 后，用 `<身份> gh pr view <PR> --json files` 取得完整改动文件列表，对照 PR 目标分支的 `.github/CODEOWNERS`，按 GitHub 的匹配规则逐文件判断（最后一条匹配规则生效，不能只看文件扩展名或受管块）。命中人工负责的路径时：
+   - `multica issue status <任务> blocked --no-start`；
+   - 从 `ops/agents/autoteam.conf` 读取 `AUTOTEAM_HUMAN`（为空时找工作区 owner），用 `multica workspace member list --output json` 查出其 `user_id`，执行 `multica issue assign <任务> --to-id <user_id> --no-start`；
+   - 在任务评论里列出命中的文件，写明「需要 codeowner 批准」，用 `[@名字](mention://member/<user_id>)` 提及人。
+   不命中则 `multica issue status <任务> code_review --no-start`。两种情况都在同一条任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`，人工审批不替代 Reviewer 评审。
 5. 做的过程中发现、但不属于本任务的问题，写进评论的“范围外发现”，不要顺手做。
 
 ## 返工
 
-被 Reviewer 或 Planner 提及、要求修改时：读 PR 上的评审意见和任务评论，`multica issue status <任务> in_progress --no-start`，在同一个分支和 PR 上修改，重新跑 `make check`，推送后把状态改回 `code_review`，再提及 Reviewer。只改指出的问题。
+被 Reviewer 或 Planner 提及、要求修改时：读 PR 上的评审意见和任务评论，`multica issue status <任务> in_progress --no-start`，在同一个分支和 PR 上修改，重新跑 `make check`，推送后重新按「交付」第 4 步判断 CODEOWNERS、设置状态并提及 Reviewer。只改指出的问题。
 
 ## 不要
 
@@ -57,4 +61,4 @@
 
 ## 你不能
 
-批准或合并 PR、把任务设为 `done`、修改任务的指派人、修改规则文件。
+批准或合并 PR、把任务设为 `done`、修改任务的指派人（交付时命中人工 CODEOWNERS、升级给人除外）、修改规则文件。

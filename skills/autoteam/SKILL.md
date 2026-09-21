@@ -64,3 +64,5 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 - autoteam 更新后：`npx skills update autoteam`（或 `git pull`）→ `autoteam init` 补上新增的文件 → `autoteam diff` 看已有文件的差异 → 用户同意后只覆盖没被改过的文件：`autoteam init --force <文件...>`；改过的（比如加了运行时的 gate.yml）手动合并 → 提交合并 → `autoteam multica --apply` 同步指令。
 - 改了 `ops/agents/` 下的指令、registry 或 autopilot：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和仓库不一致。
 - 其他问题先跑 `autoteam doctor`，再查 autoteam 文档的 `docs/operations/troubleshooting.md`。
+
+人工 CODEOWNERS 路径的 PR：Implementer 提交后立即将任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN` 并提及人及 Reviewer；Reviewer 批准后保持 `blocked`，等待 codeowner 批准。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收；未命中人工路径的 PR 按原流程流转。
