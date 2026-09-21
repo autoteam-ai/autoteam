@@ -1,15 +1,41 @@
 import starlight from '@astrojs/starlight';
+import {satteri} from '@astrojs/markdown-satteri';
 import {defineConfig} from 'astro/config';
-import mermaid from 'astro-mermaid';
+import {renderMermaidSVG} from 'beautiful-mermaid';
 
 const base = process.env.AUTOTEAM_DOCS_BASE || '/';
+const mermaidPlugin = {
+  name: 'mermaid',
+  code(node, context) {
+    if (node.lang !== 'mermaid') return;
+
+    try {
+      const svg = renderMermaidSVG(node.value, {
+        bg: 'var(--sl-color-bg)',
+        fg: 'var(--sl-color-white)',
+        accent: 'var(--sl-color-accent)',
+        transparent: true,
+      }).replace(/\s*@import url\('[^']+'\);\n?/g, '');
+
+      return {
+        type: 'html',
+        value: `<figure class="mermaid-diagram">${svg}</figure>`,
+      };
+    } catch (error) {
+      const file = context?.fileURL?.pathname || 'unknown file';
+      throw new Error(`Unable to render Mermaid diagram in ${file}`, {cause: error});
+    }
+  },
+};
 
 export default defineConfig({
   site: 'https://autoteam-ai.github.io',
   base,
   outDir: process.env.AUTOTEAM_DOCS_OUT_DIR || './dist',
+  markdown: {
+    processor: satteri({mdastPlugins: [mermaidPlugin]}),
+  },
   integrations: [
-    mermaid({autoTheme: true, enableLog: false}),
     starlight({
       title: 'autoteam',
       description: '让 agent 团队自己完成交付，人只负责批准任务',
