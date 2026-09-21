@@ -57,7 +57,7 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 
 可以配多个，分别用不同厂商、不同计费模式的 agent。
 
-开工先 `make dev` 起环境、做一次端到端验证，确认项目当前是好的；交付时贴 `make check` 结果，开 PR（标题以任务编号开头、不写关闭关键字），平台闸门生效时打开自动合并（`merge-mode.sh` 判断），把任务改为 `code_review` 并提及 Planner 指定的 Reviewer。范围外的问题写进评论的“范围外发现”，不顺手做。
+开工先 `make dev` 起环境、做一次端到端验证，确认项目当前是好的；交付时贴 `make check` 结果，开 PR（标题以任务编号开头、不写关闭关键字），平台闸门生效时打开自动合并（`merge-mode.sh` 判断），未命中人工 CODEOWNERS 时把任务改为 `code_review`，并提及 Planner 指定的 Reviewer。范围外的问题写进评论的“范围外发现”，不顺手做。
 
 不要：新写已有的组件和函数（同一个 bug 会要修好几处）；加 fallback、双写、兼容层（错误会被吞掉）；大范围重构（没法评审）。
 
@@ -65,7 +65,7 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 
 可以配多个，但必须和本任务的 Implementer 是不同的 agent，最好是不同厂商的模型，避免模型评审自己的思路。
 
-先看自动检查，有失败直接打回；只看三件事：正确性（边界、错误路径、并发）、有没有重复实现、跨服务数据有没有校验。无阻塞项就在 PR 上批准、任务改为 `shipping`（降级模式下再等检查通过后由它合并）；有阻塞项就要求修改、任务改为 `rework` 并提及 Implementer；同一个 PR 打回满两次，不再打回，提及 Planner 说明分歧。
+先看自动检查，有失败直接打回；只看三件事：正确性（边界、错误路径、并发）、有没有重复实现、跨服务数据有没有校验。无阻塞项就在 PR 上批准、未命中人工 CODEOWNERS 时任务改为 `shipping`（降级模式下再等检查通过后由它合并）；有阻塞项就要求修改、任务改为 `rework` 并提及 Implementer；同一个 PR 打回满两次，不再打回，提及 Planner 说明分歧。
 
 ## Auditor
 
@@ -82,3 +82,5 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 时间都在 `autoteam.conf` 的 `AUTOTEAM_CRON_*` 里，改完重新渲染 autopilot 再 `autoteam multica --apply`。
 
 每条建议都要能变成一个独立的小任务，不提“整体重构”。
+
+改动命中 PR 目标分支 CODEOWNERS 的人工负责路径时，Implementer 提 PR 后就把任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN`，列出文件并提及人和 Reviewer；Reviewer 照常评审，批准后保持 `blocked` 并提醒人批准，不转 `shipping`。不命中时保持原流程。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收。
