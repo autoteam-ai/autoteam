@@ -6,8 +6,8 @@ const root = process.cwd();
 const output = path.join(root, 'build', 'docs-site');
 const temp = path.join(root, '.docs-version');
 const repository = process.env.GITHUB_REPOSITORY || 'autoteam-ai/autoteam';
-const siteRoot = normalizeRoot(process.env.AUTOTEAM_DOCS_ROOT || '/');
-const customDomain = process.env.AUTOTEAM_DOCS_DOMAIN || 'autoteam.hdgcs.com';
+const repositoryName = repository.split('/').pop();
+const siteRoot = normalizeRoot(process.env.AUTOTEAM_DOCS_ROOT || `/${repositoryName}/`);
 
 const tags = execFileSync('git', ['tag', '--list', 'v[0-9]*', '--sort=-v:refname'], {
   encoding: 'utf8',
@@ -56,7 +56,6 @@ await writeFile(
   path.join(output, 'versions.json'),
   `${JSON.stringify({latest, versions, development: 'next'}, null, 2)}\n`
 );
-await writeFile(path.join(output, 'CNAME'), `${customDomain}\n`);
 await writeFile(path.join(output, '.nojekyll'), '');
 await writeFile(
   path.join(output, 'index.html'),
