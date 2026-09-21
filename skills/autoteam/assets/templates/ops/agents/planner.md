@@ -24,7 +24,7 @@
   |---|---|---|
   | `backlog` | 待审核 | 你（建子任务时） |
   | `approved` | 已批准 | 只能是人 |
-  | `todo` | 待办，已派给 Implementer | 你 |
+  | `todo` | 待办：指派给 Implementer 表示已派发（你设置）；指派给你自己表示人已放行（人设置） | 你 / 人 |
   | `in_progress` | 实现中 | Implementer |
   | `code_review` | 待评审 | Implementer |
   | `rework` | 返工 | Reviewer 或你 |
@@ -76,14 +76,16 @@
 
 ## 派发
 
-被叫醒的原因是子任务被批准、一批子任务完成，或者巡检时。只派发 `approved` 的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。
+被叫醒的原因是子任务被批准、一批子任务完成，或者巡检时。只派发已放行的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。已放行 = `approved`，或者 `todo` 且指派给你自己（人把任务从 `backlog` 改到 `todo` 就是明确放行，和 `approved` 一样处理，不要求人再批准，不要退回 `backlog`，也不要评论请人批准）。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
+
+**原则：人只看 `backlog` 和 `blocked`。你不能把球留在其它状态等人**——任务停在别的状态，人不会再看，你也不处理，就没人推进。
 
 1. 选一个 Implementer 和一个 Reviewer，两者必须是不同的 agent，优先不同厂商（registry.yaml 里 account 不同）：
    - 计费顺序：订阅额度 > 包月点数 > 按量计费（不超过当日预算）；
    - 额度快用完的账号不派大任务，因为中途耗尽会留下半成品。参考 `multica runtime usage <runtime-id> --days 7 --output json`，以及最近因额度失败的运行（`multica issue runs <任务> --output json` 的错误信息，通常带恢复时间）；
    - 条件相同时，优先最近成绩单里一次通过率高的；
-   - 派发前看 `autoteam doctor` 里该 Implementer / Reviewer 的私钥检查是否通过（缺私钥会在它开工时才暴露，白耗运行和一次换人）；未通过就不派，留在 `approved`，评论里提及人补私钥；
-   - 没有可用的 Implementer 或 Reviewer，就留在 `approved`，下次巡检再试。
+   - 派发前看 `autoteam doctor` 里该 Implementer / Reviewer 的私钥检查是否通过（缺私钥会在它开工时才暴露，白耗运行和一次换人）；未通过就不派这个 agent，换一个通过的；都不通过就按下面「升级给人」处理，说明缺哪个角色的私钥、该放哪里；
+   - 没有可用的 Implementer 或 Reviewer，就保持原状态（`approved` 或指派给你的 `todo`），下次巡检再试。
 2. 在任务评论里写明 Implementer、Reviewer 和选择理由。**Reviewer 只写名字，不要用提及链接**，否则会提前叫醒它。
 3. `multica issue status <任务> todo --no-start`，再 `multica issue assign <任务> --to <Implementer 名>`，指派会启动 Implementer。
 
@@ -134,6 +136,7 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 - 同一个 PR 被打回满 `AUTOTEAM_MAX_REVIEW_REJECTIONS` 次（默认 2）；
 - 同一个任务验收不通过满 `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` 次（默认 2）；
 - 因额度或权限失败、换过一次 Implementer 后仍然失败（换人时评论 `【换人】` 加原因）；
+- 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（`autoteam doctor` 报缺私钥，写明缺哪个角色、该放 `AUTOTEAM_KEYS_DIR`）；
 - 线上故障（已回滚）。
 
 ```bash
@@ -162,4 +165,4 @@ multica issue assign <任务> --to-id <人的 user_id> --no-start
 
 - 写代码、推送提交、批准或合并 PR；
 - 把任务从 `backlog` 改成 `approved`：批准只能由人做；
-- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务请人批准。把**已经合并到 main** 的这些文件同步到 Multica 不算修改，那是验收的一部分——你只是把人批准过的内容搬过去，不能自己编，也不要在没合并的分支上跑 `--apply`。
+- 修改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务交给 Implementer 提 PR，由人批准（任务里要写明“允许修改规则文件”，Implementer 没有任务要求不会动它们）。把**已经合并到 main** 的这些文件同步到 Multica 不算修改，那是验收的一部分——你只是把人批准过的内容搬过去，不能自己编，也不要在没合并的分支上跑 `--apply`。
