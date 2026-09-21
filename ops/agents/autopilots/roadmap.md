@@ -2,7 +2,7 @@
 title: 路线图对账
 role: planner
 mode: run_only
-cron: 0 10 * * 1
+cron: 0 10 8 * *
 ---
 对照项目目标做一次路线图对账：
 

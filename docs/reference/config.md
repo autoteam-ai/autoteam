@@ -99,8 +99,12 @@ autoteam multica --apply --only autopilots              # 同步到 Multica
 | `AUTOTEAM_CRON_SPEC_RECONCILE` | 规格对账 | `0 9 * * 5` |
 | `AUTOTEAM_CRON_LEGACY_SWEEP` | 老代码巡检 | `0 3 1 * *` |
 
-加一个新的 autopilot：新建一个 md 文件，合并后 `autoteam multica --apply`。删除一个：删文件后到 Multica 界面里删掉对应的 autopilot（autoteam 不会删除任何东西）。
+**刚开始跑的项目先降频**。默认值是团队稳定后的节奏，新装的项目按它跑有两个问题：空转消耗 token，以及每周一挤进 4 份报告，人一次看不完就会积压。建议按优先级分级——流转心跳（推进巡检）减半、人了解全局的窗口（每日摘要）和把人工介入变成规则的一条（规则复盘）不降、审计和方向类（成绩单、整合审计、规格对账、路线图、前沿扫描）改成每月并分散到不同日子。本仓库自己的 `ops/agents/autoteam.conf` 末尾就是一份这样的配置，可以照抄。
+
+什么时候改回来：连续 4 周 `health-metrics.sh` 的 `human_7d` 不上升、也没有因为降频漏掉的问题。这件事由 Planner 在「规则复盘」里提任务、人批准，不用你盯着。
+
+加一个新的 autopilot：新建一个 md 文件，合并后由 Planner 在验收时同步（`autoteam multica --apply`）。删除一个：删文件后到 Multica 界面里删掉对应的 autopilot（autoteam 不会删除任何东西）。
 
 ## 角色指令
 
-`planner.md`、`implementer.md`、`reviewer.md`、`auditor.md` 的全文就是 Multica agent 的指令。改完合并后 `autoteam multica --apply --only agents` 同步；`autoteam doctor` 会报告指令漂移。
+`planner.md`、`implementer.md`、`reviewer.md`、`auditor.md` 的全文就是 Multica agent 的指令。改完合并后要同步才生效，Planner 验收时自己跑 `autoteam multica --apply`；`autoteam doctor` 会报告指令漂移。

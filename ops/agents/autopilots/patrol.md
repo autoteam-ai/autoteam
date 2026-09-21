@@ -2,7 +2,7 @@
 title: 推进巡检
 role: planner
 mode: run_only
-cron: 0 */2 * * *
+cron: 0 */4 * * *
 ---
 按 ops/agents/planner.md 做一次推进巡检：
 

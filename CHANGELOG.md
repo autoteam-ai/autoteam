@@ -2,6 +2,13 @@
 
 ## 未发布
 
+### 开始试行：团队自己跑这个仓库
+
+- **六个 agent 全部搬到本地 runtime**。云端 runtime 上的 Claude 登录会过期（真机上 auditor 和 impl-claude 就因为 `OAuth session expired` 一起卡住，整条审计链停摆），本地 runtime 的登录跟着你自己的机器走，出问题也看得见。
+- **定时任务按优先级降频**，配置在 `ops/agents/autoteam.conf` 末尾：流转心跳每 2 小时 → 每 4 小时；每日摘要和规则复盘不降（前者是人了解全局的唯一窗口，后者是把人工介入变成规则的地方）；五个审计和方向类 autopilot 每周 → 每月并分散到 1/8/15/22/25 号；老代码巡检每月 → 每季度。原来周一挤着 4 份报告，人一次看不完就会积压。退出试行期的依据写在 conf 的注释里，由 Planner 提任务、人批准。`docs/reference/config.md` 也给新装的项目加了同样的建议。
+- **补上「合并了但没生效」这个静默缺口：同步 Multica 配置归 Planner**。角色指令和 autopilot 合并到 main 不等于 Multica 上的 agent 换了指令，中间这一步原来没有归属，只靠人记得跑 `autoteam multica --apply`，漏了也没人知道。现在改 `ops/agents/` 的任务，**验收标准里必须有「已同步、doctor 无漂移」一条**，Planner 在验收时和「部署结果」autopilot 里各跑一次。它只能搬 main 上人已经批准的内容，指令里明令禁止在未合并的分支上 `--apply`。代价是 Planner 手里有人的 multica 工作区权限（目前最宽的一处授权），已登记进[已知的偏离](docs/concepts/invariants.md)，等 Multica 支持更细的 agent 权限再收窄。
+- **`docs/operations/daily.md` 加了「你的闸门在哪」**：五个必须人放行的地方各自在哪个平台、被什么挡住、什么时候会来。这张表就是「人还要介入多少次」的成本清单，「规则复盘」每周盯的是怎么把它变短。
+
 - **autopilot 改用 agent ID 而不是名字**。Multica 按名字解析 agent 是模糊匹配：工作区里只要存在名字包含它的另一个 agent（比如 `ex-planner` 之于 `planner`），就会报 `ambiguous agent`，8 个 autopilot 全部创建/更新失败。真机装配时撞到的。
 
 ### 真机验证修正的两条
