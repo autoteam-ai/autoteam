@@ -6,6 +6,12 @@
 
 - Planner 把任务设为 `blocked` 时，现在**同时把它指派给人**。原来球已经在人手里了，assignee 还挂在 agent 上，人得一列列翻看板才知道哪些等着自己。现在「指派给我的」就是完整待办清单：Backlog 列等批准、Blocked 列等决断，其余的列都是 agent 之间在流转。指派给成员不会启动任何 agent。
 
+### doctor 提前发现缺私钥
+
+- `autoteam doctor` 新增：对 registry 里每个 agent，看它的 runtime 是不是本机（本机 daemon 管着的 runtime）。是，就查这个角色的私钥在不在，缺了报 ❌ 并给出该放的位置（首选 `AUTOTEAM_KEYS_DIR`，文件名带角色名）；不是本机，只提示到那台机器上检查。
+- `gh-app-token.sh` 新增 `--find-key <角色>`：只打印按既定顺序找到的私钥路径，不联网。doctor 直接调它，私钥的查找规则仍只有这一份。
+- `planner.md`「派发」：派发前看 doctor 里该 Implementer / Reviewer 的私钥检查，未通过就留在 `approved` 并提及人。缺私钥原来要到 Implementer 开工才暴露，白耗两次运行和一次换人。
+
 ### 私钥要放机器上，不是仓库里
 
 - **新增 `AUTOTEAM_KEYS_DIR`（默认 `~/.autoteam`）**，App 私钥的机器级目录。查找顺序：`AUTOTEAM_<角色大写>_APP_KEY` 指的路径 > 仓库的 `ops/agents/local/` > `AUTOTEAM_KEYS_DIR`。两处都支持 `~` 开头（shell 只展开字面量里的波浪号，从配置文件和环境变量读出来的要自己处理）。

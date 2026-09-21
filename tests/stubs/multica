@@ -56,6 +56,7 @@ case "$1 $2" in
     fi ;;
   "workspace get") jq -n '{id: "ws-0000", name: "Test", slug: "test", issue_prefix: "TST"}' ;;
   "runtime list") cat "$STUB_FIXTURES/runtimes.json" ;;
+  "daemon status") jq -n --arg ids "${STUB_LOCAL_RUNTIMES:-}" '{workspaces: [{id: "ws-0000", runtimes: ($ids | split(",") | map(select(. != "")))}]}' ;;
   "user profile") jq -n '{name: "Alice"}' ;;
   "agent list") cat "$agents" ;;
   "agent get")

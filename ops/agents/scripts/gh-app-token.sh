@@ -9,6 +9,7 @@
 #   ops/agents/scripts/gh-app-token.sh --setup-git <角色>  给当前 clone 配好 git 身份和凭据（每次 clone 后跑一次）
 #   ops/agents/scripts/gh-app-token.sh --identity <角色>   打印 git 提交身份：name<TAB>email
 #   ops/agents/scripts/gh-app-token.sh --credential <角色> git 凭据助手模式（git push 用）
+#   ops/agents/scripts/gh-app-token.sh --find-key <角色>   只打印按下面顺序找到的私钥路径（doctor 用，不联网）
 #
 # agent 每次工具调用都是新 shell，export 出来的变量活不到下一条命令，所以一律用 --run：
 #   ops/agents/scripts/gh-app-token.sh --run implementer gh pr create --title ...
@@ -28,10 +29,11 @@ die() { printf 'gh-app-token：%s\n' "$*" >&2; exit 1; }
 
 mode=token role=
 case ${1:-} in
-  -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   --identity) mode=identity; role=${2:-} ;;
   --setup-git) mode=setup-git; role=${2:-} ;;
   --credential) mode=credential; role=${2:-} ;;
+  --find-key) mode=find-key; role=${2:-} ;;
   --run) mode=run; role=${2:-}; shift 2 2>/dev/null || true; RUN_CMD=("$@") ;;
   -*) die "未知选项：$1" ;;
   *) role=${1:-} ;;
@@ -110,6 +112,7 @@ if [ -z "$key" ]; then
     || die "找不到 $role 的私钥。把 App 的 .pem 放进 ops/agents/local/（不会被提交）或 $keys_dir，文件名带上 $role；也可以用 $key_env 直接指路径"
 fi
 [ -r "$key" ] || die "读不到私钥 $key"
+if [ "$mode" = find-key ]; then printf '%s\n' "$key"; exit 0; fi
 
 repo=$(conf_get AUTOTEAM_REPO)
 [ -n "$repo" ] || die "autoteam.conf 里没有 AUTOTEAM_REPO"

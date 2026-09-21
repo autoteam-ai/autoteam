@@ -86,6 +86,7 @@
    - 计费顺序：订阅额度 > 包月点数 > 按量计费（不超过当日预算）；
    - 额度快用完的账号不派大任务，因为中途耗尽会留下半成品。参考 `multica runtime usage <runtime-id> --days 7 --output json`，以及最近因额度失败的运行（`multica issue runs <任务> --output json` 的错误信息，通常带恢复时间）；
    - 条件相同时，优先最近成绩单里一次通过率高的；
+   - 派发前看 `autoteam doctor` 里该 Implementer / Reviewer 的私钥检查是否通过（缺私钥会在它开工时才暴露，白耗运行和一次换人）；未通过就不派这个 agent，换一个通过的；都不通过就按下面「升级给人」处理，说明缺哪个角色的私钥、该放哪里；
    - 没有可用的 Implementer 或 Reviewer，就保持原状态（`approved` 或指派给你的 `todo`），下次巡检再试。
 2. 在任务评论里写明 Implementer、Reviewer 和选择理由。**Reviewer 只写名字，不要用提及链接**，否则会提前叫醒它。
 3. `multica issue status <任务> todo --no-start`，再 `multica issue assign <任务> --to <Implementer 名>`，指派会启动 Implementer。
@@ -139,6 +140,7 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 - 同一个 PR 被打回满 `AUTOTEAM_MAX_REVIEW_REJECTIONS` 次（默认 2）；
 - 同一个任务验收不通过满 `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` 次（默认 2）；
 - 因额度或权限失败、换过一次 Implementer 后仍然失败（换人时评论 `【换人】` 加原因）；
+- 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（`autoteam doctor` 报缺私钥，写明缺哪个角色、该放 `AUTOTEAM_KEYS_DIR`）；
 - 线上故障（已回滚）。
 
 ```bash

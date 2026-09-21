@@ -56,7 +56,7 @@ AUTOTEAM_PLANNER_APP_ID=1234569
 
 文件名只要带上角色名就行（`implementer.pem`，或 GitHub 下载时的 `autoteam-implementer.2026-01-01.private-key.pem`），权限设 `chmod 600`。两个位置都有时仓库里的优先；也可以用 `AUTOTEAM_<角色大写>_APP_KEY` 直接指一个路径。
 
-> **给 agent 用的私钥一定要放 `AUTOTEAM_KEYS_DIR`，不要只放仓库里。** agent 每接一个任务都可能重新 checkout 一份仓库，放在 `ops/agents/local/` 的私钥不会跟过去，下一个任务就会卡在「找不到私钥」——真机上两个 Implementer 同时中过这一枪。
+> **给 agent 用的私钥一定要放 `AUTOTEAM_KEYS_DIR`，不要只放仓库里。** agent 每接一个任务都可能重新 checkout 一份仓库，放在 `ops/agents/local/` 的私钥不会跟过去，下一个任务就会卡在「找不到私钥」——真机上两个 Implementer 同时中过这一枪。`autoteam doctor` 会在跑 agent 的那台机器上检查这一点：registry 里 runtime 在本机的角色缺私钥就报 ❌，并给出该放的位置。Planner 派发前也看这项，没通过就不派。
 
 ### agent 怎么用
 
