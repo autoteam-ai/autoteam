@@ -69,4 +69,8 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 - 改了 `ops/agents/` 下的指令、registry 或 autopilot：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和仓库不一致。
 - 其他问题先跑 `autoteam doctor`，再查 autoteam 文档的 `docs/operations/troubleshooting.md`。
 
+同步读取失败最多尝试 3 次；写操作不自动重试。失败时会以非零退出码结束，输出“同步不完整”，按所选部分列出已完成、失败或部分完成、未执行的清单；已写入的改动不回滚，修复后可重新运行。重复挂载同一个仓库视为已是最新。`--only statuses` 不读取 runtime。
+
+CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 30 秒，支持正秒数或 Go duration（如 `45`、`45s`、`2m`、`1m30s`）；无效或非正值会在同步前报错。格式依据 [Multica CLI 官方说明](https://github.com/multica-ai/multica/blob/main/CLI_AND_DAEMON.md)。
+
 人工 CODEOWNERS 路径的 PR：Implementer 提交后立即将任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN` 并提及人及 Reviewer；Reviewer 批准后保持 `blocked`，等待 codeowner 批准。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收；未命中人工路径的 PR 按原流程流转。

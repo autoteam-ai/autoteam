@@ -6,6 +6,7 @@ method=GET out="" data="" url="" cfg="" bearer=""
 while [ $# -gt 0 ]; do
   case $1 in
     -K) [ "$2" = - ] && cfg=$(cat); shift 2 ;;
+    --max-time) printf 'curl max-time=%s\n' "$2" >> "$STUB_LOG"; shift 2 ;;
     -X) method=$2; shift 2 ;;
     -o) out=$2; shift 2 ;;
     -H) case $2 in "Authorization: Bearer "*) bearer=${2#Authorization: Bearer } ;; esac; shift 2 ;;
@@ -43,6 +44,11 @@ case $url in
     esac
     exit 0 ;;
 esac
+if [ -f "$state/curl-timeout" ]; then
+  echo 'Operation timed out' >&2
+  printf 000
+  exit 28
+fi
 statuses=$state/mc-statuses.json
 [ -f "$statuses" ] || echo '[]' > "$statuses"
 case "$method ${url#https://api.multica.test}" in
