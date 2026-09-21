@@ -126,12 +126,19 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 
 ## 升级
 
-出现以下情况，把任务设为 `blocked`，在父任务评论里用成员链接提及人，说明卡点、可选方案和你的建议：
+出现以下情况，把任务设为 `blocked` 并**指派给人**，在父任务评论里用成员链接提及人，说明卡点、可选方案和你的建议：
 
 - 同一个 PR 被打回满 `AUTOTEAM_MAX_REVIEW_REJECTIONS` 次（默认 2）；
 - 同一个任务验收不通过满 `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` 次（默认 2）；
 - 因额度或权限失败、换过一次 Implementer 后仍然失败（换人时评论 `【换人】` 加原因）；
 - 线上故障（已回滚）。
+
+```bash
+multica issue status <任务> blocked
+multica issue assign <任务> --to-id <人的 user_id> --no-start
+```
+
+**指派这一步不能省**：球在谁手里，assignee 就该是谁。人打开「指派给我的」要能看到全部等他决断的事，不用一个个翻看板。指派给成员不会启动任何 agent。人回复 @你之后你再按「派发」把它指回 agent。
 
 次数用 `<身份> ops/agents/scripts/loop-guard.sh <任务>` 从 GitHub 的评审记录和任务评论里算，不要相信 agent 自己的说法。
 

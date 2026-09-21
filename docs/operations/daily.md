@@ -13,9 +13,11 @@ title: 日常操作
 | 闸门 | 在哪 | 谁挡住 agent | 什么时候来 |
 |---|---|---|---|
 | 规则文件 PR 的批准 | GitHub | 规则集要求 Code Owner 审批，而 CODEOWNERS 不支持 GitHub App，只能写人 | agent 每次要改 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` |
-| 任务从「待审核」改成「已批准」 | Multica | 只有指令约束——agent 技术上改得了，靠每日摘要里的批准核对发现 | 日常最频繁，Planner 每拆一批就提及你 |
-| 处理 blocked 的升级 | Multica | 指令约束 | 打回 2 次 / 验收不通过 2 次 / 换人后仍失败 / 线上故障已回滚 |
+| 任务从「待审核」改成「已批准」 | Multica，**Backlog 列** | 只有指令约束——agent 技术上改得了，靠每日摘要里的批准核对发现 | 日常最频繁，Planner 每拆一批就提及你 |
+| 处理 blocked 的升级 | Multica，**Blocked 列**（任务会指派给你） | 指令约束 | 打回 2 次 / 验收不通过 2 次 / 换人后仍失败 / 线上故障已回滚 |
 | `make publish` 发版 | 你的机器 | 不接进任何自动流程，`package.json` 和 `scripts/release.sh` 又受 CODEOWNERS 保护 | 你想发版的时候（仅 autoteam 自己这个仓库） |
+
+看板上你只用管两列：**Backlog**（等你批准）和 **Blocked**（等你决断）。升级的任务会指派给你，所以「指派给我的」这个视图就是你的全部待办清单；每日摘要也会把两类合成一张「今天需要人决定的事」。其余的列都是 agent 之间在流转，不用盯。
 
 中间两行是日常的，另外两行只在特定事件后出现。规则文件合并后同步到 Multica（`autoteam multica --apply`）**不用你管**：Planner 在验收时自己跑，用的是你的 multica 凭据，这条记在[已知的偏离](../concepts/invariants.md#已知的偏离)里。**这张表里的每一项都是"人还要介入"的成本**，「规则复盘」autopilot 每周盯的就是怎么把它变短。
 

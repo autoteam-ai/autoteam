@@ -2,6 +2,10 @@
 
 ## 未发布
 
+### 升级的任务指派给人
+
+- Planner 把任务设为 `blocked` 时，现在**同时把它指派给人**。原来球已经在人手里了，assignee 还挂在 agent 上，人得一列列翻看板才知道哪些等着自己。现在「指派给我的」就是完整待办清单：Backlog 列等批准、Blocked 列等决断，其余的列都是 agent 之间在流转。指派给成员不会启动任何 agent。
+
 ### 私钥要放机器上，不是仓库里
 
 - **新增 `AUTOTEAM_KEYS_DIR`（默认 `~/.autoteam`）**，App 私钥的机器级目录。查找顺序：`AUTOTEAM_<角色大写>_APP_KEY` 指的路径 > 仓库的 `ops/agents/local/` > `AUTOTEAM_KEYS_DIR`。两处都支持 `~` 开头（shell 只展开字面量里的波浪号，从配置文件和环境变量读出来的要自己处理）。
