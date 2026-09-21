@@ -2,7 +2,7 @@
 title: 前沿扫描
 role: auditor
 mode: create_issue
-cron: 0 11 * * 1
+cron: 0 11 25 * *
 issue_title: 前沿扫描 {{date}}
 subscriber: human
 ---

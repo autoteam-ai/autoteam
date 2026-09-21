@@ -2,7 +2,7 @@
 title: 老代码巡检
 role: auditor
 mode: create_issue
-cron: 0 3 1 * *
+cron: 0 3 28 1,4,7,10 *
 issue_title: 老代码巡检 {{date}}
 ---
 找出一年没动过的模块，判断还有没有在用：
