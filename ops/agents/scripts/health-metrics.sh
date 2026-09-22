@@ -7,6 +7,8 @@
 #   prs_7d            近 7 天合并的 PR：数量、改动行数中位数和 75 分位、一次通过率、平均打回次数
 #   human_7d          近 7 天人（autoteam.conf 的 AUTOTEAM_OWNER）在 GitHub 上的介入次数：
 #                     自己提交了多少次、评审了多少个 PR。这套流程做得好不好，看它降不降
+#   human_review_per_merged_pr  human_7d.reviews / prs_7d.merged：人工评审次数相对合并 PR 数
+#                     的归一化比值，分母为 0 或缺数据时为 null
 # 依赖 git、jq；PR 指标需要已登录的 gh；重复代码需要 npx（设 AUTOTEAM_SKIP_JSCPD=1 跳过）。
 set -eo pipefail
 
@@ -18,7 +20,7 @@ while [ $# -gt 0 ]; do
     --json) format=json ;;
     --md) format=md ;;
     --days) days=$2; shift ;;
-    -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "未知参数：$1" >&2; exit 1 ;;
   esac
   shift
@@ -114,7 +116,12 @@ json=$(jq -n \
     files_changed: $files,
     rework_14d_pct: $rework,
     prs_7d: $prs,
-    human_7d: $human
+    human_7d: $human,
+    human_review_per_merged_pr: (
+      ($human.reviews) as $rev | ($prs.merged) as $merged
+      | if ($rev == null) or ($merged == null) or ($merged == 0) then null
+        else (($rev * 10 / $merged | round) / 10) end
+    )
   }')
 
 if [ "$format" = json ]; then
@@ -134,6 +141,7 @@ jq -r '
   "| 评审一次通过率 % | \(.prs_7d.first_pass_pct | v) |",
   "| 平均打回次数 | \(.prs_7d.avg_rejections | v) |",
   "| 人工介入：本人提交 / 评审 PR（近 7 天） | \(.human_7d.commits | v) / \(.human_7d.reviews | v) |",
+  "| 人工评审 / 合并 PR 比值（近 7 天） | \(.human_review_per_merged_pr | v) |",
   "",
   "生成时间 \(.generated_at)"
 ' <<<"$json"

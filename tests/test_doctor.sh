@@ -159,8 +159,67 @@ t_health_metrics_outputs_json_and_markdown() {
   assert_eq "$(jq -r '.files_changed' <<<"$out")" 2
   assert_eq "$(jq -r '.legacy_touch_pct' <<<"$out")" 50.0
   assert_eq "$(jq -r '.rework_14d_pct' <<<"$out")" 50.0
+  # 没有 gh：prs_7d 和 human_7d.reviews 都是 null，归一化比值也应是 null（零分母场景之一）
+  assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" null
   md=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 老文件改动占比 %（近 30 天，2 个文件） | 50.0 |"
+  assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | — |"
+}
+
+# 造一个假 gh：merged 场景返回 $1 个 merged PR，reviewed-by 场景返回 $2 个 PR（评审次数）
+stub_gh_pr_counts() {
+  ghdir=$WORK/.stub-gh
+  mkdir -p "$ghdir"
+  merged_json=$(jq -n --argjson n "$1" '[range($n) | {number: (. + 1), additions: 1, deletions: 1, reviews: []}]')
+  reviewed_json=$(jq -n --argjson n "$2" '[range($n) | {number: (. + 1)}]')
+  printf '%s' "$merged_json" > "$ghdir/merged.json"
+  printf '%s' "$reviewed_json" > "$ghdir/reviewed.json"
+  cat > "$ghdir/gh" <<EOF
+#!/usr/bin/env bash
+if [ "\$1" = auth ]; then exit 0; fi
+if [ "\$1" = pr ] && [ "\$2" = list ]; then
+  for a in "\$@"; do
+    case "\$prev" in
+      --search) search=\$a ;;
+    esac
+    prev=\$a
+  done
+  case "\$search" in
+    merged:*) cat "$ghdir/merged.json" ;;
+    reviewed-by:*) cat "$ghdir/reviewed.json" ;;
+    *) echo '[]' ;;
+  esac
+  exit 0
+fi
+echo '[]'
+EOF
+  chmod +x "$ghdir/gh"
+}
+
+t_health_metrics_human_review_per_merged_pr_normal() {
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  git commit --allow-empty -qm seed
+  stub_gh_pr_counts 5 4
+  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --json)
+  assert_eq "$(jq -r '.prs_7d.merged' <<<"$out")" 5
+  assert_eq "$(jq -r '.human_7d.reviews' <<<"$out")" 4
+  assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" 0.8
+  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
+  assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | 0.8 |"
+}
+
+t_health_metrics_human_review_per_merged_pr_zero_denominator() {
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  git commit --allow-empty -qm seed
+  stub_gh_pr_counts 0 3
+  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --json)
+  assert_eq "$(jq -r '.prs_7d.merged' <<<"$out")" 0
+  assert_eq "$(jq -r '.human_7d.reviews' <<<"$out")" 3
+  assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" null
+  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
+  assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | — |"
 }
 
 # 私钥检查：registry 里 planner 在 machine-c、impl-claude 在 machine-a、rev-codex 在 machine-b
