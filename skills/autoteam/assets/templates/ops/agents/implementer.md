@@ -46,6 +46,7 @@
    - 从 `ops/agents/autoteam.conf` 读取 `AUTOTEAM_HUMAN`（为空时找工作区 owner），用 `multica workspace member list --output json` 查出其 `user_id`，执行 `multica issue assign <任务> --to-id <user_id> --no-start`；
    - 在任务评论里列出命中的文件，写明「需要 codeowner 批准」，用 `[@名字](mention://member/<user_id>)` 提及人。
    不命中则 `multica issue status <任务> code_review --no-start`。两种情况都在同一条任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`，人工审批不替代 Reviewer 评审。
+   **提及 Reviewer 之前**先跑 `<身份> gh pr view <PR> --json mergeable,statusCheckRollup`，确认最新 head 没有失败的检查、`mergeable` 不是 CONFLICTING。检查红了先修；冲突先同步 main 解决（保留双方规则）；检查还在跑就在评论里写明「检查运行中」，不要为此轮询等待。
 5. 做的过程中发现、但不属于本任务的问题，写进评论的“范围外发现”，不要顺手做。
 
 ## 返工
