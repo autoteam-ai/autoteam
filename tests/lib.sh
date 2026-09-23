@@ -3,8 +3,8 @@
 
 TESTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$TESTS_DIR/.." && pwd)
-AUTOTEAM=$ROOT/bin/autoteam
-TPL=$ROOT/skills/autoteam/assets/templates
+AUTOTEAM=$ROOT/skills/autoteam/bin/autoteam
+TPL=$ROOT/skills/autoteam/templates
 REAL_JQ_DIR=$(dirname "$(command -v jq)")
 REAL_GIT_DIR=$(dirname "$(command -v git)")
 

@@ -1,9 +1,10 @@
 /tests/.work/
 /build/
-/.astro/
+/site/.astro/
 /.docs-version/
-/dist/
+/site/dist/
 /node_modules/
+/site/node_modules/
 .DS_Store
 
 # >>> autoteam >>>

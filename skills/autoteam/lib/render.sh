@@ -40,33 +40,33 @@ render_file() {
 #   makefile 只在不存在时创建；已存在时只检查 check/dev/deploy 目标
 autoteam_manifest() {
   cat <<'EOF'
-AGENTS.block.md                       AGENTS.md                               block
-Makefile                              Makefile                                makefile
-jscpd.json                            .jscpd.json                             file
-github/CODEOWNERS.block               .github/CODEOWNERS                      block
-github/pull_request_template.md       .github/pull_request_template.md        file
-github/workflows/gate.yml             .github/workflows/gate.yml              file
-github/workflows/deploy.yml           .github/workflows/deploy.yml            file
-github/workflows/rollback.yml         .github/workflows/rollback.yml          file
-ops/agents/autoteam.conf                  ops/agents/autoteam.conf                    config
-ops/agents/registry.yaml              ops/agents/registry.yaml                config
-ops/agents/README.md                  ops/agents/README.md                    file
-ops/agents/planner.md                 ops/agents/planner.md                   file
-ops/agents/implementer.md             ops/agents/implementer.md               file
-ops/agents/reviewer.md                ops/agents/reviewer.md                  file
-ops/agents/auditor.md                 ops/agents/auditor.md                   file
-ops/agents/planner-mcp.json           ops/agents/planner-mcp.json             file
-ops/agents/playbook.md                ops/agents/playbook.md                  file
-ops/agents/scripts/gh-app-token.sh    ops/agents/scripts/gh-app-token.sh      exec
-ops/agents/scripts/loop-guard.sh      ops/agents/scripts/loop-guard.sh        exec
-ops/agents/scripts/merge-mode.sh      ops/agents/scripts/merge-mode.sh        exec
-ops/agents/scripts/health-metrics.sh  ops/agents/scripts/health-metrics.sh    exec
+root/AGENTS.block.md                  AGENTS.md                               block
+root/Makefile                         Makefile                                makefile
+root/jscpd.json                       .jscpd.json                             file
+root/github/CODEOWNERS.block          .github/CODEOWNERS                      block
+root/github/pull_request_template.md  .github/pull_request_template.md        file
+root/github/workflows/gate.yml        .github/workflows/gate.yml              file
+root/github/workflows/deploy.yml      .github/workflows/deploy.yml            file
+root/github/workflows/rollback.yml    .github/workflows/rollback.yml          file
+autoteam/autoteam.conf                ops/agents/autoteam.conf                config
+autoteam/registry.yaml                ops/agents/registry.yaml                config
+autoteam/README.md                    ops/agents/README.md                    file
+../instructions/roles/planner.md      ops/agents/planner.md                   file
+../instructions/roles/implementer.md  ops/agents/implementer.md               file
+../instructions/roles/reviewer.md     ops/agents/reviewer.md                  file
+../instructions/roles/auditor.md      ops/agents/auditor.md                   file
+../instructions/planner-mcp.json      ops/agents/planner-mcp.json             file
+autoteam/playbook.md                  ops/agents/playbook.md                  file
+autoteam/scripts/gh-app-token.sh      ops/agents/scripts/gh-app-token.sh      exec
+autoteam/scripts/loop-guard.sh        ops/agents/scripts/loop-guard.sh        exec
+autoteam/scripts/merge-mode.sh        ops/agents/scripts/merge-mode.sh        exec
+autoteam/scripts/health-metrics.sh    ops/agents/scripts/health-metrics.sh    exec
 EOF
-  local f
-  for f in "$AUTOTEAM_TEMPLATES"/ops/agents/autopilots/*.md; do
+  local f name
+  for f in "$AUTOTEAM_TEMPLATES"/../instructions/autopilots/*.md; do
     [ -f "$f" ] || continue
-    f=ops/agents/autopilots/${f##*/}
-    printf '%-37s %-39s %s\n' "$f" "$f" file
+    name=${f##*/}
+    printf '%-37s %-39s %s\n' "../instructions/autopilots/$name" "ops/agents/autopilots/$name" file
   done
 }
 

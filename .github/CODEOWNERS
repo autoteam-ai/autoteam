@@ -9,7 +9,8 @@
 # 本仓库特有：模板就是发给所有用户的规则文件，按本项目自己的原则必须由人批准。
 # 版本号和发布脚本决定对外动作，同样由人把关。
 # 注意 CODEOWNERS 不支持 GitHub App，这里只能写人——这正是要留一个人工账号的原因。
-/skills/autoteam/assets/templates/   @songhuangcn
-/skills/autoteam/SKILL.md            @songhuangcn
+/skills/autoteam/templates/       @songhuangcn
+/skills/autoteam/instructions/    @songhuangcn
+/skills/autoteam/SKILL.md         @songhuangcn
 /package.json                        @songhuangcn
 /scripts/release.sh                  @songhuangcn

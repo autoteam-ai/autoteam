@@ -7,8 +7,8 @@
 SHELL := /bin/bash
 SHELLCHECK_IMAGE := koalaman/shellcheck:v0.11.0
 ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12
-SCRIPTS := bin/autoteam scripts/release.sh tests/dev-sandbox.sh skills/autoteam/scripts/autoteam $(wildcard skills/autoteam/scripts/lib/*.sh) \
-  $(wildcard skills/autoteam/assets/templates/ops/agents/scripts/*.sh) \
+SCRIPTS := skills/autoteam/bin/autoteam scripts/release.sh tests/dev-sandbox.sh $(wildcard skills/autoteam/lib/*.sh) \
+  $(wildcard skills/autoteam/templates/autoteam/scripts/*.sh) \
   tests/run.sh tests/lib.sh tests/render-workflows.sh $(wildcard tests/test_*.sh) $(wildcard tests/stubs/*)
 
 .PHONY: check test lint shellcheck actionlint dev deploy publish selfhost selfhost-check
@@ -31,10 +31,10 @@ actionlint: ## 检查本仓库的 CI 和渲染后的工作流模板
 	@echo "actionlint 通过"
 
 selfhost-check: ## 本仓库自己那份 ops/agents 有没有跟模板漂移
-	@bash bin/autoteam diff --check
+	@bash ./autoteam diff --check
 
 selfhost: ## 模板改了之后，把本仓库这份副本重新渲染一遍（不动 AUTOTEAM_DIFF_IGNORE 里的）
-	@bash bin/autoteam init --force
+	@bash ./autoteam init --force
 
 dev: ## 起一个沙盒仓库，用桩把 init / doctor 跑一遍；可重复执行
 	@bash tests/dev-sandbox.sh

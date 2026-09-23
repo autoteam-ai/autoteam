@@ -12,7 +12,7 @@ render() {  # 子目录 environment 值 文件后缀
   mkdir -p "$work/$1" && cd "$work/$1"
   git init -q -b main && git remote add origin https://github.com/acme/shop.git
   env PATH="$(dirname "$(command -v jq)"):$(dirname "$(command -v git)"):/usr/bin:/bin" NO_COLOR=1 \
-    AUTOTEAM_DEPLOY_ENVIRONMENT="$2" bash "$here/../bin/autoteam" init --owner alice >/dev/null
+    AUTOTEAM_DEPLOY_ENVIRONMENT="$2" bash "$here/../skills/autoteam/bin/autoteam" init --owner alice >/dev/null
   for f in .github/workflows/*.yml; do
     base=$(basename "$f" .yml)
     cp "$f" "$out/.github/workflows/$base$3.yml"

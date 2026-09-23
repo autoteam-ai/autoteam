@@ -7,7 +7,7 @@ import {defineConfig} from 'astro/config';
 import {renderMermaidSVG} from 'beautiful-mermaid';
 
 const base = process.env.AUTOTEAM_DOCS_BASE || '/';
-const source = process.env.AUTOTEAM_DOCS_SOURCE || './docs';
+const source = process.env.AUTOTEAM_DOCS_SOURCE || '../docs';
 const mermaidPlugin = {
   name: 'mermaid',
   code(node, context) {

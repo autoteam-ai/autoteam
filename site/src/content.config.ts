@@ -3,7 +3,7 @@ import {glob} from 'astro/loaders';
 import {i18nLoader} from '@astrojs/starlight/loaders';
 import {docsSchema, i18nSchema} from '@astrojs/starlight/schema';
 
-const docsSource = process.env.AUTOTEAM_DOCS_SOURCE || './docs';
+const docsSource = process.env.AUTOTEAM_DOCS_SOURCE || '../docs';
 
 export const collections = {
   docs: defineCollection({

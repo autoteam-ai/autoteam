@@ -89,7 +89,7 @@ console.log(
 
 function buildVersion({source, version, base, destination}) {
   console.log(`构建文档版本 ${version}`);
-  execFileSync(path.join(root, 'node_modules', '.bin', 'astro'), ['build'], {
+  execFileSync(path.join(root, 'node_modules', '.bin', 'astro'), ['build', '--root', 'site'], {
     cwd: root,
     env: {
       ...process.env,

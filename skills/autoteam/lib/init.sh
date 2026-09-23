@@ -72,7 +72,7 @@ cmd_init() {
     init_install "$tpl" "$target" "$mode"
   done <<EOF
 $(autoteam_manifest)
-gitignore.block                       .gitignore                              block
+root/gitignore.block                  .gitignore                              block
 EOF
 
   if [ "$AUTOTEAM_DRY_RUN" = 1 ]; then
@@ -285,7 +285,7 @@ cmd_diff() {
     esac
   done <<EOF
 $(autoteam_manifest)
-gitignore.block                       .gitignore                              block
+root/gitignore.block                  .gitignore                              block
 EOF
   if [ "$changed" = 0 ]; then
     info "与模板一致"
