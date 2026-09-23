@@ -84,4 +84,4 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 
 每条建议都要能变成一个独立的小任务，不提“整体重构”。
 
-改动命中 PR 目标分支 CODEOWNERS 的人工负责路径时，Implementer 提 PR 后就把任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN`，列出文件并提及人和 Reviewer；Reviewer 照常评审，批准后保持 `blocked` 并提醒人批准，不转 `shipping`。不命中时保持原流程。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收。
+改动命中 PR 目标分支 CODEOWNERS 的人工负责路径时，Implementer 提 PR 后就把任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN`，列出文件并提及人和 Reviewer；Reviewer 照常评审，批准后保持 `blocked` 并提醒人批准，不转 `shipping`。不命中时保持原流程。`AUTOTEAM_CODEOWNERS_GATE=off` 时跳过上述 CODEOWNERS 升级流程。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收。
