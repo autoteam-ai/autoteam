@@ -8,7 +8,7 @@ init_usage() {
 用法：autoteam init [选项] [文件...]
 
 在当前 git 仓库生成工作流文件。已有文件不覆盖；AGENTS.md、CODEOWNERS、.gitignore 用受管块追加一次。
-指定文件时只处理这些文件，升级时用来只覆盖没改过的文件：autoteam init --force ops/agents/reviewer.md
+指定文件时只处理这些文件，升级时用来只覆盖没改过的文件：autoteam init --force .autoteam/reviewer.md
 
 选项：
   --repo <owner/name>     GitHub 仓库（默认从 git remote 识别）
@@ -83,7 +83,7 @@ EOF
 
   section "下一步"
   info "1. 把 Makefile 的 check / dev / deploy 改成真实命令，gate.yml 和 deploy.yml 里补上需要的运行时"
-  info "2. 按你的订阅账号和机器填 ops/agents/registry.yaml（autoteam runtimes 列出可用的 runtime）"
+  info "2. 按你的订阅账号和机器填 $AUTOTEAM_DIR/registry.yaml（autoteam runtimes 列出可用的 runtime）"
   info "3. 提交这些文件，走 PR 由你合并"
   info "4. autoteam github    预览 GitHub 改动，确认后加 --apply"
   info "5. autoteam multica   预览 Multica 改动，确认后加 --apply"
@@ -145,7 +145,7 @@ init_derived_vars() {
   if [ -n "$AUTOTEAM_DEPLOY_ENVIRONMENT" ]; then
     AUTOTEAM_DEPLOY_ENVIRONMENT_LINE="environment: $AUTOTEAM_DEPLOY_ENVIRONMENT"
   else
-    AUTOTEAM_DEPLOY_ENVIRONMENT_LINE="# 未声明 environment：GitHub Free 的私有仓库不支持（见 ops/agents/autoteam.conf 的 AUTOTEAM_DEPLOY_ENVIRONMENT）"
+    AUTOTEAM_DEPLOY_ENVIRONMENT_LINE="# 未声明 environment：GitHub Free 的私有仓库不支持（见 .autoteam/autoteam.conf 的 AUTOTEAM_DEPLOY_ENVIRONMENT）"
   fi
 }
 

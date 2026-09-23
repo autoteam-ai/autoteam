@@ -52,7 +52,7 @@ git clone https://github.com/autoteam-ai/autoteam ~/.autoteam
 cd your-project
 
 ~/.autoteam/autoteam init --workspace <Multica 工作区 slug>
-# 把 Makefile 的 check / dev / deploy 改成真实命令，按你的账号和机器填 ops/agents/registry.yaml
+# 把 Makefile 的 check / dev / deploy 改成真实命令，按你的账号和机器填 .autoteam/registry.yaml
 # 提交这些文件，走 PR 合并
 
 ~/.autoteam/autoteam github            # 预览 GitHub 改动
@@ -93,7 +93,7 @@ Makefile                       check / dev / deploy（已有就不动，只检�
 .github/workflows/gate.yml     必需检查 check：PR 行数、重复代码、make check
 .github/workflows/deploy.yml   合并后部署，结果通知 Planner
 .github/workflows/rollback.yml Planner 回滚用
-ops/agents/                    配置、团队清单、四个角色指令、8 个 autopilot、三个辅助脚本
+.autoteam/                    配置、团队清单、四个角色指令、8 个 autopilot、三个辅助脚本
 ```
 
 逐个文件的说明见[生成的文件](docs/reference/files.md)。

@@ -63,7 +63,7 @@ setup_ready_repo() {
   new_repo "${1:-acme/shop}"
   autoteam_stub init --owner alice --workspace test >/dev/null
   printf 'check:\n\t@true\ndev:\n\t@true\ndeploy:\n\t@true\n' > Makefile
-  cat > ops/agents/registry.yaml <<'EOF'
+  cat > .autoteam/registry.yaml <<'EOF'
 accounts:
   claude-max:   { billing: subscription, windows: [5h, weekly] }
   chatgpt-plus: { billing: subscription, windows: [5h, weekly] }

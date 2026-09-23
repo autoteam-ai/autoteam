@@ -40,7 +40,7 @@ t_github_user_public_apply() {
 
 t_github_codeowners_gate_off_preserves_review_approval() {
   github_ready_repo
-  echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> ops/agents/autoteam.conf
+  echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> .autoteam/autoteam.conf
   out=$(autoteam_stub github --apply)
   assert_contains "$out" "保留 1 个审批，关闭 Code Owner 审批"
   assert_eq "$(jq -c '.rules[2].parameters | [.required_approving_review_count, .require_code_owner_review, .require_last_push_approval]' "$STUB_STATE/ruleset.json")" '[1,false,true]'

@@ -22,8 +22,8 @@ title: 每周指标
 Auditor 每周跑，你也可以随时在仓库里跑：
 
 ```bash
-ops/agents/scripts/health-metrics.sh          # Markdown 表格
-ops/agents/scripts/health-metrics.sh --json   # JSON
+.autoteam/scripts/health-metrics.sh          # Markdown 表格
+.autoteam/scripts/health-metrics.sh --json   # JSON
 ```
 
 | 字段 | 含义 |

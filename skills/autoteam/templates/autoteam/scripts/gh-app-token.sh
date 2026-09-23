@@ -4,20 +4,20 @@
 # Implementer 和 Reviewer 是两个不同的 App 身份。
 #
 # 用法：
-#   ops/agents/scripts/gh-app-token.sh --run <角色> <命令...>  带这个角色的身份跑命令（最常用）
-#   ops/agents/scripts/gh-app-token.sh <角色>              只打印 token
-#   ops/agents/scripts/gh-app-token.sh --setup-git <角色>  给当前 clone 配好 git 身份和凭据（每次 clone 后跑一次）
-#   ops/agents/scripts/gh-app-token.sh --identity <角色>   打印 git 提交身份：name<TAB>email
-#   ops/agents/scripts/gh-app-token.sh --credential <角色> git 凭据助手模式（git push 用）
-#   ops/agents/scripts/gh-app-token.sh --find-key <角色>   只打印按下面顺序找到的私钥路径（doctor 用，不联网）
+#   .autoteam/scripts/gh-app-token.sh --run <角色> <命令...>  带这个角色的身份跑命令（最常用）
+#   .autoteam/scripts/gh-app-token.sh <角色>              只打印 token
+#   .autoteam/scripts/gh-app-token.sh --setup-git <角色>  给当前 clone 配好 git 身份和凭据（每次 clone 后跑一次）
+#   .autoteam/scripts/gh-app-token.sh --identity <角色>   打印 git 提交身份：name<TAB>email
+#   .autoteam/scripts/gh-app-token.sh --credential <角色> git 凭据助手模式（git push 用）
+#   .autoteam/scripts/gh-app-token.sh --find-key <角色>   只打印按下面顺序找到的私钥路径（doctor 用，不联网）
 #
 # agent 每次工具调用都是新 shell，export 出来的变量活不到下一条命令，所以一律用 --run：
-#   ops/agents/scripts/gh-app-token.sh --run implementer gh pr create --title ...
+#   .autoteam/scripts/gh-app-token.sh --run implementer gh pr create --title ...
 #
 # 角色是 implementer / reviewer / planner，对应 autoteam.conf 里的 AUTOTEAM_<角色大写>_APP_ID。
 # 私钥按这个顺序找，文件名只要带上角色名就行（GitHub 下载时的原始名字也可以）：
 #   1. AUTOTEAM_<角色大写>_APP_KEY  环境变量直接给路径
-#   2. ops/agents/local/            仓库里，不提交
+#   2. .autoteam/local/            仓库里，不提交
 #   3. autoteam.conf 的 AUTOTEAM_KEYS_DIR（默认 ~/.autoteam）  机器上的固定位置
 # 第 3 条是给 agent 用的：它每次 checkout 都是新目录，私钥放仓库里就要跟着重放一遍。
 #
@@ -58,7 +58,7 @@ for cmd in openssl curl jq; do
 done
 
 root=$(git rev-parse --show-toplevel 2>/dev/null) || die "不在 git 仓库里"
-conf="$root/ops/agents/autoteam.conf"
+conf="$root/.autoteam/autoteam.conf"
 conf_get() { sed -n "s/^$1=//p" "$conf" 2>/dev/null | head -n 1 | tr -d '[:space:]'; }
 # 把开头的 ~ 展开成 $HOME。shell 只对字面量里的波浪号做展开，从配置文件或环境变量
 # 读出来的是普通字符，要自己处理。
@@ -107,9 +107,9 @@ keys_dir=$(expand_tilde "$keys_dir")
 
 key=${!key_env:-}
 if [ -z "$key" ]; then
-  key=$(find_key_in "$root/ops/agents/local") \
+  key=$(find_key_in "$root/.autoteam/local") \
     || key=$(find_key_in "$keys_dir") \
-    || die "找不到 $role 的私钥。把 App 的 .pem 放进 ops/agents/local/（不会被提交）或 $keys_dir，文件名带上 $role；也可以用 $key_env 直接指路径"
+    || die "找不到 $role 的私钥。把 App 的 .pem 放进 .autoteam/local/（不会被提交）或 $keys_dir，文件名带上 $role；也可以用 $key_env 直接指路径"
 fi
 [ -r "$key" ] || die "读不到私钥 $key"
 if [ "$mode" = find-key ]; then printf '%s\n' "$key"; exit 0; fi
@@ -196,7 +196,7 @@ if [ "$mode" = identity ] || [ "$mode" = setup-git ]; then
   # 否则机器上 gh auth login 留下的钥匙串会先应答，agent 就会以人的身份推代码。
   git -C "$root" config --worktree --replace-all credential.helper "" || die "清空凭据助手失败"
   git -C "$root" config --worktree --add credential.helper \
-    "!'$root/ops/agents/scripts/gh-app-token.sh' --credential $role" || die "配置凭据助手失败"
+    "!'$root/.autoteam/scripts/gh-app-token.sh' --credential $role" || die "配置凭据助手失败"
   # 回读生效值：别处（如 include 进来的配置）盖掉了就在这里报错，不要等提交完才发现
   [ "$(git -C "$root" config --get user.email)" = "$email" ] ||
     die "提交身份没有生效，当前是 $(git -C "$root" config --get user.email)：检查 git config --show-origin user.email"

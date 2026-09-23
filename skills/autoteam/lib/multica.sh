@@ -5,7 +5,7 @@ multica_usage() {
   cat <<'EOF'
 用法：autoteam multica [选项]
 
-按 ops/agents/ 下的文件配置 Multica 工作区。默认只预览，加 --apply 才执行。
+按 .autoteam/ 下的文件配置 Multica 工作区。默认只预览，加 --apply 才执行。
 
   --apply                 执行改动
   --profile <名字>        multica CLI 的 profile（默认：环境变量 MULTICA_SERVER_URL + MULTICA_TOKEN，
@@ -17,9 +17,9 @@ multica_usage() {
 
 会做的事：
   1. 自定义状态 approved / code_review / rework / shipping（调 Multica API，需要工作区 owner 或 admin）
-  2. 按 registry.yaml 创建或更新 agent，指令取 ops/agents/<角色>.md
+  2. 按 registry.yaml 创建或更新 agent，指令取 .autoteam/<角色>.md
   3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源
-  4. 按 ops/agents/autopilots/*.md 创建或更新 autopilot 和触发器；部署 webhook 地址写进
+  4. 按 .autoteam/autopilots/*.md 创建或更新 autopilot 和触发器；部署 webhook 地址写进
      GitHub secret MULTICA_DEPLOY_HOOK
 EOF
 }
@@ -438,19 +438,19 @@ EOF
 
 multica_agent_args() {
   local role=$1 rid=$2 model=$3 max=$4 mcp=$5
-  MC_AGENT_ARGS=(--runtime-id "$rid" --instructions "$(read_file "ops/agents/$role.md")"
-    --description "autoteam 的 $role（由 autoteam 管理，指令源文件 ops/agents/$role.md）")
+  MC_AGENT_ARGS=(--runtime-id "$rid" --instructions "$(read_file "$AUTOTEAM_DIR/$role.md")"
+    --description "autoteam 的 $role（由 autoteam 管理，指令源文件 $AUTOTEAM_DIR/$role.md）")
   [ "$max" = "-" ] || MC_AGENT_ARGS+=(--max-concurrent-tasks "$max")
   if [ "$model" != "-" ] && [ "$model" != default ]; then MC_AGENT_ARGS+=(--model "$model"); fi
   if [ "$mcp" != "-" ]; then
-    [ -f "ops/agents/$mcp" ] || die "找不到 MCP 配置 ops/agents/$mcp"
-    MC_AGENT_ARGS+=(--mcp-config-file "ops/agents/$mcp")
+    [ -f "$AUTOTEAM_DIR/$mcp" ] || die "找不到 MCP 配置 $AUTOTEAM_DIR/$mcp"
+    MC_AGENT_ARGS+=(--mcp-config-file "$AUTOTEAM_DIR/$mcp")
   fi
 }
 
 multica_agent_create() {
   local name=$1 role=$2 rid=$3 model=$4 max=$5 mcp=$6 envf=$7 out
-  [ -f "ops/agents/$role.md" ] || die "找不到角色指令 ops/agents/$role.md"
+  [ -f "$AUTOTEAM_DIR/$role.md" ] || die "找不到角色指令 $AUTOTEAM_DIR/$role.md"
   multica_agent_args "$role" "$rid" "$model" "$max" "$mcp"
   if [ "$AUTOTEAM_AGENT_ACCESS" = workspace ]; then
     MC_AGENT_ARGS+=(--permission-mode public_to --public-to-workspace)
@@ -474,7 +474,7 @@ multica_agent_create() {
 multica_agent_update() {
   local id=$1 name=$2 role=$3 rid=$4 model=$5 max=$6 mcp=$7 envf=$8 cur changes="" want_instr want_model out
   cur=$(mc agent get "$id" --output json) || { fail "读取 agent $name 失败"; return 0; }
-  want_instr=$(read_file "ops/agents/$role.md")
+  want_instr=$(read_file "$AUTOTEAM_DIR/$role.md")
   [ "$(jq -r '.instructions' <<<"$cur")" = "${want_instr%$'\n'}" ] || [ "$(jq -r '.instructions' <<<"$cur")" = "$want_instr" ] || changes="$changes 指令"
   [ "$(jq -r '.runtime_id' <<<"$cur")" = "$rid" ] || changes="$changes runtime"
   want_model=$model; { [ "$want_model" = "-" ] || [ "$want_model" = default ]; } && want_model=""
@@ -573,7 +573,7 @@ fm_body() {
 multica_autopilots() {
   local rows=$1 paused=$2 rotate=$3 list f
   list=$(mc autopilot list --output json) || die "读取 autopilot 列表失败"
-  for f in ops/agents/autopilots/*.md; do
+  for f in "$AUTOTEAM_DIR"/autopilots/*.md; do
     [ -f "$f" ] || continue
     multica_autopilot "$f" "$rows" "$list" "$paused" "$rotate"
   done

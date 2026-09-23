@@ -39,7 +39,7 @@ App 不能用 API 创建和安装，这一步必须由人做（`autoteam github`
 
 ### 配置
 
-App ID 写进 `ops/agents/autoteam.conf`：
+App ID 写进 `.autoteam/autoteam.conf`：
 
 ```
 AUTOTEAM_IMPLEMENTER_APP_ID=1234567
@@ -52,22 +52,22 @@ AUTOTEAM_PLANNER_APP_ID=1234569
 | 位置 | 适合 | 说明 |
 |---|---|---|
 | `AUTOTEAM_KEYS_DIR`（默认 `~/.autoteam`） | **跑 agent 的机器** | 机器级的固定位置，跟仓库无关 |
-| 仓库里的 `ops/agents/local/` | 你自己的机器 | 已在 `.gitignore` 里，不会被提交 |
+| 仓库里的 `.autoteam/local/` | 你自己的机器 | 已在 `.gitignore` 里，不会被提交 |
 
 文件名只要带上角色名就行（`implementer.pem`，或 GitHub 下载时的 `autoteam-implementer.2026-01-01.private-key.pem`），权限设 `chmod 600`。两个位置都有时仓库里的优先；也可以用 `AUTOTEAM_<角色大写>_APP_KEY` 直接指一个路径。
 
-> **给 agent 用的私钥一定要放 `AUTOTEAM_KEYS_DIR`，不要只放仓库里。** agent 每接一个任务都可能重新 checkout 一份仓库，放在 `ops/agents/local/` 的私钥不会跟过去，下一个任务就会卡在「找不到私钥」——真机上两个 Implementer 同时中过这一枪。`autoteam doctor` 会在跑 agent 的那台机器上检查这一点：registry 里 runtime 在本机的角色缺私钥就报 ❌，并给出该放的位置。Planner 派发前也看这项，没通过就不派。
+> **给 agent 用的私钥一定要放 `AUTOTEAM_KEYS_DIR`，不要只放仓库里。** agent 每接一个任务都可能重新 checkout 一份仓库，放在 `.autoteam/local/` 的私钥不会跟过去，下一个任务就会卡在「找不到私钥」——真机上两个 Implementer 同时中过这一枪。`autoteam doctor` 会在跑 agent 的那台机器上检查这一点：registry 里 runtime 在本机的角色缺私钥就报 ❌，并给出该放的位置。Planner 派发前也看这项，没通过就不派。
 
 ### agent 怎么用
 
-`ops/agents/scripts/gh-app-token.sh` 负责用私钥签 JWT、换 1 小时有效的 installation token，并缓存到快过期才重铸。角色指令里已经写好了，不用你操心，但你要知道它怎么工作：
+`.autoteam/scripts/gh-app-token.sh` 负责用私钥签 JWT、换 1 小时有效的 installation token，并缓存到快过期才重铸。角色指令里已经写好了，不用你操心，但你要知道它怎么工作：
 
 ```bash
 # 任何 gh 命令，身份跟着命令走
-ops/agents/scripts/gh-app-token.sh --run implementer gh pr create --title "..."
+.autoteam/scripts/gh-app-token.sh --run implementer gh pr create --title "..."
 
 # 每次 clone / checkout 之后配一次：提交身份 + git push 的凭据
-ops/agents/scripts/gh-app-token.sh --setup-git implementer
+.autoteam/scripts/gh-app-token.sh --setup-git implementer
 ```
 
 **不能用 `export GH_TOKEN=...`**：agent 每次工具调用都是新 shell，导出的变量活不到下一条命令。
@@ -102,7 +102,7 @@ GitHub Free 的私有仓库调这些接口会返回“Upgrade to GitHub Pro or m
 
 ```text
 /.github/        @你
-/ops/agents/     @你
+/.autoteam/     @你
 /Makefile        @你
 /.jscpd.json     @你
 ```

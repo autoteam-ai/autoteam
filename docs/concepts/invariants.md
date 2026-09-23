@@ -40,7 +40,7 @@ title: 四条不变量
 
 | | |
 |---|---|
-| 由什么保证 | CODEOWNERS 把 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json` 指给人；规则集要求 Code Owner 审批。**CODEOWNERS 不能写 App**，所以这里必须是人工账号 |
+| 由什么保证 | CODEOWNERS 把 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` 指给人；规则集要求 Code Owner 审批。**CODEOWNERS 不能写 App**，所以这里必须是人工账号 |
 | 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批）；Planner 在没合并的分支上跑 `autoteam multica --apply`（指令里明令禁止：只能同步 main） |
 | 怎么验证 | `autoteam doctor` 检查 CODEOWNERS 和规则集；`--trial` 下 doctor 会一直标黄 |
 

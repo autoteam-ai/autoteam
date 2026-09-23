@@ -10,8 +10,8 @@
 #   runtime    <provider>@<设备名>，用 `autoteam runtimes` 查可选值；也可以直接写 runtime ID
 #   model      default 表示用 runtime 的默认模型；Planner 建议用最强的模型
 #   max_tasks  并发上限；Implementer 先设 2，确认评审跟得上再加
-#   mcp        可选，MCP 配置文件（相对 ops/agents/），例如 Planner 做线上验收用的 planner-mcp.json
-#   env_file   可选，环境变量 JSON 文件（相对仓库根目录），例如按量计费的 API key；放 ops/agents/local/，不要提交
+#   mcp        可选，MCP 配置文件（相对 .autoteam/），例如 Planner 做线上验收用的 planner-mcp.json
+#   env_file   可选，环境变量 JSON 文件（相对仓库根目录），例如按量计费的 API key；放 .autoteam/local/，不要提交
 
 accounts:
   claude-max:    { billing: subscription,  windows: [5h, weekly] }

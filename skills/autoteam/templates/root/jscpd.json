@@ -5,7 +5,7 @@
   "ignore": [
     "**/.git/**",
     "**/.github/**",
-    "**/ops/agents/**",
+    "**/.autoteam/**",
     "**/*.md",
     "**/node_modules/**",
     "**/vendor/**",

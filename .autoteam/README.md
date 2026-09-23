@@ -1,4 +1,4 @@
-# ops/agents
+# .autoteam
 
 这个目录定义了本仓库的自管理 agent 团队，由 [autoteam](https://github.com/autoteam-ai/autoteam) 生成。
 整个目录受 CODEOWNERS 保护，修改走 PR，由人批准。

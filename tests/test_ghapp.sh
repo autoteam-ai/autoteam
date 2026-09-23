@@ -6,14 +6,14 @@
 # 建一个配好 App 的仓库；RSA 私钥只生成一次，之后各用例复用
 ghapp_repo() {
   new_repo acme/shop
-  mkdir -p ops/agents/scripts ops/agents/local
-  cp "$TPL/autoteam/scripts/gh-app-token.sh" ops/agents/scripts/
-  chmod +x ops/agents/scripts/gh-app-token.sh
-  printf 'AUTOTEAM_REPO=acme/shop\nAUTOTEAM_IMPLEMENTER_APP_ID=111\n' > ops/agents/autoteam.conf
+  mkdir -p .autoteam/scripts .autoteam/local
+  cp "$TPL/autoteam/scripts/gh-app-token.sh" .autoteam/scripts/
+  chmod +x .autoteam/scripts/gh-app-token.sh
+  printf 'AUTOTEAM_REPO=acme/shop\nAUTOTEAM_IMPLEMENTER_APP_ID=111\n' > .autoteam/autoteam.conf
   if [ ! -f "$TEST_BASE/app.pem" ]; then
     openssl genrsa -out "$TEST_BASE/app.pem" 2048 2>/dev/null
   fi
-  cp "$TEST_BASE/app.pem" ops/agents/local/implementer.pem
+  cp "$TEST_BASE/app.pem" .autoteam/local/implementer.pem
   mkdir -p "$WORK/.cache"
 }
 
@@ -21,7 +21,7 @@ ghapp() {
   env PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
     HOME="$WORK/.home" NO_COLOR=1 XDG_CACHE_HOME="$WORK/.cache" \
     STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" \
-    bash ops/agents/scripts/gh-app-token.sh "$@"
+    bash .autoteam/scripts/gh-app-token.sh "$@"
 }
 
 t_ghapp_mints_token_with_valid_jwt() {
@@ -113,10 +113,10 @@ t_ghapp_rejects_bad_role_and_missing_config() {
 # Implementer 就是这么同时卡住的。仓库里没有时要能回退到机器上的固定目录。
 t_ghapp_falls_back_to_keys_dir() {
   ghapp_repo
-  rm -f ops/agents/local/implementer.pem
+  rm -f .autoteam/local/implementer.pem
   mkdir -p "$WORK/.home/machine-keys"
   cp "$TEST_BASE/app.pem" "$WORK/.home/machine-keys/autoteam-implementer.2026-01-01.private-key.pem"
-  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> ops/agents/autoteam.conf
+  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> .autoteam/autoteam.conf
   out=$(ghapp implementer 2>&1) ; rc=$?
   assert_eq "$rc" 0 "$out"
   assert_eq "$out" "ghs_stubtoken" "机器级目录里的私钥也要能铸出 token"
@@ -126,18 +126,18 @@ t_ghapp_prefers_repo_key_over_keys_dir() {
   ghapp_repo
   mkdir -p "$WORK/.home/machine-keys"
   : > "$WORK/.home/machine-keys/implementer.pem"   # 坏的私钥，被选中就会铸不出来
-  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> ops/agents/autoteam.conf
+  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> .autoteam/autoteam.conf
   out=$(ghapp implementer 2>&1)
   assert_eq "$out" "ghs_stubtoken" "仓库里的私钥优先于机器级目录"
 }
 
 t_ghapp_reports_all_searched_locations() {
   ghapp_repo
-  rm -f ops/agents/local/implementer.pem
-  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> ops/agents/autoteam.conf
+  rm -f .autoteam/local/implementer.pem
+  printf 'AUTOTEAM_KEYS_DIR=~/machine-keys\n' >> .autoteam/autoteam.conf
   out=$(ghapp implementer 2>&1) ; rc=$?
   assert_eq "$rc" 1
   assert_contains "$out" "找不到 implementer 的私钥"
-  assert_contains "$out" "ops/agents/local/" "要说清两个位置都找过了"
+  assert_contains "$out" ".autoteam/local/" "要说清两个位置都找过了"
   assert_contains "$out" "machine-keys"
 }

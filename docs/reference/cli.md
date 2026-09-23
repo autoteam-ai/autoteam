@@ -23,7 +23,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--human <成员名>` | 负责批准和接收升级的 Multica 成员 |
 | `--timezone <时区>` | autopilot 时区，默认 Asia/Shanghai |
 | `--force` | 覆盖与模板不同的文件、替换受管块。三种不覆盖：`autoteam.conf`、`registry.yaml`（用户数据），以及 `AUTOTEAM_DIFF_IGNORE` 里登记的（有意改过的，比如加了运行时的 gate.yml）——显式点名文件时才动它们 |
-| `[文件...]` | 只处理这些文件，例如 `autoteam init --force ops/agents/reviewer.md` |
+| `[文件...]` | 只处理这些文件，例如 `autoteam init --force .autoteam/reviewer.md` |
 | `--dry-run` | 只列出会做什么 |
 
 写文件的规则：

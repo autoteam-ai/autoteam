@@ -20,7 +20,7 @@ title: 安全边界和保护等级
 | 写代码的不能评审自己 | Implementer、Reviewer 用两个不同的 GitHub App；GitHub 不允许作者批准自己的 PR | 不能（前提是两个 App 不同） |
 | 不过检查不能合并 | 规则集的必需检查 `check`，只认 GitHub Actions 上报的结果（integration_id 15368），防止用 API 伪造状态 | 不能 |
 | 新提交会作废旧批准 | 规则集：dismiss stale reviews、require approval of the most recent push | 不能 |
-| 规则文件只能由人批准（Implementer 仅在任务要求时才提 PR，前提是开启 Require review from Code Owners） | CODEOWNERS 保护 `.github/`、`ops/agents/`、`Makefile`、`.jscpd.json`，规则集要求 Code Owner 审批 | 不能 |
+| 规则文件只能由人批准（Implementer 仅在任务要求时才提 PR，前提是开启 Require review from Code Owners） | CODEOWNERS 保护 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json`，规则集要求 Code Owner 审批 | 不能 |
 | 任何人都不能豁免 | 规则集的 bypass list 留空，管理员也不例外 | 不能 |
 | 强推、删主干 | 规则集：restrict deletions、block force pushes | 不能 |
 | PR 不超过 400 行、重复代码不超标 | gate.yml 里的检查（阈值在受保护的文件里） | 不能 |
@@ -49,7 +49,7 @@ title: 安全边界和保护等级
 
 ## 谁来合并：三种模式
 
-保护等级说的是平台能提供什么，合并模式说的是在这个前提下 Implementer 和 Reviewer 各做什么。`ops/agents/scripts/merge-mode.sh` 每次开 PR 和批准前当场判断，依据是这个分支上**实际生效**的规则（`repos/{repo}/rules/branches/{branch}`，规则集和老的分支保护合并后的结果）加上仓库有没有开自动合并：
+保护等级说的是平台能提供什么，合并模式说的是在这个前提下 Implementer 和 Reviewer 各做什么。`.autoteam/scripts/merge-mode.sh` 每次开 PR 和批准前当场判断，依据是这个分支上**实际生效**的规则（`repos/{repo}/rules/branches/{branch}`，规则集和老的分支保护合并后的结果）加上仓库有没有开自动合并：
 
 | 输出 | 触发条件 | Implementer | Reviewer | 检查能绕过吗 |
 |---|---|---|---|---|

@@ -30,7 +30,7 @@ actionlint: ## 检查本仓库的 CI 和渲染后的工作流模板
 	else docker run --rm -v "$(CURDIR):/repo" -w /repo $(ACTIONLINT_IMAGE) .github/workflows/*.yml tests/.work/actionlint/.github/workflows/*.yml; fi
 	@echo "actionlint 通过"
 
-selfhost-check: ## 本仓库自己那份 ops/agents 有没有跟模板漂移
+selfhost-check: ## 本仓库自己那份 .autoteam 有没有跟模板漂移
 	@bash ./autoteam diff --check
 
 selfhost: ## 模板改了之后，把本仓库这份副本重新渲染一遍（不动 AUTOTEAM_DIFF_IGNORE 里的）

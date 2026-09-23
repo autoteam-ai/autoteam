@@ -13,10 +13,10 @@ subscriber: human
 ## 读这些
 
 1. 本周的 Auditor 报告：agent 成绩单、整合审计、规格对账、前沿扫描。
-2. `ops/agents/scripts/health-metrics.sh --md`，重点看 `human_7d`（人自己提交和评审了多少次）和一次通过率的趋势。
+2. `.autoteam/scripts/health-metrics.sh --md`，重点看 `human_7d`（人自己提交和评审了多少次）和一次通过率的趋势。
 3. 本周所有 `blocked` 过的任务，以及人在任务里留的评论——**每一条人工介入都是一次规则缺失的证据**。
 4. Multica 的「运营笔记」任务：你自己这一周记下的观察。
-5. `ops/agents/playbook.md` 现在有什么。
+5. `.autoteam/playbook.md` 现在有什么。
 
 ## 产出
 
@@ -24,12 +24,12 @@ subscriber: human
 
 | 类型 | 改哪里 |
 |---|---|
-| 经验固化 | `ops/agents/playbook.md` 加一条 |
-| 参数调整 | `ops/agents/autoteam.conf` 的某个 `AUTOTEAM_*`，写明从多少改到多少、依据是什么 |
-| 指令修订 | `ops/agents/<角色>.md` 的具体段落 |
+| 经验固化 | `.autoteam/playbook.md` 加一条 |
+| 参数调整 | `.autoteam/autoteam.conf` 的某个 `AUTOTEAM_*`，写明从多少改到多少、依据是什么 |
+| 指令修订 | `.autoteam/<角色>.md` 的具体段落 |
 | 流程缺口 | 需要新脚本或新检查的，说明它要挡住什么 |
 
-把值得做的按 ops/agents/planner.md 的“收到需求”拆进 backlog，用成员链接提及人请他批准。这些都是受 CODEOWNERS 保护的规则文件，**必须由人批准才能生效，这是设计**：你负责发现和提议，人负责拍板。
+把值得做的按 .autoteam/planner.md 的“收到需求”拆进 backlog，用成员链接提及人请他批准。这些都是受 CODEOWNERS 保护的规则文件，**必须由人批准才能生效，这是设计**：你负责发现和提议，人负责拍板。
 
 判断标准：这一条能不能减少下一周的人工介入？不能就不提。
 

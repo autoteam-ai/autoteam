@@ -8,7 +8,8 @@
 # 不该由"合并即触发"的流程自动做。合并产出的是 dist/ 里的 tarball，Planner 下载它
 # 做线上验收；什么时候对外发版，由人改版本号并执行 make publish 来决定。
 #
-# 两种模式都会挡住：三处版本号不一致、CHANGELOG 没定版、打出来的包跑不起来。
+# 两种模式都会挡住：CHANGELOG 没定版、打出来的包跑不起来。版本号只在
+# skills/autoteam/package.json 一处，包就是 skills/autoteam/ 这一个目录。
 set -eo pipefail
 
 ROOT=$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -29,31 +30,27 @@ for release_cmd in npm jq tar; do
   command -v "$release_cmd" >/dev/null 2>&1 || die "没有 $release_cmd"
 done
 
-name=$(jq -r '.name // empty' package.json)
-version=$(jq -r '.version // empty' package.json)
-[ -n "$name" ] || die "package.json 里没有 name"
-[ -n "$version" ] || die "package.json 里没有 version"
+pkg=skills/autoteam/package.json
+name=$(jq -r '.name // empty' "$pkg")
+version=$(jq -r '.version // empty' "$pkg")
+[ -n "$name" ] || die "$pkg 里没有 name"
+[ -n "$version" ] || die "$pkg 里没有 version"
 
-# 版本号有三份（package.json、CLI、CHANGELOG），必须对得上
-cli_version=$(sed -n 's/^AUTOTEAM_VERSION="\(.*\)"/\1/p' skills/autoteam/lib/common.sh)
-[ "$cli_version" = "$version" ] ||
-  die "版本不一致：package.json 是 $version，common.sh 是 ${cli_version:-空}"
 grep -q "^## $version" CHANGELOG.md ||
   die "CHANGELOG.md 里没有 ## $version 这一段：发布前先把「未发布」那段定版"
 
-# 打一个真包出来跑一遍：files 漏了实现的话，装完的 autoteam 是个空壳
+# 打一个真包出来跑一遍：包目录漏了实现的话，装完的 autoteam 是个空壳
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/autoteam-release.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 # dist/ 是文档站的构建输出（会发布到 autoteam.hdgcs.com），包不能放那里
 mkdir -p build/pkg
 
-tarball=$(npm pack --silent --pack-destination "$tmp" "$ROOT") || die "npm pack 失败"
+tarball=$(npm pack --silent --pack-destination "$tmp" -w "$name") || die "npm pack 失败"
 tar -xzf "$tmp/$tarball" -C "$tmp" || die "解包失败：$tarball"
-for f in skills/autoteam/bin/autoteam skills/autoteam/SKILL.md \
-  skills/autoteam/lib/common.sh skills/autoteam/templates/root/Makefile; do
-  [ -f "$tmp/package/$f" ] || die "包里少了 $f（看 package.json 的 files）"
+for f in bin/autoteam SKILL.md lib/common.sh templates/root/Makefile; do
+  [ -f "$tmp/package/$f" ] || die "包里少了 $f"
 done
-packed=$(bash "$tmp/package/skills/autoteam/bin/autoteam" version) || die "包里的 autoteam 跑不起来"
+packed=$(bash "$tmp/package/bin/autoteam" version) || die "包里的 autoteam 跑不起来"
 [ "$packed" = "autoteam $version" ] || die "包里的 autoteam 报的版本是「$packed」"
 
 # 再往前一步：用这个包在一个干净仓库里真的装一遍，确认装出来的东西是完整的。
@@ -61,9 +58,9 @@ packed=$(bash "$tmp/package/skills/autoteam/bin/autoteam" version) || die "包�
 sandbox=$tmp/sandbox
 mkdir -p "$sandbox" && cd "$sandbox"
 git init -q -b main . && git remote add origin https://github.com/acme/smoke.git
-NO_COLOR=1 bash "$tmp/package/skills/autoteam/bin/autoteam" init --owner smoke-owner >/dev/null ||
+NO_COLOR=1 bash "$tmp/package/bin/autoteam" init --owner smoke-owner >/dev/null ||
   die "用打出来的包跑 autoteam init 失败"
-for f in ops/agents/planner.md ops/agents/scripts/gh-app-token.sh .github/workflows/gate.yml; do
+for f in .autoteam/planner.md .autoteam/scripts/gh-app-token.sh .github/workflows/gate.yml; do
   [ -f "$f" ] || die "装出来的项目缺 $f"
 done
 grep -rq '{{AUTOTEAM_' . 2>/dev/null && die "装出来的文件里还有没替换的占位符"
@@ -94,5 +91,5 @@ else
   npm whoami >/dev/null 2>&1 || die "npm 没有登录：先 npm login"
 fi
 
-npm publish ${publish_args[@]+"${publish_args[@]}"}
+npm publish -w "$name" ${publish_args[@]+"${publish_args[@]}"}
 info "完成：$name@$version"

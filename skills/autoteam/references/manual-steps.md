@@ -20,8 +20,8 @@ App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做
 
 4. 记下 App ID，Generate a private key 下载 `.pem`。
 5. Install App → 只选本仓库。
-6. App ID 填进 `ops/agents/autoteam.conf` 的 `AUTOTEAM_IMPLEMENTER_APP_ID` / `AUTOTEAM_REVIEWER_APP_ID` / `AUTOTEAM_PLANNER_APP_ID`；`.pem` 按角色放到各自机器的 `ops/agents/local/<角色>.pem`（这个目录不会被提交），`chmod 600`。
-7. 在每台 agent 机器上跑一次 `ops/agents/scripts/gh-app-token.sh --setup-git <角色>`，确认输出的是 `<app>[bot]` 而不是你的账号。
+6. App ID 填进 `.autoteam/autoteam.conf` 的 `AUTOTEAM_IMPLEMENTER_APP_ID` / `AUTOTEAM_REVIEWER_APP_ID` / `AUTOTEAM_PLANNER_APP_ID`；`.pem` 按角色放到各自机器的 `.autoteam/local/<角色>.pem`（这个目录不会被提交），`chmod 600`。
+7. 在每台 agent 机器上跑一次 `.autoteam/scripts/gh-app-token.sh --setup-git <角色>`，确认输出的是 `<app>[bot]` 而不是你的账号。
 
 私钥是长期凭据，比带过期时间的 token 权限宽：只装这一个仓库、权限给到最小、只放需要它的机器上。泄露了就删掉那把 key 重新生成。
 
@@ -42,7 +42,7 @@ App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做
 1. 每台机器装 Multica daemon（桌面端自带，或 `multica setup cloud`），确认对应的 agent CLI（Claude Code、Codex 等）已登录各自的订阅账号，runtime 在线：`autoteam runtimes`。
 2. 运行 `autoteam multica --apply` 的人要是工作区 owner 或 admin（自定义状态只有他们能建）。
 3. 可选：Settings → GitHub 连接仓库，任务卡片上就能看到关联的 PR 和 CI 状态。
-4. 按量计费的 agent：在厂商控制台设好消费上限，把 key 写进 `ops/agents/local/<agent>.json`（`{"ANTHROPIC_API_KEY": "..."}`，不要提交），registry.yaml 里用 `env_file` 指向它。
+4. 按量计费的 agent：在厂商控制台设好消费上限，把 key 写进 `.autoteam/local/<agent>.json`（`{"ANTHROPIC_API_KEY": "..."}`，不要提交），registry.yaml 里用 `env_file` 指向它。
 
 ## 订阅和额度
 

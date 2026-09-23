@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 判断这个仓库的 PR 由谁放行、由谁合并。Implementer 开 PR 前、Reviewer 批准后各跑一次。
-# 用法：ops/agents/scripts/merge-mode.sh
+# 用法：.autoteam/scripts/merge-mode.sh
 #
 # platform  规则集要求至少 1 个审批，检查也由平台强制。Implementer 正常开 PR 并
 #           `gh pr merge <PR> --auto --squash`；Reviewer 用 `gh pr review --approve` 放行；
@@ -22,7 +22,7 @@ if [ "${1:-}" = -h ] || [ "${1:-}" = --help ]; then
 fi
 
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-conf="$root/ops/agents/autoteam.conf"
+conf="$root/.autoteam/autoteam.conf"
 repo=$(sed -n 's/^AUTOTEAM_REPO=//p' "$conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')
 [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
 branch=$(sed -n 's/^AUTOTEAM_DEFAULT_BRANCH=//p' "$conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')

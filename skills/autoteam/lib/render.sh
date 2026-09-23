@@ -39,7 +39,7 @@ render_file() {
 #   block    受管块，追加到已有文件末尾；已有受管块则跳过（--force 替换块内内容）
 #   makefile 只在不存在时创建；已存在时只检查 check/dev/deploy 目标
 autoteam_manifest() {
-  cat <<'EOF'
+  cat <<EOF
 root/AGENTS.block.md                  AGENTS.md                               block
 root/Makefile                         Makefile                                makefile
 root/jscpd.json                       .jscpd.json                             file
@@ -48,25 +48,25 @@ root/github/pull_request_template.md  .github/pull_request_template.md        fi
 root/github/workflows/gate.yml        .github/workflows/gate.yml              file
 root/github/workflows/deploy.yml      .github/workflows/deploy.yml            file
 root/github/workflows/rollback.yml    .github/workflows/rollback.yml          file
-autoteam/autoteam.conf                ops/agents/autoteam.conf                config
-autoteam/registry.yaml                ops/agents/registry.yaml                config
-autoteam/README.md                    ops/agents/README.md                    file
-../instructions/roles/planner.md      ops/agents/planner.md                   file
-../instructions/roles/implementer.md  ops/agents/implementer.md               file
-../instructions/roles/reviewer.md     ops/agents/reviewer.md                  file
-../instructions/roles/auditor.md      ops/agents/auditor.md                   file
-../instructions/planner-mcp.json      ops/agents/planner-mcp.json             file
-autoteam/playbook.md                  ops/agents/playbook.md                  file
-autoteam/scripts/gh-app-token.sh      ops/agents/scripts/gh-app-token.sh      exec
-autoteam/scripts/loop-guard.sh        ops/agents/scripts/loop-guard.sh        exec
-autoteam/scripts/merge-mode.sh        ops/agents/scripts/merge-mode.sh        exec
-autoteam/scripts/health-metrics.sh    ops/agents/scripts/health-metrics.sh    exec
+autoteam/autoteam.conf                $AUTOTEAM_DIR/autoteam.conf                config
+autoteam/registry.yaml                $AUTOTEAM_DIR/registry.yaml                config
+autoteam/README.md                    $AUTOTEAM_DIR/README.md                    file
+../instructions/roles/planner.md      $AUTOTEAM_DIR/planner.md                   file
+../instructions/roles/implementer.md  $AUTOTEAM_DIR/implementer.md               file
+../instructions/roles/reviewer.md     $AUTOTEAM_DIR/reviewer.md                  file
+../instructions/roles/auditor.md      $AUTOTEAM_DIR/auditor.md                   file
+../instructions/planner-mcp.json      $AUTOTEAM_DIR/planner-mcp.json             file
+autoteam/playbook.md                  $AUTOTEAM_DIR/playbook.md                  file
+autoteam/scripts/gh-app-token.sh      $AUTOTEAM_DIR/scripts/gh-app-token.sh      exec
+autoteam/scripts/loop-guard.sh        $AUTOTEAM_DIR/scripts/loop-guard.sh        exec
+autoteam/scripts/merge-mode.sh        $AUTOTEAM_DIR/scripts/merge-mode.sh        exec
+autoteam/scripts/health-metrics.sh    $AUTOTEAM_DIR/scripts/health-metrics.sh    exec
 EOF
   local f name
   for f in "$AUTOTEAM_TEMPLATES"/../instructions/autopilots/*.md; do
     [ -f "$f" ] || continue
     name=${f##*/}
-    printf '%-37s %-39s %s\n' "../instructions/autopilots/$name" "ops/agents/autopilots/$name" file
+    printf '%-37s %-39s %s\n' "../instructions/autopilots/$name" "$AUTOTEAM_DIR/autopilots/$name" file
   done
 }
 
