@@ -18,7 +18,7 @@ npx skills add autoteam-ai/autoteam --skill autoteam
 git clone https://github.com/autoteam-ai/autoteam ~/.autoteam
 ```
 
-下面用 `autoteam` 指代 `~/.autoteam/bin/autoteam`（用 skill 时是 `bash <skill 目录>/scripts/autoteam`）。
+下面用 `autoteam` 指代 `~/.autoteam/autoteam`（用 skill 时是 `bash ${CLAUDE_SKILL_DIR}/bin/autoteam`）。
 
 ## 2. 生成文件
 

@@ -35,7 +35,7 @@ version=$(jq -r '.version // empty' package.json)
 [ -n "$version" ] || die "package.json 里没有 version"
 
 # 版本号有三份（package.json、CLI、CHANGELOG），必须对得上
-cli_version=$(sed -n 's/^AUTOTEAM_VERSION="\(.*\)"/\1/p' skills/autoteam/scripts/lib/common.sh)
+cli_version=$(sed -n 's/^AUTOTEAM_VERSION="\(.*\)"/\1/p' skills/autoteam/lib/common.sh)
 [ "$cli_version" = "$version" ] ||
   die "版本不一致：package.json 是 $version，common.sh 是 ${cli_version:-空}"
 grep -q "^## $version" CHANGELOG.md ||
@@ -49,11 +49,11 @@ mkdir -p build/pkg
 
 tarball=$(npm pack --silent --pack-destination "$tmp" "$ROOT") || die "npm pack 失败"
 tar -xzf "$tmp/$tarball" -C "$tmp" || die "解包失败：$tarball"
-for f in bin/autoteam skills/autoteam/SKILL.md skills/autoteam/scripts/autoteam \
-  skills/autoteam/scripts/lib/common.sh skills/autoteam/assets/templates/Makefile; do
+for f in skills/autoteam/bin/autoteam skills/autoteam/SKILL.md \
+  skills/autoteam/lib/common.sh skills/autoteam/templates/root/Makefile; do
   [ -f "$tmp/package/$f" ] || die "包里少了 $f（看 package.json 的 files）"
 done
-packed=$(bash "$tmp/package/bin/autoteam" version) || die "包里的 autoteam 跑不起来"
+packed=$(bash "$tmp/package/skills/autoteam/bin/autoteam" version) || die "包里的 autoteam 跑不起来"
 [ "$packed" = "autoteam $version" ] || die "包里的 autoteam 报的版本是「$packed」"
 
 # 再往前一步：用这个包在一个干净仓库里真的装一遍，确认装出来的东西是完整的。
@@ -61,7 +61,7 @@ packed=$(bash "$tmp/package/bin/autoteam" version) || die "包里的 autoteam �
 sandbox=$tmp/sandbox
 mkdir -p "$sandbox" && cd "$sandbox"
 git init -q -b main . && git remote add origin https://github.com/acme/smoke.git
-NO_COLOR=1 bash "$tmp/package/bin/autoteam" init --owner smoke-owner >/dev/null ||
+NO_COLOR=1 bash "$tmp/package/skills/autoteam/bin/autoteam" init --owner smoke-owner >/dev/null ||
   die "用打出来的包跑 autoteam init 失败"
 for f in ops/agents/planner.md ops/agents/scripts/gh-app-token.sh .github/workflows/gate.yml; do
   [ -f "$f" ] || die "装出来的项目缺 $f"

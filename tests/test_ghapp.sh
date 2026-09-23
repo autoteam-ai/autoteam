@@ -7,7 +7,7 @@
 ghapp_repo() {
   new_repo acme/shop
   mkdir -p ops/agents/scripts ops/agents/local
-  cp "$TPL/ops/agents/scripts/gh-app-token.sh" ops/agents/scripts/
+  cp "$TPL/autoteam/scripts/gh-app-token.sh" ops/agents/scripts/
   chmod +x ops/agents/scripts/gh-app-token.sh
   printf 'AUTOTEAM_REPO=acme/shop\nAUTOTEAM_IMPLEMENTER_APP_ID=111\n' > ops/agents/autoteam.conf
   if [ ! -f "$TEST_BASE/app.pem" ]; then

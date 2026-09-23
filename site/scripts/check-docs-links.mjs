@@ -52,5 +52,5 @@ export async function checkDocsLinks(directory, base = '/', site = 'https://auto
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  await checkDocsLinks(process.argv[2] || process.env.AUTOTEAM_DOCS_OUT_DIR || 'dist', process.argv[3] || process.env.AUTOTEAM_DOCS_BASE || '/');
+  await checkDocsLinks(process.argv[2] || process.env.AUTOTEAM_DOCS_OUT_DIR || 'site/dist', process.argv[3] || process.env.AUTOTEAM_DOCS_BASE || '/');
 }

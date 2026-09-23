@@ -15,7 +15,7 @@ def slug(heading):
 bad = 0
 files = list(root.glob("*.md")) + list(root.glob("docs/**/*.md")) + list(root.glob("skills/**/*.md"))
 for md in files:
-    if "assets/templates" in str(md):
+    if "skills/autoteam/templates" in str(md) or "skills/autoteam/instructions" in str(md):
         continue
     text = md.read_text(encoding="utf-8")
     for match in re.finditer(r"\]\(([^)\s]+)\)", text):

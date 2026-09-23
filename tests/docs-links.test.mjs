@@ -4,8 +4,8 @@ import {mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {markdownLinks} from '../scripts/docs-links.mjs';
-import {checkDocsLinks} from '../scripts/check-docs-links.mjs';
+import {markdownLinks} from '../site/scripts/docs-links.mjs';
+import {checkDocsLinks} from '../site/scripts/check-docs-links.mjs';
 
 test('relative Markdown links retain their version and fragment', () => {
   for (const base of ['/', '/autoteam/next/', '/autoteam/0.1.0/']) {

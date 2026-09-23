@@ -5,7 +5,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 # autoteam：把自管理 agent 团队装进项目
 
-工具是本 skill 目录下的 `scripts/autoteam`，一律用 `bash <本 skill 目录>/scripts/autoteam <命令>` 调用（不依赖可执行位），下文简写为 `autoteam`。每个命令都有 `-h`。
+工具是本 skill 目录下的 `bin/autoteam`，一律用 `bash ${CLAUDE_SKILL_DIR}/bin/autoteam <命令>` 调用（不依赖可执行位），下文简写为 `autoteam`。每个命令都有 `-h`。
 
 ## 硬约束
 

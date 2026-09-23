@@ -30,7 +30,7 @@ run() {  # 带桩跑 autoteam
     HOME="$SANDBOX/.home" NO_COLOR=1 \
     STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" STUB_FIXTURES="$STUB_FIXTURES" \
     STUB_SCENARIO="$STUB_SCENARIO" AUTOTEAM_MULTICA_BIN="$HERE/stubs/multica" \
-    bash "$ROOT/bin/autoteam" "$@"
+    bash "$ROOT/skills/autoteam/bin/autoteam" "$@"
 }
 
 echo "== init =="
@@ -60,4 +60,4 @@ run diff --check
 
 echo
 echo "沙盒在 $SANDBOX"
-echo "可以在里面直接试：bash $ROOT/bin/autoteam -C $SANDBOX <命令>"
+echo "可以在里面直接试：bash $ROOT/skills/autoteam/bin/autoteam -C $SANDBOX <命令>"

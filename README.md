@@ -51,15 +51,15 @@ npx skills add autoteam-ai/autoteam --skill autoteam
 git clone https://github.com/autoteam-ai/autoteam ~/.autoteam
 cd your-project
 
-~/.autoteam/bin/autoteam init --workspace <Multica 工作区 slug>
+~/.autoteam/autoteam init --workspace <Multica 工作区 slug>
 # 把 Makefile 的 check / dev / deploy 改成真实命令，按你的账号和机器填 ops/agents/registry.yaml
 # 提交这些文件，走 PR 合并
 
-~/.autoteam/bin/autoteam github            # 预览 GitHub 改动
-~/.autoteam/bin/autoteam github --apply
-~/.autoteam/bin/autoteam multica           # 预览 Multica 改动
-~/.autoteam/bin/autoteam multica --apply
-~/.autoteam/bin/autoteam doctor            # 逐项检查
+~/.autoteam/autoteam github            # 预览 GitHub 改动
+~/.autoteam/autoteam github --apply
+~/.autoteam/autoteam multica           # 预览 Multica 改动
+~/.autoteam/autoteam multica --apply
+~/.autoteam/autoteam doctor            # 逐项检查
 ```
 
 完整步骤见[快速上手](docs/setup/quickstart.md)。

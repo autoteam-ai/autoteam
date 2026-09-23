@@ -3,10 +3,19 @@
 # 兼容 macOS 自带的 bash 3.2。用法见 `autoteam help`。
 set -eo pipefail
 
-AUTOTEAM_HOME=$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-AUTOTEAM_LIB=$AUTOTEAM_HOME/scripts/lib
+# 顺着符号链接找到真实位置：装进 node_modules/.bin/、或本仓库根的 autoteam 开发用
+# symlink，都是指向这个文件的链接，BASH_SOURCE[0] 不会自动帮我们解开。
+autoteam_src=${BASH_SOURCE[0]}
+while [ -L "$autoteam_src" ]; do
+  autoteam_dir=$(cd -P "$(dirname "$autoteam_src")" && pwd)
+  autoteam_src=$(readlink "$autoteam_src")
+  case $autoteam_src in /*) ;; *) autoteam_src=$autoteam_dir/$autoteam_src ;; esac
+done
+AUTOTEAM_HOME=$(cd -P "$(dirname "$autoteam_src")/.." && pwd)
+unset autoteam_src autoteam_dir
+AUTOTEAM_LIB=$AUTOTEAM_HOME/lib
 # shellcheck disable=SC2034  # 在 lib 里使用
-AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/assets/templates
+AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/templates
 
 for autoteam_lib in common conf render registry init github multica doctor; do
   # shellcheck source=/dev/null

@@ -5,9 +5,9 @@ t_render_keeps_actions_expressions_and_special_chars() {
   new_repo
   out=$(
     # shellcheck source=/dev/null
-    . "$ROOT/skills/autoteam/scripts/lib/common.sh"
+    . "$ROOT/skills/autoteam/lib/common.sh"
     # shellcheck source=/dev/null
-    . "$ROOT/skills/autoteam/scripts/lib/render.sh"
+    . "$ROOT/skills/autoteam/lib/render.sh"
     AUTOTEAM_REPO='a&b/c\d' AUTOTEAM_OWNER=alice
     render_string 'x {{AUTOTEAM_REPO}} ${{ github.sha }} {{date}} {{AUTOTEAM_NOPE}} @{{AUTOTEAM_OWNER}} {{AUTOTEAM_OWNER}}'
   )
@@ -122,7 +122,7 @@ t_registry_parsing_and_validation() {
   autoteam_offline init --owner alice >/dev/null
   rows=$(
     # shellcheck source=/dev/null
-    for l in common registry; do . "$ROOT/skills/autoteam/scripts/lib/$l.sh"; done
+    for l in common registry; do . "$ROOT/skills/autoteam/lib/$l.sh"; done
     registry_agents ops/agents/registry.yaml
   )
   assert_eq "$(printf '%s\n' "$rows" | wc -l | tr -d ' ')" 6
@@ -130,7 +130,7 @@ t_registry_parsing_and_validation() {
   printf 'agents:\n  a: { role: planner, runtime: x }\n  b: { role: boss, runtime: y }\n  c:\n    role: reviewer\n' > bad.yaml
   out=$(
     # shellcheck source=/dev/null
-    for l in common registry; do . "$ROOT/skills/autoteam/scripts/lib/$l.sh"; done
+    for l in common registry; do . "$ROOT/skills/autoteam/lib/$l.sh"; done
     registry_validate "$(registry_agents bad.yaml)"; echo "rc=$?"
   )
   assert_contains "$out" "role 不对：boss"
