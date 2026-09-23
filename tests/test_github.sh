@@ -38,6 +38,19 @@ t_github_user_public_apply() {
   assert_no_log "-X PUT repos/acme/shop/rulesets"
 }
 
+t_github_codeowners_gate_off_preserves_review_approval() {
+  github_ready_repo
+  echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> ops/agents/autoteam.conf
+  out=$(autoteam_stub github --apply)
+  assert_contains "$out" "保留 1 个审批，关闭 Code Owner 审批"
+  assert_eq "$(jq -c '.rules[2].parameters | [.required_approving_review_count, .require_code_owner_review, .require_last_push_approval]' "$STUB_STATE/ruleset.json")" '[1,false,true]'
+  # 再跑一次必须与 off 的期望值匹配，不能把 Code Owner 审批写回去。
+  : > "$STUB_LOG"
+  out=$(autoteam_stub github --apply)
+  assert_contains "$out" "规则集已符合"
+  assert_no_log "-X PUT repos/acme/shop/rulesets"
+}
+
 t_github_org_public_adds_merge_queue() {
   github_ready_repo org-public
   out=$(STUB_SCENARIO=org-public autoteam_stub github --apply)
