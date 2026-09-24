@@ -60,8 +60,12 @@ mkdir -p "$sandbox" && cd "$sandbox"
 git init -q -b main . && git remote add origin https://github.com/acme/smoke.git
 NO_COLOR=1 bash "$tmp/package/bin/autoteam" init --owner smoke-owner >/dev/null ||
   die "用打出来的包跑 autoteam init 失败"
-for f in .autoteam/planner.md .autoteam/scripts/gh-app-token.sh .github/workflows/gate.yml; do
+for f in .autoteam/playbook.md .autoteam/scripts/gh-app-token.sh .github/workflows/gate.yml; do
   [ -f "$f" ] || die "装出来的项目缺 $f"
+done
+# 角色指令、autopilot、planner-mcp.json 默认不落盘，装出来的项目里不该有
+for f in .autoteam/planner.md .autoteam/autopilots .autoteam/planner-mcp.json .autoteam/instructions; do
+  [ ! -e "$f" ] || die "装出来的项目不该有 $f（指令默认取包内版本，不落盘）"
 done
 grep -rq '{{AUTOTEAM_' . 2>/dev/null && die "装出来的文件里还有没替换的占位符"
 cd "$ROOT"

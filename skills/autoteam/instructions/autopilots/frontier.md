@@ -2,7 +2,7 @@
 title: 前沿扫描
 role: auditor
 mode: create_issue
-cron: {{AUTOTEAM_CRON_FRONTIER}}
+cron_key: AUTOTEAM_CRON_FRONTIER
 issue_title: 前沿扫描 {{date}}
 subscriber: human
 ---

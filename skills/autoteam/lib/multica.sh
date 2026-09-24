@@ -17,10 +17,12 @@ multica_usage() {
 
 会做的事：
   1. 自定义状态 approved / code_review / rework / shipping（调 Multica API，需要工作区 owner 或 admin）
-  2. 按 registry.yaml 创建或更新 agent，指令取 .autoteam/<角色>.md
+  2. 按 registry.yaml 创建或更新 agent，指令优先取 .autoteam/instructions/roles/<角色>.md
+     （autoteam eject 落盘的那份），没有就用 autoteam 包内的
   3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源
-  4. 按 .autoteam/autopilots/*.md 创建或更新 autopilot 和触发器；部署 webhook 地址写进
-     GitHub secret MULTICA_DEPLOY_HOOK
+  4. 按 autopilot 指令（包内的，加上 .autoteam/instructions/autopilots/ 里 eject 的，同名以后者为准）
+     创建或更新 autopilot 和触发器，定时频率取 autoteam.conf 的 AUTOTEAM_CRON_*；
+     部署 webhook 地址写进 GitHub secret MULTICA_DEPLOY_HOOK
 EOF
 }
 
@@ -437,20 +439,21 @@ EOF
 }
 
 multica_agent_args() {
-  local role=$1 rid=$2 model=$3 max=$4 mcp=$5
-  MC_AGENT_ARGS=(--runtime-id "$rid" --instructions "$(read_file "$AUTOTEAM_DIR/$role.md")"
-    --description "autoteam 的 $role（由 autoteam 管理，指令源文件 $AUTOTEAM_DIR/$role.md）")
+  local role=$1 rid=$2 model=$3 max=$4 mcp=$5 instr
+  instr=$(instructions_path roles "$role.md") || die "找不到角色指令 $role.md"
+  MC_AGENT_ARGS=(--runtime-id "$rid" --instructions "$(read_file "$instr")"
+    --description "autoteam 的 $role（由 autoteam 管理，指令源文件 $(instructions_source roles "$role.md")）")
   [ "$max" = "-" ] || MC_AGENT_ARGS+=(--max-concurrent-tasks "$max")
   if [ "$model" != "-" ] && [ "$model" != default ]; then MC_AGENT_ARGS+=(--model "$model"); fi
   if [ "$mcp" != "-" ]; then
-    [ -f "$AUTOTEAM_DIR/$mcp" ] || die "找不到 MCP 配置 $AUTOTEAM_DIR/$mcp"
-    MC_AGENT_ARGS+=(--mcp-config-file "$AUTOTEAM_DIR/$mcp")
+    local mcp_file
+    mcp_file=$(instructions_path "" "$mcp") || die "找不到 MCP 配置 $mcp"
+    MC_AGENT_ARGS+=(--mcp-config-file "$mcp_file")
   fi
 }
 
 multica_agent_create() {
   local name=$1 role=$2 rid=$3 model=$4 max=$5 mcp=$6 envf=$7 out
-  [ -f "$AUTOTEAM_DIR/$role.md" ] || die "找不到角色指令 $AUTOTEAM_DIR/$role.md"
   multica_agent_args "$role" "$rid" "$model" "$max" "$mcp"
   if [ "$AUTOTEAM_AGENT_ACCESS" = workspace ]; then
     MC_AGENT_ARGS+=(--permission-mode public_to --public-to-workspace)
@@ -474,7 +477,7 @@ multica_agent_create() {
 multica_agent_update() {
   local id=$1 name=$2 role=$3 rid=$4 model=$5 max=$6 mcp=$7 envf=$8 cur changes="" want_instr want_model out
   cur=$(mc agent get "$id" --output json) || { fail "读取 agent $name 失败"; return 0; }
-  want_instr=$(read_file "$AUTOTEAM_DIR/$role.md")
+  want_instr=$(read_file "$(instructions_path roles "$role.md")") || { fail "找不到角色指令 $role.md"; return 0; }
   [ "$(jq -r '.instructions' <<<"$cur")" = "${want_instr%$'\n'}" ] || [ "$(jq -r '.instructions' <<<"$cur")" = "$want_instr" ] || changes="$changes 指令"
   [ "$(jq -r '.runtime_id' <<<"$cur")" = "$rid" ] || changes="$changes runtime"
   want_model=$model; { [ "$want_model" = "-" ] || [ "$want_model" = default ]; } && want_model=""
@@ -552,6 +555,15 @@ multica_project() {
 
 # ---------- autopilot ----------
 
+# autopilot 的 cron：front matter 的 cron_key 指向 autoteam.conf 里的 AUTOTEAM_CRON_* 配置项
+autopilot_cron() {
+  local key re='^AUTOTEAM_CRON_[A-Z0-9_]+$'
+  key=$(fm_get "$1" cron_key)
+  [ -n "$key" ] || return 0
+  [[ $key =~ $re ]] || die "$1 的 cron_key 不合法：$key"
+  printf '%s' "${!key:-}"
+}
+
 # 读 front matter 里的一个字段
 fm_get() {
   awk -v k="$2" '
@@ -573,10 +585,11 @@ fm_body() {
 multica_autopilots() {
   local rows=$1 paused=$2 rotate=$3 list f
   list=$(mc autopilot list --output json) || die "读取 autopilot 列表失败"
-  for f in "$AUTOTEAM_DIR"/autopilots/*.md; do
-    [ -f "$f" ] || continue
+  while IFS= read -r f; do
     multica_autopilot "$f" "$rows" "$list" "$paused" "$rotate"
-  done
+  done <<EOF
+$(instructions_list autopilots)
+EOF
 }
 
 # agent 名字 -> ID。精确匹配，避免 Multica 的模糊解析把 planner 匹配到 ex-planner
@@ -588,7 +601,7 @@ multica_autopilot() {
   local f=$1 rows=$2 list=$3 paused=$4 rotate=$5
   local title role mode cron trigger issue_title subscriber agent body id out args
   title=$(fm_get "$f" title) role=$(fm_get "$f" role) mode=$(fm_get "$f" mode)
-  cron=$(fm_get "$f" cron) trigger=$(fm_get "$f" trigger) issue_title=$(fm_get "$f" issue_title)
+  cron=$(autopilot_cron "$f") trigger=$(fm_get "$f" trigger) issue_title=$(fm_get "$f" issue_title)
   subscriber=$(fm_get "$f" subscriber)
   if [ -z "$title" ] || [ -z "$role" ] || [ -z "$mode" ]; then
     fail "$f 缺少 title / role / mode"

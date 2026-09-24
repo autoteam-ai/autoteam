@@ -16,6 +16,7 @@ t_multica_preview_makes_no_writes() {
   assert_no_log "curl POST"
 }
 
+# shellcheck disable=SC2153  # ROOT 来自 tests/lib.sh
 t_multica_apply_creates_everything() {
   setup_ready_repo
   : > "$STUB_LOG"
@@ -26,7 +27,7 @@ t_multica_apply_creates_everything() {
   assert_eq "$(jq length "$STUB_STATE/mc-agents.json")" 4
   assert_eq "$(jq -r '.[] | select(.name == "impl-claude") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-a-claude-0000
   assert_eq "$(jq -r '.[] | select(.name == "auditor") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-c-claude-0000
-  assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$(head -n 1 .autoteam/reviewer.md)"
+  assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$(head -n 1 "$ROOT/skills/autoteam/instructions/roles/reviewer.md")" "没 eject 时取包内指令"
   assert_log "agent create --name rev-codex --runtime-id rt-b-codex-00000"
   assert_log "--model gpt-5.5"
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10
@@ -91,12 +92,20 @@ PY
 t_multica_updates_changed_instructions() {
   setup_ready_repo
   autoteam_stub multica --apply --only agents >/dev/null
-  echo "新增一条规则" >> .autoteam/planner.md
+  autoteam_stub eject planner >/dev/null
+  echo "新增一条规则" >> .autoteam/instructions/roles/planner.md
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply --only agents)
   assert_contains "$out" "更新 agent planner： 指令"
   assert_log "agent update agent-planner"
   assert_contains "$out" "agent impl-claude 已是最新"
+  assert_contains "$(jq -r '.[] | select(.name == "planner") | .instructions' "$STUB_STATE/mc-agents.json")" "新增一条规则"
+
+  # 删掉 eject 的文件，指令回到包内版本
+  rm .autoteam/instructions/roles/planner.md
+  out=$(autoteam_stub multica --apply --only agents)
+  assert_contains "$out" "更新 agent planner： 指令"
+  assert_not_contains "$(jq -r '.[] | select(.name == "planner") | .instructions' "$STUB_STATE/mc-agents.json")" "新增一条规则"
 }
 
 t_multica_reports_missing_runtime() {
@@ -215,8 +224,8 @@ t_multica_timeout_formats() {
 
 t_multica_fatal_local_error_summary() {
   setup_ready_repo
-  rm .autoteam/implementer.md
-  out=$(autoteam_stub multica --apply 2>&1) && tfail "缺失指令应失败"
+  sed -i.bak 's/model: default, max_tasks: 1 }$/model: default, max_tasks: 1, mcp: nofile.json }/' .autoteam/registry.yaml && rm -f .autoteam/registry.yaml.bak
+  out=$(autoteam_stub multica --apply 2>&1) && tfail "缺失 MCP 配置应失败"
   assert_contains "$out" "已完成： statuses"
   assert_contains "$out" "失败或部分完成： agents"
   assert_contains "$out" "未执行： project autopilots"
@@ -280,3 +289,64 @@ t_multica_env_needs_both_vars() {
   out=$(TEST_MULTICA_TOKEN=mul_test_token autoteam_stub multica 2>&1) && tfail "只有 token 没有 server 应报错"
   assert_contains "$out" "multica 默认 profile 没有配置服务器"
 }
+
+# 指令解析：eject 的覆盖包内的，同名以 eject 的为准
+t_instructions_path_prefers_ejected() {
+  new_repo
+  out=$(
+    AUTOTEAM_HOME=$ROOT/skills/autoteam AUTOTEAM_DIR=.autoteam
+    . "$ROOT/skills/autoteam/lib/instructions.sh"
+    instructions_path roles reviewer.md
+    instructions_path "" planner-mcp.json
+    mkdir -p .autoteam/instructions/roles
+    echo x > .autoteam/instructions/roles/reviewer.md
+    instructions_path roles reviewer.md
+    instructions_path roles nope.md || echo missing
+  )
+  assert_eq "$out" "$ROOT/skills/autoteam/instructions/roles/reviewer.md
+$ROOT/skills/autoteam/instructions/planner-mcp.json
+.autoteam/instructions/roles/reviewer.md
+missing"
+}
+
+t_instructions_list_merges_and_dedupes() {
+  new_repo
+  out=$(
+    AUTOTEAM_HOME=$ROOT/skills/autoteam AUTOTEAM_DIR=.autoteam
+    . "$ROOT/skills/autoteam/lib/instructions.sh"
+    mkdir -p .autoteam/instructions/autopilots
+    echo x > .autoteam/instructions/autopilots/patrol.md
+    echo x > .autoteam/instructions/autopilots/extra.md
+    instructions_list autopilots
+  )
+  assert_eq "$(grep -c . <<<"$out")" 11 "10 个包内的 + 1 个新增的，同名不重复"
+  assert_contains "$out" ".autoteam/instructions/autopilots/patrol.md"
+  assert_not_contains "$out" "$ROOT/skills/autoteam/instructions/autopilots/patrol.md" "同名以 eject 的为准"
+  assert_contains "$out" ".autoteam/instructions/autopilots/extra.md"
+  assert_contains "$out" "$ROOT/skills/autoteam/instructions/autopilots/roadmap.md"
+}
+
+t_instructions_have_no_placeholders() {
+  if grep -rq '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions"; then
+    tfail "instructions/ 里不该再有占位符：$(grep -rl '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions")"
+  fi
+}
+
+t_multica_autopilot_cron_comes_from_conf() {
+  setup_ready_repo
+  sed -i.bak 's|^AUTOTEAM_CRON_PATROL=.*|AUTOTEAM_CRON_PATROL=15 */3 * * *|' .autoteam/autoteam.conf && rm -f .autoteam/autoteam.conf.bak
+  autoteam_stub multica --apply >/dev/null
+  assert_eq "$(jq -r '.[] | select(.autopilot.title == "推进巡检") | .triggers[0].cron_expression' "$STUB_STATE/mc-autopilots.json")" "15 */3 * * *"
+  assert_eq "$(jq -r '.[] | select(.autopilot.title == "每日摘要") | .triggers[0].cron_expression' "$STUB_STATE/mc-autopilots.json")" "0 9 * * *"
+}
+
+t_multica_uses_ejected_autopilot() {
+  setup_ready_repo
+  autoteam_stub eject patrol >/dev/null
+  sed -i.bak 's|^按 .autoteam/planner.md 做一次推进巡检|自定义巡检 runbook|' .autoteam/instructions/autopilots/patrol.md && rm -f .autoteam/instructions/autopilots/patrol.md.bak
+  : > "$STUB_LOG"
+  autoteam_stub multica --apply >/dev/null
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10 "同名以 eject 的为准，不重复建"
+  assert_contains "$(jq -r '.[] | select(.autopilot.title == "推进巡检") | .autopilot.description' "$STUB_STATE/mc-autopilots.json")" "自定义巡检 runbook"
+}
+

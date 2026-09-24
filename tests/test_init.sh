@@ -19,9 +19,12 @@ t_init_fresh_repo_creates_everything() {
   out=$(autoteam_offline init --owner alice --issue-prefix SHOP)
   assert_contains "$out" "新建 .github/workflows/gate.yml"
   for f in AGENTS.md Makefile .jscpd.json .gitignore .github/CODEOWNERS .github/workflows/deploy.yml \
-           .github/workflows/rollback.yml .autoteam/autoteam.conf .autoteam/registry.yaml .autoteam/planner.md \
-           .autoteam/autopilots/patrol.md .autoteam/autopilots/deploy-result.md; do
+           .github/workflows/rollback.yml .autoteam/autoteam.conf .autoteam/registry.yaml .autoteam/playbook.md; do
     assert_file "$f"
+  done
+  # 角色指令、autopilot、planner-mcp.json 默认不落盘
+  for f in .autoteam/planner.md .autoteam/autopilots .autoteam/planner-mcp.json .autoteam/instructions; do
+    assert_no_file "$f"
   done
   [ -x .autoteam/scripts/loop-guard.sh ] || tfail "loop-guard.sh 应可执行"
   assert_file_contains .github/CODEOWNERS "/.autoteam/     @alice"
@@ -81,12 +84,12 @@ t_init_force_only_named_files() {
   new_repo
   autoteam_offline init --owner alice >/dev/null
   echo "# 本地改动" >> .github/workflows/gate.yml
-  echo "# 本地改动" >> .autoteam/reviewer.md
-  out=$(autoteam_offline init --force .autoteam/reviewer.md)
-  assert_eq "$(grep -c '本地改动' .autoteam/reviewer.md)" 0 "指定的文件应被覆盖"
+  echo "# 本地改动" >> .autoteam/playbook.md
+  out=$(autoteam_offline init --force .autoteam/playbook.md)
+  assert_eq "$(grep -c '本地改动' .autoteam/playbook.md)" 0 "指定的文件应被覆盖"
   assert_eq "$(grep -c '本地改动' .github/workflows/gate.yml)" 1 "没指定的文件不应被覆盖"
   assert_not_contains "$out" "gate.yml"
-  assert_contains "$out" "覆盖 .autoteam/reviewer.md"
+  assert_contains "$out" "覆盖 .autoteam/playbook.md"
 }
 
 t_init_dry_run_writes_nothing() {
@@ -146,10 +149,10 @@ t_diff_check_exits_nonzero_on_drift() {
   assert_eq "$rc" 0 "刚装完不该有漂移"
   assert_contains "$out" "与模板一致"
 
-  echo "# 手改的" >> .autoteam/reviewer.md
+  echo "# 手改的" >> .autoteam/playbook.md
   out=$(autoteam_offline diff --check) ; rc=$?
   assert_eq "$rc" 1 "有漂移要退出码 1"
-  assert_contains "$out" ".autoteam/reviewer.md"
+  assert_contains "$out" ".autoteam/playbook.md"
   assert_contains "$out" "AUTOTEAM_DIFF_IGNORE"
 }
 
@@ -185,4 +188,66 @@ t_force_skips_files_listed_in_diff_ignore() {
   # 显式点名时还是要覆盖，否则没法升级它
   autoteam_offline init --force .github/workflows/gate.yml >/dev/null
   assert_not_contains "$(cat .github/workflows/gate.yml)" "本项目加的运行时" "显式点名时应该覆盖"
+}
+
+# autoteam eject：把包内指令复制到 .autoteam/instructions/，此后由用户维护
+t_eject_role_copies_package_file() {
+  setup_ready_repo
+  out=$(autoteam_offline eject reviewer)
+  assert_contains "$out" "已 eject .autoteam/instructions/roles/reviewer.md"
+  assert_contains "$out" "此后由你维护，升级不会覆盖"
+  assert_eq "$(cat .autoteam/instructions/roles/reviewer.md)" "$(cat "$ROOT/skills/autoteam/instructions/roles/reviewer.md")"
+  assert_no_file .autoteam/instructions/roles/planner.md
+}
+
+t_eject_autopilot_and_mcp() {
+  setup_ready_repo
+  autoteam_offline eject patrol planner-mcp.json >/dev/null
+  assert_file .autoteam/instructions/autopilots/patrol.md
+  assert_file .autoteam/instructions/planner-mcp.json
+  out=$(autoteam_offline eject patrol.md)
+  assert_contains "$out" "已存在，保留 .autoteam/instructions/autopilots/patrol.md"
+}
+
+t_eject_all() {
+  setup_ready_repo
+  autoteam_offline eject --all >/dev/null
+  for f in planner implementer reviewer auditor; do assert_file ".autoteam/instructions/roles/$f.md"; done
+  assert_file .autoteam/instructions/planner-mcp.json
+  assert_eq "$(find .autoteam/instructions/autopilots -name "*.md" | wc -l | tr -d " ")" 10
+}
+
+t_eject_does_not_overwrite_existing() {
+  setup_ready_repo
+  autoteam_offline eject reviewer >/dev/null
+  echo "# 我的改动" >> .autoteam/instructions/roles/reviewer.md
+  out=$(autoteam_offline eject reviewer)
+  assert_contains "$out" "已存在，保留"
+  assert_file_contains .autoteam/instructions/roles/reviewer.md "# 我的改动"
+}
+
+t_eject_diff_prints_without_writing() {
+  setup_ready_repo
+  out=$(autoteam_offline eject --diff reviewer)
+  assert_contains "$out" "reviewer：未 eject"
+  assert_no_file .autoteam/instructions
+
+  autoteam_offline eject reviewer >/dev/null
+  out=$(autoteam_offline eject --diff reviewer)
+  assert_contains "$out" "已 eject，与包内一致"
+
+  echo "# 我的改动" >> .autoteam/instructions/roles/reviewer.md
+  out=$(autoteam_offline eject --diff reviewer)
+  assert_contains "$out" "+# 我的改动"
+  assert_file_contains .autoteam/instructions/roles/reviewer.md "# 我的改动"
+}
+
+t_eject_rejects_bad_usage() {
+  setup_ready_repo
+  out=$(autoteam_offline eject nosuch 2>&1) && tfail "不认识的目标应失败"
+  assert_contains "$out" "不认识的目标：nosuch"
+  out=$(autoteam_offline eject 2>&1) && tfail "没有目标应失败"
+  assert_contains "$out" "需要指定目标或 --all"
+  out=$(autoteam_offline eject -h)
+  assert_contains "$out" "用法：autoteam eject"
 }

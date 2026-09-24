@@ -2,7 +2,7 @@
 title: 整合审计
 role: auditor
 mode: create_issue
-cron: {{AUTOTEAM_CRON_CONSOLIDATION}}
+cron_key: AUTOTEAM_CRON_CONSOLIDATION
 issue_title: 整合审计 {{date}}
 ---
 做一次整合审计：

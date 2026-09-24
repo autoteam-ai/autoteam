@@ -8,7 +8,7 @@ init_usage() {
 用法：autoteam init [选项] [文件...]
 
 在当前 git 仓库生成工作流文件。已有文件不覆盖；AGENTS.md、CODEOWNERS、.gitignore 用受管块追加一次。
-指定文件时只处理这些文件，升级时用来只覆盖没改过的文件：autoteam init --force .autoteam/reviewer.md
+指定文件时只处理这些文件，升级时用来只覆盖没改过的文件：autoteam init --force .autoteam/playbook.md
 
 选项：
   --repo <owner/name>     GitHub 仓库（默认从 git remote 识别）

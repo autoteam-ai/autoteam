@@ -304,7 +304,7 @@ EOF
 }
 
 doctor_multica() {
-  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role rid want catalog list f title id project last
+  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role rid want instr catalog list f title id project last
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "$ws"
@@ -336,9 +336,10 @@ EOF
       doctor_mc_read "agent $name 的配置" agent get "$id" || continue
       cur=$MC_READ_OUT
       rid=$(jq -r '.runtime_id' <<<"$cur")
-      want=$(read_file "$AUTOTEAM_DIR/$role.md")
+      instr=$(instructions_path roles "$role.md") || { fail "找不到角色 $role 的指令文件"; continue; }
+      want=$(read_file "$instr")
       if [ "$(jq -r '.instructions' <<<"$cur")" != "${want%$'\n'}" ] && [ "$(jq -r '.instructions' <<<"$cur")" != "$want" ]; then
-        fail "agent $name 的指令和 $AUTOTEAM_DIR/$role.md 不一致（指令漂移）：autoteam multica --apply"
+        fail "agent $name 的指令和生效文本（$(instructions_source roles "$role.md")）不一致（指令漂移）：autoteam multica --apply"
       elif [ -z "$runtimes" ]; then
         ok "agent $name（$role）指令一致（runtime 列表没读到，没核对是否在线）"
       elif [ "$(jq -r --arg id "$rid" '.[] | select(.id == $id) | .status' <<<"$runtimes")" != online ]; then
@@ -368,8 +369,7 @@ EOF
 
   doctor_mc_read "autopilot 列表" autopilot list || return 0
   list=$MC_READ_OUT
-  for f in "$AUTOTEAM_DIR"/autopilots/*.md; do
-    [ -f "$f" ] || continue
+  while IFS= read -r f; do
     title=$(fm_get "$f" title)
     cur=$(jq -c --arg t "$title" '[.autopilots[]? | select(.title == $t)][0] // empty' <<<"$list")
     if [ -z "$cur" ]; then fail "autopilot「$title」不存在（autoteam multica --apply）"; continue; fi
@@ -390,5 +390,7 @@ EOF
     else
       ok "autopilot「$title」已启用"
     fi
-  done
+  done <<EOF
+$(instructions_list autopilots)
+EOF
 }

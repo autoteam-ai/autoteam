@@ -11,9 +11,9 @@ SCRIPTS := skills/autoteam/bin/autoteam scripts/release.sh tests/dev-sandbox.sh 
   $(wildcard skills/autoteam/templates/autoteam/scripts/*.sh) \
   tests/run.sh tests/lib.sh tests/render-workflows.sh $(wildcard tests/test_*.sh) $(wildcard tests/stubs/*)
 
-.PHONY: check test lint shellcheck actionlint dev deploy publish selfhost selfhost-check
+.PHONY: check test lint shellcheck actionlint dev deploy publish
 
-check: lint test selfhost-check ## 全部检查
+check: lint test ## 全部检查
 
 test: ## 单元测试（兼容 macOS 自带的 bash 3.2）
 	bash tests/run.sh
@@ -29,12 +29,6 @@ actionlint: ## 检查本仓库的 CI 和渲染后的工作流模板
 	@if command -v actionlint >/dev/null 2>&1; then actionlint .github/workflows/*.yml tests/.work/actionlint/.github/workflows/*.yml; \
 	else docker run --rm -v "$(CURDIR):/repo" -w /repo $(ACTIONLINT_IMAGE) .github/workflows/*.yml tests/.work/actionlint/.github/workflows/*.yml; fi
 	@echo "actionlint 通过"
-
-selfhost-check: ## 本仓库自己那份 .autoteam 有没有跟模板漂移
-	@bash ./autoteam diff --check
-
-selfhost: ## 模板改了之后，把本仓库这份副本重新渲染一遍（不动 AUTOTEAM_DIFF_IGNORE 里的）
-	@bash ./autoteam init --force
 
 dev: ## 起一个沙盒仓库，用桩把 init / doctor 跑一遍；可重复执行
 	@bash tests/dev-sandbox.sh

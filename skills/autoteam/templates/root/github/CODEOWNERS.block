@@ -2,6 +2,7 @@
 # 约束 agent 的规则文件只能由人批准修改（规则集需要打开 Require review from Code Owners）
 /.github/        @{{AUTOTEAM_OWNER}}
 /.autoteam/     @{{AUTOTEAM_OWNER}}
+/.autoteam/instructions/ @{{AUTOTEAM_OWNER}}
 /Makefile        @{{AUTOTEAM_OWNER}}
 /.jscpd.json     @{{AUTOTEAM_OWNER}}
 # <<< autoteam <<<

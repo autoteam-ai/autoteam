@@ -2,7 +2,7 @@
 title: 路线图对账
 role: planner
 mode: run_only
-cron: {{AUTOTEAM_CRON_ROADMAP}}
+cron_key: AUTOTEAM_CRON_ROADMAP
 ---
 对照项目目标做一次路线图对账：
 

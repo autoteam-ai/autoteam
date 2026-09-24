@@ -52,19 +52,19 @@ agents:
 | `runtime` | 是 | `provider@设备`（`autoteam runtimes` 查）或 runtime ID |
 | `model` | 否 | default 用 runtime 默认模型 |
 | `max_tasks` | 否 | 并发上限 1–50 |
-| `mcp` | 否 | MCP 配置文件，相对 `.autoteam/` |
+| `mcp` | 否 | MCP 配置文件名，目前只有 `planner-mcp.json`：取 autoteam 包内的，`autoteam eject planner-mcp.json` 后取 `.autoteam/instructions/` 下的 |
 | `env_file` | 否 | 环境变量 JSON 文件，相对仓库根目录；放 `.autoteam/local/`，不要提交 |
 
-## autopilots/*.md
+## autopilot 指令
 
-每个文件是一个 autopilot：front matter 是触发配置，正文是每次运行时 agent 读到的 runbook。
+每个 autopilot 是 autoteam 包内 `instructions/autopilots/` 下的一个文件（要改就 `autoteam eject <名字>`，落到 `.autoteam/instructions/autopilots/`，同名以落盘的为准）：front matter 是触发配置，正文是每次运行时 agent 读到的 runbook。
 
 ```markdown
 ---
 title: 每日摘要
 role: planner
 mode: create_issue
-cron: 0 9 * * *
+cron_key: AUTOTEAM_CRON_DAILY_DIGEST
 issue_title: 每日摘要 {{date}}
 subscriber: human
 ---
@@ -76,16 +76,15 @@ subscriber: human
 | `title` | autopilot 标题，autoteam 按它查找已有的 autopilot |
 | `role` | 由哪个角色执行（registry 里唯一的 planner 或 auditor） |
 | `mode` | `run_only`：直接运行，结果在运行历史里，runtime 离线时跳过；`create_issue`：先建任务再运行，适合要留档的报告 |
-| `cron` | 定时触发（五段 cron），时区取 `AUTOTEAM_TIMEZONE` |
+| `cron_key` | 定时触发：指向 `autoteam.conf` 里的 `AUTOTEAM_CRON_*` 配置项（五段 cron），时区取 `AUTOTEAM_TIMEZONE` |
 | `trigger` | 默认 schedule；写 `webhook` 表示 webhook 触发，地址写进 GitHub secret `MULTICA_DEPLOY_HOOK` |
 | `issue_title` | create_issue 模式的任务标题，只支持 `{{date}}` |
 | `subscriber` | create_issue 模式下通知谁；`human` 表示 `AUTOTEAM_HUMAN`（为空时是运行 autoteam 的人） |
 
-**阈值和 cron 的区别**：正文里的阈值写成“读 autoteam.conf 的 X”，改完 conf 立即生效；front matter 的 `cron` 必须是具体值（Multica 要），所以写成 `{{AUTOTEAM_CRON_*}}` 占位符，改完 conf 要重新渲染：
+**阈值和 cron 的区别**：正文里的阈值写成“读 autoteam.conf 的 X”，改完 conf 立即生效；front matter 用 `cron_key` 指向 conf 里的键，同步时才把值取出来交给 Multica，所以改完 conf 只要同步，不用重新渲染任何文件：
 
 ```bash
-autoteam init --force .autoteam/autopilots/patrol.md   # 重新渲染
-autoteam multica --apply --only autopilots              # 同步到 Multica
+autoteam multica --apply --only autopilots   # 同步到 Multica
 ```
 
 | conf 键 | 对应 autopilot | 默认 |
@@ -104,8 +103,8 @@ autoteam multica --apply --only autopilots              # 同步到 Multica
 
 什么时候改回来：连续 4 周 `health-metrics.sh` 的 `human_7d` 不上升、也没有因为降频漏掉的问题。这件事由 Planner 在「规则复盘」里提任务、人批准，不用你盯着。
 
-加一个新的 autopilot：新建一个 md 文件，合并后由 Planner 在验收时同步（`autoteam multica --apply`）。删除一个：删文件后到 Multica 界面里删掉对应的 autopilot（autoteam 不会删除任何东西）。
+加一个新的 autopilot：在 `.autoteam/instructions/autopilots/` 新建一个 md 文件，合并后由 Planner 在验收时同步（`autoteam multica --apply`）。删除一个：删文件后到 Multica 界面里删掉对应的 autopilot（autoteam 不会删除任何东西）。
 
 ## 角色指令
 
-`planner.md`、`implementer.md`、`reviewer.md`、`auditor.md` 的全文就是 Multica agent 的指令。改完合并后要同步才生效，Planner 验收时自己跑 `autoteam multica --apply`；`autoteam doctor` 会报告指令漂移。
+planner、implementer、reviewer、auditor 四个角色指令的全文就是 Multica agent 的指令。默认不落盘，取 autoteam 包内的版本；要按本项目改，`autoteam eject <角色名>` 复制到 `.autoteam/instructions/roles/` 后再改，此后以这份为准，升级不会覆盖。同步后才生效，Planner 验收时自己跑 `autoteam multica --apply`；`autoteam doctor` 会拿 Multica 里的指令和生效文本比对，报告指令漂移。

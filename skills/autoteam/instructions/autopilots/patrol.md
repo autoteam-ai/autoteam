@@ -2,7 +2,7 @@
 title: 推进巡检
 role: planner
 mode: run_only
-cron: {{AUTOTEAM_CRON_PATROL}}
+cron_key: AUTOTEAM_CRON_PATROL
 ---
 按 .autoteam/planner.md 做一次推进巡检：
 
