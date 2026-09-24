@@ -66,7 +66,7 @@ autoteam_main() {
     doctor)   cmd_doctor ${args[@]+"${args[@]}"} ;;
     runtimes) cmd_runtimes ${args[@]+"${args[@]}"} ;;
     diff)     cmd_diff ${args[@]+"${args[@]}"} ;;
-    version|--version|-v) echo "autoteam $AUTOTEAM_VERSION" ;;
+    version|--version|-v) echo "autoteam $(autoteam_version)" ;;
     help|--help|-h) autoteam_usage ;;
     *) autoteam_usage >&2; die "未知命令：$cmd" ;;
   esac

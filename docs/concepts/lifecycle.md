@@ -58,7 +58,7 @@ Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。第 1 批全�
 | 因额度或权限运行失败 | 换 1 次 Implementer | 仍失败则升级给人 |
 | 线上故障 | 不重试 | 先回滚，再升级给人 |
 
-次数由 `ops/agents/scripts/loop-guard.sh <任务编号>` 统计：打回次数来自 GitHub 上的 `CHANGES_REQUESTED` 评审，以及单账号试用模式下以【阻塞】开头的评审；验收不通过和换人次数来自 Planner 写的【验收不通过】【换人】评论。Planner 每次巡检重新计算，不依赖 agent 自己上报。
+次数由 `.autoteam/scripts/loop-guard.sh <任务编号>` 统计：打回次数来自 GitHub 上的 `CHANGES_REQUESTED` 评审，以及单账号试用模式下以【阻塞】开头的评审；验收不通过和换人次数来自 Planner 写的【验收不通过】【换人】评论。Planner 每次巡检重新计算，不依赖 agent 自己上报。
 
 ## 一个需求的完整走向
 

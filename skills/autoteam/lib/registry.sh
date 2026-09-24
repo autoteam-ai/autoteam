@@ -1,10 +1,10 @@
 # shellcheck shell=bash
-# ops/agents/registry.yaml 的解析。
+# .autoteam/registry.yaml 的解析。
 # 只解析 agents: 段，而且要求每个 agent 写成一行 flow 映射：
 #   impl-claude: { role: implementer, account: claude-max, runtime: claude@machine-a, model: default, max_tasks: 2 }
 # 输出制表符分隔：name role account runtime model max_tasks mcp env_file（缺省字段输出 -）
 
-AUTOTEAM_REGISTRY_REL=ops/agents/registry.yaml
+AUTOTEAM_REGISTRY_REL=$AUTOTEAM_DIR/registry.yaml
 
 registry_agents() {
   local file=${1:-$(repo_root)/$AUTOTEAM_REGISTRY_REL}

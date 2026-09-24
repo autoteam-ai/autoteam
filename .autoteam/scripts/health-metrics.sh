@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 代码健康指标，Auditor 每周跑一次；看趋势，不看绝对值。
-# 用法：ops/agents/scripts/health-metrics.sh [--md | --json] [--days N]
+# 用法：.autoteam/scripts/health-metrics.sh [--md | --json] [--days N]
 #   duplication_pct   重复代码占比（jscpd，配置在 .jscpd.json）
 #   legacy_touch_pct  近 N 天（默认 30）改过的文件里，上一次改动在一年以前的比例：老代码有没有人维护
 #   rework_14d_pct    近 14 天改过的文件里，前 14 天也改过的比例：两周内返工
@@ -13,7 +13,7 @@
 set -eo pipefail
 
 format=md
-days=$(sed -n 's/^AUTOTEAM_METRICS_DAYS=//p' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/ops/agents/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
+days=$(sed -n 's/^AUTOTEAM_METRICS_DAYS=//p' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.autoteam/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
 days=${days:-30}
 while [ $# -gt 0 ]; do
   case $1 in
@@ -89,7 +89,7 @@ fi
 # 5. 近 7 天人的介入。批准任务是设计内的动作不算，这里只数人自己动手写和评审代码：
 #    它应该随着规则变好而下降，是"越来越符合人工期望"唯一客观的指标
 human=null
-owner=$(sed -n 's/^AUTOTEAM_OWNER=//p' "$root/ops/agents/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
+owner=$(sed -n 's/^AUTOTEAM_OWNER=//p' "$root/.autoteam/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
 if [ -n "$owner" ]; then
   commits=$(git log --since="7 days ago" --author="$owner" --oneline 2>/dev/null | grep -c . || true)
   reviews=null

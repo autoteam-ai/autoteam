@@ -39,7 +39,7 @@ run init --owner dev --workspace test
 echo
 echo "== 把 Makefile 和 registry 填成能过 doctor 的样子 =="
 printf 'check:\n\t@true\ndev:\n\t@true\ndeploy:\n\t@true\n' > Makefile
-cat > ops/agents/registry.yaml <<'YAML'
+cat > .autoteam/registry.yaml <<'YAML'
 accounts:
   claude-max: { billing: subscription, windows: [5h, weekly] }
 

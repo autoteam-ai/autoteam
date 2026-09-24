@@ -5,7 +5,7 @@ github_usage() {
   cat <<'EOF'
 用法：autoteam github [选项]
 
-按 ops/agents/autoteam.conf 配置 GitHub 仓库。默认只预览，加 --apply 才执行。
+按 .autoteam/autoteam.conf 配置 GitHub 仓库。默认只预览，加 --apply 才执行。
 
   --apply                  执行改动
   --trial                  单身份试用模式：规则集不要求审批（写代码和评审用同一个身份时用）
@@ -340,7 +340,7 @@ github_app_check() {
 
 github_app_table() {
   info ""
-  info "三个 App 各自的权限（都只装本仓库，私钥放各自机器的 AUTOTEAM_KEYS_DIR 或仓库的 ops/agents/local/）："
+  info "三个 App 各自的权限（都只装本仓库，私钥放各自机器的 AUTOTEAM_KEYS_DIR 或仓库的 .autoteam/local/）："
   info "  impl     Contents 读写、Pull requests 读写、Workflows 读写   推分支、开 PR、开自动合并；"
   info "                                              没有 Workflows 连含工作流改动的 PR 都提不了"
   info "  review   Contents 读写、Pull requests 读写   提交评审。写权限不能省：App 的批准"

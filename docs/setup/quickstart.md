@@ -34,8 +34,8 @@ autoteam init --workspace <Multica 工作区 slug>
 
 1. `Makefile` 的 `check` / `dev` / `deploy` 改成真实命令，删掉 `AUTOTEAM-TODO`（[第 0 步](repo.md)）；
 2. `.github/workflows/gate.yml`、`deploy.yml`、`rollback.yml` 补上需要的运行时和 secrets；
-3. `ops/agents/registry.yaml` 按你的订阅账号和机器填，`autoteam runtimes` 列出 runtime（[按额度选 agent](../concepts/quota-routing.md)）；
-4. `ops/agents/autoteam.conf` 填 `AUTOTEAM_HUMAN`（负责批准的 Multica 成员）和三个 `AUTOTEAM_*_APP_ID`。
+3. `.autoteam/registry.yaml` 按你的订阅账号和机器填，`autoteam runtimes` 列出 runtime（[按额度选 agent](../concepts/quota-routing.md)）；
+4. `.autoteam/autoteam.conf` 填 `AUTOTEAM_HUMAN`（负责批准的 Multica 成员）和三个 `AUTOTEAM_*_APP_ID`。
 
 检查本地部分：
 

@@ -28,7 +28,7 @@ jobs:
           bash <(curl -fsSL "https://raw.githubusercontent.com/rhysd/actionlint/v${ACTIONLINT_VERSION}/scripts/download-actionlint.bash") "$ACTIONLINT_VERSION" "$RUNNER_TEMP"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-      # 上限和不计入的路径都在 ops/agents/autoteam.conf：AUTOTEAM_PR_MAX_LINES（默认 400，
+      # 上限和不计入的路径都在 .autoteam/autoteam.conf：AUTOTEAM_PR_MAX_LINES（默认 400，
       # 参考 AI PR 的 75 分位 408 行）、AUTOTEAM_PR_SIZE_EXCLUDE（lock 文件，以及受
       # CODEOWNERS 保护、由人批准的规则文件——它们不该占 agent 的代码行数预算）
       - name: pr-size
@@ -36,11 +36,11 @@ jobs:
         env:
           BASE: ${{ github.base_ref }}
         run: |
-          conf=ops/agents/autoteam.conf
+          conf=.autoteam/autoteam.conf
           max=$(sed -n 's/^AUTOTEAM_PR_MAX_LINES=//p' "$conf" | head -n 1 | tr -d '[:space:]')
           max=${max:-400}
           skip=$(sed -n 's/^AUTOTEAM_PR_SIZE_EXCLUDE=//p' "$conf" | head -n 1 | tr -d '[:space:]')
-          skip=${skip:-'**/*.lock,**/*.md,.github/**,ops/agents/**'}
+          skip=${skip:-'**/*.lock,**/*.md,.github/**,.autoteam/**'}
           # set -f 关掉路径展开：不关的话 $skip 里的 **/*.md 会先被 shell 展开成
           # 实际文件名（而且没开 globstar 时 ** 等于 *，只匹配一层），排除就不准了
           set -f --

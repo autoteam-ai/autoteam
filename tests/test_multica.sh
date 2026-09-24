@@ -26,7 +26,7 @@ t_multica_apply_creates_everything() {
   assert_eq "$(jq length "$STUB_STATE/mc-agents.json")" 4
   assert_eq "$(jq -r '.[] | select(.name == "impl-claude") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-a-claude-0000
   assert_eq "$(jq -r '.[] | select(.name == "auditor") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-c-claude-0000
-  assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$(head -n 1 ops/agents/reviewer.md)"
+  assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$(head -n 1 .autoteam/reviewer.md)"
   assert_log "agent create --name rev-codex --runtime-id rt-b-codex-00000"
   assert_log "--model gpt-5.5"
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10
@@ -60,19 +60,19 @@ t_multica_second_apply_is_noop() {
 
 t_multica_rewrites_env_file_every_apply() {
   setup_ready_repo
-  mkdir -p ops/agents/local
-  echo '{"GITHUB_TOKEN":"bot-token"}' > ops/agents/local/reviewer-env.json
+  mkdir -p .autoteam/local
+  echo '{"GITHUB_TOKEN":"bot-token"}' > .autoteam/local/reviewer-env.json
   # 给一个 reviewer 配上 env_file（机器账号的 token 就是这么给的）
   python3 - <<'PY'
 import pathlib
-p = pathlib.Path('ops/agents/registry.yaml')
+p = pathlib.Path('.autoteam/registry.yaml')
 lines = p.read_text().split('\n')
 for i, l in enumerate(lines):
     if l.strip().startswith('rev-codex:'):
-        lines[i] = l.replace(' }', ', env_file: ops/agents/local/reviewer-env.json }')
+        lines[i] = l.replace(' }', ', env_file: .autoteam/local/reviewer-env.json }')
 p.write_text('\n'.join(lines))
 PY
-  grep -q 'env_file' ops/agents/registry.yaml || tfail "registry 没改成功"
+  grep -q 'env_file' .autoteam/registry.yaml || tfail "registry 没改成功"
 
   # 首次是 create，env 跟着 agent create 一起传
   autoteam_stub multica --apply --only agents >/dev/null
@@ -91,7 +91,7 @@ PY
 t_multica_updates_changed_instructions() {
   setup_ready_repo
   autoteam_stub multica --apply --only agents >/dev/null
-  echo "新增一条规则" >> ops/agents/planner.md
+  echo "新增一条规则" >> .autoteam/planner.md
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply --only agents)
   assert_contains "$out" "更新 agent planner： 指令"
@@ -101,7 +101,7 @@ t_multica_updates_changed_instructions() {
 
 t_multica_reports_missing_runtime() {
   setup_ready_repo
-  sed -i.bak 's/claude@machine-a/claude@nowhere/' ops/agents/registry.yaml && rm -f ops/agents/registry.yaml.bak
+  sed -i.bak 's/claude@machine-a/claude@nowhere/' .autoteam/registry.yaml && rm -f .autoteam/registry.yaml.bak
   out=$(autoteam_stub multica --only agents) && tfail "缺失 runtime 应返回非零"
   assert_contains "$out" "agent impl-claude：找不到 runtime claude@nowhere"
   assert_contains "$out" "claude@machine-a（online）"
@@ -215,7 +215,7 @@ t_multica_timeout_formats() {
 
 t_multica_fatal_local_error_summary() {
   setup_ready_repo
-  rm ops/agents/implementer.md
+  rm .autoteam/implementer.md
   out=$(autoteam_stub multica --apply 2>&1) && tfail "缺失指令应失败"
   assert_contains "$out" "已完成： statuses"
   assert_contains "$out" "失败或部分完成： agents"

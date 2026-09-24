@@ -1,58 +1,15 @@
 {
-  "name": "autoteam",
-  "version": "0.1.0",
-  "description": "把自管理 agent 团队流程（Planner / Implementer / Reviewer / Auditor）装进你的项目：GitHub 管合并闸门，Multica 管任务调度",
-  "keywords": [
-    "agent",
-    "ai-agent",
-    "agent-team",
-    "autoteam",
-    "claude-code",
-    "codex",
-    "multica",
-    "github",
-    "workflow"
+  "name": "autoteam-workspace",
+  "private": true,
+  "workspaces": [
+    "skills/autoteam",
+    "site"
   ],
-  "homepage": "https://github.com/autoteam-ai/autoteam#readme",
-  "bugs": {
-    "url": "https://github.com/autoteam-ai/autoteam/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/autoteam-ai/autoteam.git"
-  },
-  "license": "MIT",
-  "bin": {
-    "autoteam": "skills/autoteam/bin/autoteam"
-  },
-  "files": [
-    "skills/autoteam/bin/",
-    "skills/autoteam/",
-    "docs/",
-    "CHANGELOG.md"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
-  "os": [
-    "darwin",
-    "linux"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "test": "bash tests/run.sh",
     "docs:start": "astro dev --root site",
     "docs:build": "astro build --root site && node site/scripts/check-docs-links.mjs",
     "docs:build:all": "node site/scripts/build-docs.mjs",
     "docs:preview": "astro preview --root site"
-  },
-  "devDependencies": {
-    "@astrojs/markdown-satteri": "0.4.1",
-    "@astrojs/starlight": "0.42.2",
-    "astro": "7.3.3",
-    "beautiful-mermaid": "1.1.3",
-    "parse5": "8.0.1"
   }
 }

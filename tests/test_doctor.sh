@@ -30,7 +30,7 @@ t_doctor_full_after_setup() {
 
 t_doctor_warns_when_codeowners_gate_off() {
   setup_ready_repo
-  echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> ops/agents/autoteam.conf
+  echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> .autoteam/autoteam.conf
   autoteam_stub github --apply >/dev/null
   autoteam_stub multica --apply >/dev/null
   out=$(autoteam_stub doctor)
@@ -58,9 +58,9 @@ t_doctor_detects_autopilot_bound_to_other_project() {
 t_doctor_detects_instruction_drift() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
-  echo "本地改了但没同步" >> ops/agents/reviewer.md
+  echo "本地改了但没同步" >> .autoteam/reviewer.md
   out=$(autoteam_stub doctor --skip-github)
-  assert_contains "$out" "agent rev-codex 的指令和 ops/agents/reviewer.md 不一致"
+  assert_contains "$out" "agent rev-codex 的指令和 .autoteam/reviewer.md 不一致"
 }
 
 t_doctor_reports_read_failure_not_drift() {
@@ -115,7 +115,7 @@ EOF
 echo '[{"content":"【验收不通过】导出为空"},{"content":"普通评论"},{"content":"【换人】额度用完"}]'
 EOF
   chmod +x bin/gh bin/multica
-  out=$(PATH="$WORK/bin:$PATH" bash ops/agents/scripts/loop-guard.sh MUL-7)
+  out=$(PATH="$WORK/bin:$PATH" bash .autoteam/scripts/loop-guard.sh MUL-7)
   assert_eq "$(jq -r '.review_rejections' <<<"$out")" 2
   assert_eq "$(jq -r '.pull_requests | length' <<<"$out")" 1 "MUL-70 不应算进 MUL-7"
   assert_eq "$(jq -r '.acceptance_failures' <<<"$out")" 1
@@ -142,7 +142,7 @@ esac
 if [ -n "$expr" ]; then jq -r "$expr" <<<"$out"; else echo "$out"; fi
 EOF
   chmod +x bin/gh
-  run() { PATH="$WORK/bin:$PATH" GH_AUTO=$1 GH_RULES=$2 bash ops/agents/scripts/merge-mode.sh; }
+  run() { PATH="$WORK/bin:$PATH" GH_AUTO=$1 GH_RULES=$2 bash .autoteam/scripts/merge-mode.sh; }
   checks='{"type":"required_status_checks","parameters":{"required_status_checks":[{"context":"check"}]}}'
   pr1='{"type":"pull_request","parameters":{"required_approving_review_count":1}}'
   pr0='{"type":"pull_request","parameters":{"required_approving_review_count":0}}'
@@ -163,14 +163,14 @@ t_health_metrics_outputs_json_and_markdown() {
   echo a > old.txt && git add old.txt && GIT_AUTHOR_DATE="@$old" GIT_COMMITTER_DATE="@$old" git commit -qm old
   echo b > hot.txt && git add hot.txt && GIT_AUTHOR_DATE="@$mid" GIT_COMMITTER_DATE="@$mid" git commit -qm mid
   echo a2 >> old.txt && echo b2 >> hot.txt && git add old.txt hot.txt && git commit -qm now
-  out=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --json)
+  out=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
   assert_eq "$(jq -r '.duplication_pct' <<<"$out")" null
   assert_eq "$(jq -r '.files_changed' <<<"$out")" 2
   assert_eq "$(jq -r '.legacy_touch_pct' <<<"$out")" 50.0
   assert_eq "$(jq -r '.rework_14d_pct' <<<"$out")" 50.0
   # 没有 gh：prs_7d 和 human_7d.reviews 都是 null，归一化比值也应是 null（零分母场景之一）
   assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" null
-  md=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
+  md=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 老文件改动占比 %（近 30 天，2 个文件） | 50.0 |"
   assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | — |"
 }
@@ -210,11 +210,11 @@ t_health_metrics_human_review_per_merged_pr_normal() {
   autoteam_offline init --owner alice >/dev/null
   git commit --allow-empty -qm seed
   stub_gh_pr_counts 5 4
-  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --json)
+  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
   assert_eq "$(jq -r '.prs_7d.merged' <<<"$out")" 5
   assert_eq "$(jq -r '.human_7d.reviews' <<<"$out")" 4
   assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" 0.8
-  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
+  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | 0.8 |"
 }
 
@@ -223,11 +223,11 @@ t_health_metrics_human_review_per_merged_pr_zero_denominator() {
   autoteam_offline init --owner alice >/dev/null
   git commit --allow-empty -qm seed
   stub_gh_pr_counts 0 3
-  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --json)
+  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
   assert_eq "$(jq -r '.prs_7d.merged' <<<"$out")" 0
   assert_eq "$(jq -r '.human_7d.reviews' <<<"$out")" 3
   assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" null
-  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash ops/agents/scripts/health-metrics.sh --md)
+  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | — |"
 }
 
@@ -235,10 +235,10 @@ t_health_metrics_human_review_per_merged_pr_zero_denominator() {
 doctor_keys_repo() {
   setup_ready_repo
   sed -e 's/^AUTOTEAM_IMPLEMENTER_APP_ID=.*/AUTOTEAM_IMPLEMENTER_APP_ID=111/' -e 's/^AUTOTEAM_REVIEWER_APP_ID=.*/AUTOTEAM_REVIEWER_APP_ID=222/' \
-    -e 's/^AUTOTEAM_PLANNER_APP_ID=.*/AUTOTEAM_PLANNER_APP_ID=333/' ops/agents/autoteam.conf > ops/agents/autoteam.conf.new
-  mv ops/agents/autoteam.conf.new ops/agents/autoteam.conf
+    -e 's/^AUTOTEAM_PLANNER_APP_ID=.*/AUTOTEAM_PLANNER_APP_ID=333/' .autoteam/autoteam.conf > .autoteam/autoteam.conf.new
+  mv .autoteam/autoteam.conf.new .autoteam/autoteam.conf
   autoteam_stub multica --apply >/dev/null
-  mkdir -p ops/agents/local "$WORK/.home/.autoteam"
+  mkdir -p .autoteam/local "$WORK/.home/.autoteam"
 }
 
 t_doctor_keys_missing_on_local_runtime_fails() {
@@ -257,7 +257,7 @@ t_doctor_keys_missing_on_local_runtime_fails() {
 
 t_doctor_keys_in_repo_local_passes() {
   doctor_keys_repo
-  : > ops/agents/local/implementer.pem
+  : > .autoteam/local/implementer.pem
   out=$(STUB_LOCAL_RUNTIMES=rt-a-claude-0000 autoteam_stub doctor --skip-github)
   assert_contains "$out" "本机有 implementer 的私钥"
   assert_not_contains "$out" "本机没有 implementer 的私钥"

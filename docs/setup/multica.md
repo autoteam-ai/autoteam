@@ -27,13 +27,13 @@ autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_M
 
 ## agent 和计费注册表
 
-autoteam 按 `ops/agents/registry.yaml` 的每一行建 agent（已存在就更新）：
+autoteam 按 `.autoteam/registry.yaml` 的每一行建 agent（已存在就更新）：
 
-- 指令取 `ops/agents/<角色>.md` 的全文。指令文件放在仓库里，修改走 PR，合并后重新运行 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和仓库不一致（指令漂移）。
+- 指令取 `.autoteam/<角色>.md` 的全文。指令文件放在仓库里，修改走 PR，合并后重新运行 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和仓库不一致（指令漂移）。
 - `runtime` 写 `provider@设备`（`autoteam runtimes` 列出可选值）或 runtime ID；runtime 不在线时 autoteam 会提醒，任务会排队等它上线。
 - `model` 为 default 时用 runtime 的默认模型；Planner 建议写最强的模型。
 - `mcp`：Planner 做 Web 项目线上验收时挂浏览器自动化，写 `mcp: planner-mcp.json`。
-- `env_file`：按量计费的 agent 需要的 API key 等环境变量（JSON 文件，放 `ops/agents/local/`，不要提交）。
+- `env_file`：按量计费的 agent 需要的 API key 等环境变量（JSON 文件，放 `.autoteam/local/`，不要提交）。
 - 调用权限：autoteam.conf 的 `AUTOTEAM_AGENT_ACCESS=private`（默认，只有创建者能触发）或 `workspace`（工作区成员都能触发）。多人一起用时设为 workspace。
 
 agent 名在工作区内唯一。一个工作区里放多个项目时，给名字加前缀（比如 `shop-planner`）。
@@ -57,7 +57,7 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 | 部署通知 | “部署结果” autopilot 的 webhook，请求里的 JSON 交给 Planner |
 | 升级 | Reviewer @Planner；Planner 设为 `blocked` 并提及人 |
 
-定时触发和部署通知由 `ops/agents/autopilots/*.md` 定义，autoteam 按 front matter 建 autopilot 和触发器，正文是每次运行的 runbook：
+定时触发和部署通知由 `.autoteam/autopilots/*.md` 定义，autoteam 按 front matter 建 autopilot 和触发器，正文是每次运行的 runbook：
 
 | 名称 | 指派 | 触发 | 模式 |
 |---|---|---|---|

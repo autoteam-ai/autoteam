@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 统计一个任务来回打转的次数，判断是否该升级给人。Reviewer 打回前、Planner 巡检时使用。
-# 用法：ops/agents/scripts/loop-guard.sh <任务编号>
+# 用法：.autoteam/scripts/loop-guard.sh <任务编号>
 # 输出 JSON：每个 PR 的打回次数、验收不通过次数、换人次数、上限，以及 escalate（是否该升级）和原因。
 # 次数只从 GitHub 评审记录和任务评论里算，不依赖 agent 自己上报。依赖 gh、jq、multica。
 set -eo pipefail
@@ -12,7 +12,7 @@ if [ -z "$key" ] || [ "$key" = -h ] || [ "$key" = --help ]; then
 fi
 
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-conf=$root/ops/agents/autoteam.conf
+conf=$root/.autoteam/autoteam.conf
 conf_get() { sed -n "s/^$1=//p" "$conf" 2>/dev/null | head -n 1 | tr -d '[:space:]'; }
 max_rej=$(conf_get AUTOTEAM_MAX_REVIEW_REJECTIONS)
 max_acc=$(conf_get AUTOTEAM_MAX_ACCEPTANCE_FAILURES)

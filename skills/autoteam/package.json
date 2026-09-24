@@ -1,0 +1,39 @@
+{
+  "name": "autoteam",
+  "version": "0.1.0",
+  "description": "把自管理 agent 团队流程（Planner / Implementer / Reviewer / Auditor）装进你的项目：GitHub 管合并闸门，Multica 管任务调度",
+  "keywords": [
+    "agent",
+    "ai-agent",
+    "agent-team",
+    "autoteam",
+    "claude-code",
+    "codex",
+    "multica",
+    "github",
+    "workflow"
+  ],
+  "homepage": "https://github.com/autoteam-ai/autoteam#readme",
+  "bugs": {
+    "url": "https://github.com/autoteam-ai/autoteam/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/autoteam-ai/autoteam.git",
+    "directory": "skills/autoteam"
+  },
+  "license": "MIT",
+  "bin": {
+    "autoteam": "./bin/autoteam"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

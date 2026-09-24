@@ -34,7 +34,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 1. **Makefile**：按 [references/adapt-make.md](references/adapt-make.md) 识别技术栈，把项目已有的 lint、类型检查、测试串成 `make check`；`make dev` 一条命令起环境，而且可以重复执行（项目有 docker compose 就优先用）；`make deploy` 用项目现有的部署方式，没有部署就问用户。三个目标都要实际跑一遍，把结果给用户看。
 2. **工作流**：`.github/workflows/gate.yml`、`deploy.yml`、`rollback.yml` 里补上 `make check`、`make deploy` 需要的运行时（setup-node 之类）和 secrets，其他步骤不改。
 3. **AGENTS.md**：受管块以外，按 [references/write-agents-md.md](references/write-agents-md.md) 补“从代码里看不出来、或者容易搞错”的规则，控制篇幅。
-4. **registry.yaml**：和用户确认订阅账号和机器，用 `autoteam runtimes` 列出 runtime，填 `provider@设备`。Implementer 和 Reviewer 尽量放不同机器、用不同厂商；Planner 用最强的模型；按量计费的 agent 用 `env_file` 指向 `ops/agents/local/` 下的 JSON 文件（让用户自己填 key）。
+4. **registry.yaml**：和用户确认订阅账号和机器，用 `autoteam runtimes` 列出 runtime，填 `provider@设备`。Implementer 和 Reviewer 尽量放不同机器、用不同厂商；Planner 用最强的模型；按量计费的 agent 用 `env_file` 指向 `.autoteam/local/` 下的 JSON 文件（让用户自己填 key）。
 5. **autoteam.conf**：`AUTOTEAM_MULTICA_WORKSPACE`、`AUTOTEAM_HUMAN`（负责批准的成员名）、三个 `AUTOTEAM_*_APP_ID`。
 
 改完再跑一次 `autoteam doctor --skip-github --skip-multica`，本地部分应该全绿。
@@ -66,7 +66,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 ## 升级和排查
 
 - autoteam 更新后：`npx skills update autoteam`（或 `git pull`）→ `autoteam init` 补上新增的文件 → `autoteam diff` 看已有文件的差异 → 用户同意后只覆盖没被改过的文件：`autoteam init --force <文件...>`；改过的（比如加了运行时的 gate.yml）手动合并 → 提交合并 → `autoteam multica --apply` 同步指令。
-- 改了 `ops/agents/` 下的指令、registry 或 autopilot：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和仓库不一致。
+- 改了 `.autoteam/` 下的指令、registry 或 autopilot：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和仓库不一致。
 - 其他问题先跑 `autoteam doctor`，再查 autoteam 文档的 `docs/operations/troubleshooting.md`。
 
 同步读取失败最多尝试 3 次；写操作不自动重试。失败时会以非零退出码结束，输出“同步不完整”，按所选部分列出已完成、失败或部分完成、未执行的清单；已写入的改动不回滚，修复后可重新运行。重复挂载同一个仓库视为已是最新。`--only statuses` 不读取 runtime。

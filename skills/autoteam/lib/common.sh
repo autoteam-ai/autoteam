@@ -1,8 +1,14 @@
 # shellcheck shell=bash
 # 公共函数：输出、依赖检查、预览/执行、临时文件。
 
-# shellcheck disable=SC2034  # 在 bin/autoteam 里使用
-AUTOTEAM_VERSION="0.1.0"
+# 装进用户仓库的目录（相对仓库根）。代码里的路径都从这里拼，别再写死
+# shellcheck disable=SC2034  # 在其他 lib 里使用
+AUTOTEAM_DIR=.autoteam
+
+# 版本号只在包内 package.json 里存一份，用 sed 取（autoteam version 不该依赖 jq）
+autoteam_version() {
+  sed -n 's/^  "version": "\(.*\)",$/\1/p' "$AUTOTEAM_HOME/package.json" | head -n 1
+}
 
 # 预览模式：github / multica 默认只打印将要做的改动，--apply 才执行
 AUTOTEAM_APPLY=${AUTOTEAM_APPLY:-0}
