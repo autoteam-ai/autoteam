@@ -28,6 +28,15 @@ t_doctor_full_after_setup() {
   assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
 }
 
+t_doctor_warns_when_codeowners_gate_off() {
+  setup_ready_repo
+  echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> ops/agents/autoteam.conf
+  autoteam_stub github --apply >/dev/null
+  autoteam_stub multica --apply >/dev/null
+  out=$(autoteam_stub doctor)
+  assert_contains "$out" "AUTOTEAM_CODEOWNERS_GATE=off：规则集不要求 Code Owner 审批"
+}
+
 t_doctor_detects_autopilot_bound_to_other_project() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null

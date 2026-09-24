@@ -39,9 +39,11 @@
 **无阻塞项：批准**
 
 1. `<身份> gh pr review <PR> --approve --body "…"`。如果报错不能批准自己的 PR，说明 Implementer 和你是同一个身份（单身份试用模式，或者两个 App ID 配成了同一个），改用 `<身份> gh pr review <PR> --comment --body "【批准】…"`，并在评论里提醒人去修配置。
-2. 用 `<身份> gh pr view <PR> --json files` 取得完整改动文件列表，对照 PR 目标分支的 `.github/CODEOWNERS`，按 GitHub 的匹配规则逐文件判断（最后一条匹配规则生效，不能只看受管块）：
-   - 命中人工负责的路径：任务已经是 `blocked` 就保持状态和指派不动，不转 `shipping`；否则执行 `multica issue status <任务> blocked --no-start`，并指派给 `ops/agents/autoteam.conf` 的 `AUTOTEAM_HUMAN`（为空时找工作区 owner；用 `multica workspace member list --output json` 查 `user_id`，再 `multica issue assign <任务> --to-id <user_id> --no-start`）。评论 `/note Reviewer 已批准，等待 codeowner 批准后合并`，列出命中文件，并用 `[@名字](mention://member/<user_id>)` 提及人。
-   - 不命中：`multica issue status <任务> shipping --no-start`，评论 `/note 评审通过，等待合并和部署`。
+2. 读取 `ops/agents/autoteam.conf` 的 `AUTOTEAM_CODEOWNERS_GATE`（未设置按 `on`）：
+   - `off`：跳过所有 CODEOWNERS 判断，直接 `multica issue status <任务> shipping --no-start`，评论 `/note 评审通过，等待合并和部署`。
+   - `on`：用 `<身份> gh pr view <PR> --json files` 取得完整改动文件列表，对照 PR 目标分支的 `.github/CODEOWNERS`，按 GitHub 的匹配规则逐文件判断（最后一条匹配规则生效，不能只看受管块）：
+     - 命中人工负责的路径：任务已经是 `blocked` 就保持状态和指派不动，不转 `shipping`；否则执行 `multica issue status <任务> blocked --no-start`，并指派给 `ops/agents/autoteam.conf` 的 `AUTOTEAM_HUMAN`（为空时找工作区 owner；用 `multica workspace member list --output json` 查 `user_id`，再 `multica issue assign <任务> --to-id <user_id> --no-start`）。评论 `/note Reviewer 已批准，等待 codeowner 批准后合并`，列出命中文件，并用 `[@名字](mention://member/<user_id>)` 提及人。
+     - 不命中：`multica issue status <任务> shipping --no-start`，评论 `/note 评审通过，等待合并和部署`。
 3. 跑 `<身份> ops/agents/scripts/merge-mode.sh`，按输出放行：
 
    | 输出 | 你要做什么 |

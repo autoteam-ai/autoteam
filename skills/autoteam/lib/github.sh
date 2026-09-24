@@ -199,6 +199,9 @@ github_ruleset() {
   if [ "$trial" = 1 ]; then
     approvals=0 code_owner=false last_push=false
     warn "试用模式：不要求审批，也不要求 Code Owner 审批（写代码和评审是同一个 GitHub 账号）"
+  elif [ "$AUTOTEAM_CODEOWNERS_GATE" = off ]; then
+    code_owner=false
+    info "AUTOTEAM_CODEOWNERS_GATE=off：保留 1 个审批，关闭 Code Owner 审批"
   fi
   [ "$level" = full ] && mq=true
   want=$(github_ruleset_json "$approvals" "$code_owner" "$last_push" "$mq")

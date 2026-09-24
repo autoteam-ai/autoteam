@@ -168,6 +168,9 @@ doctor_github() {
         else
           ok "规则集生效：必须走 PR、$approvals 个审批、必需检查 $(jq -r '[.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | join(",")' <<<"$GH_OUT")"
         fi
+        if [ "$AUTOTEAM_CODEOWNERS_GATE" = off ]; then
+          warn "AUTOTEAM_CODEOWNERS_GATE=off：规则集不要求 Code Owner 审批（初期开发阶段临时配置）"
+        fi
         if [ "$(jq -r '[.rules[] | select(.type == "merge_queue")] | length' <<<"$GH_OUT")" = 1 ]; then ok "合并队列已启用"; fi
         if [ "$(jq -r '(.bypass_actors // []) | length' <<<"$GH_OUT")" != 0 ]; then warn "规则集有豁免名单：所有 agent 都不应该能绕过规则"; fi
       fi

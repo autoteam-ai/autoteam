@@ -44,6 +44,8 @@ title: 四条不变量
 | 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批）；Planner 在没合并的分支上跑 `autoteam multica --apply`（指令里明令禁止：只能同步 main） |
 | 怎么验证 | `autoteam doctor` 检查 CODEOWNERS 和规则集；`--trial` 下 doctor 会一直标黄 |
 
+初期阶段可用 `AUTOTEAM_CODEOWNERS_GATE=off` 临时关闭这道升级闸门，见 playbook；何时恢复由人决定。
+
 > **前提：仓库必须开启「Require review from Code Owners」。** Implementer 在任务明确要求时可以改规则文件并提 PR，全靠这条规则集把关；没开就不要放开这条权限（`autoteam github --apply` 会配置它）。没有任务要求时，Implementer 仍不得顺手改这些文件，也仍不能批准或合并 PR。
 
 > **闸门是「人批准」，不是「agent 不能碰」。** agent 必须能对规则文件提 PR——工作流、角色指令、阈值都是项目的一部分，禁止 agent 提议改它们，等于每次改 CI 都要人自己写代码，agent 团队就没用了。所以 Implementer App 要给 `Workflows: 读写`（否则它推含 `.github/workflows/` 的提交会被 GitHub 直接拒），拦住它的是 CODEOWNERS 要求的人工批准，不是推送权限。
