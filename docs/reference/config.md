@@ -4,7 +4,7 @@ title: 配置文件
 
 # 配置文件
 
-三类配置都在目标仓库的 `.autoteam/` 下，受 CODEOWNERS 保护，修改走 PR。
+三类配置都在目标仓库的 `.autoteam/` 下，受 CODEOWNERS 保护，修改走 PR。角色指令和 autopilot 默认不在这里，见文末[角色指令](#角色指令)。
 
 ## autoteam.conf
 
@@ -107,3 +107,20 @@ autoteam multica --apply --only autopilots   # 同步到 Multica
 ## 角色指令
 
 planner、implementer、reviewer、auditor 四个角色指令的全文就是 Multica agent 的指令。默认不落盘，取 autoteam 包内的版本；要按本项目改，`autoteam eject <角色名>` 复制到 `.autoteam/instructions/roles/` 后再改，此后以这份为准，升级不会覆盖。同步后才生效，Planner 验收时自己跑 `autoteam multica --apply`；`autoteam doctor` 会拿 Multica 里的指令和生效文本比对，报告指令漂移。
+
+## .lock.json
+
+`.autoteam/.lock.json` 由 autoteam 写，**不要手改，要提交入库**。它记录装机版本和每个落盘文件的 sha256（受管块记块内内容）：
+
+```json
+{
+  "version": "0.1.0",
+  "generated_at": "2026-09-25T14:22:32Z",
+  "files": {
+    ".autoteam/playbook.md": { "kind": "file", "sha256": "5bb7…" },
+    ".gitignore": { "kind": "block", "sha256": "dd5d…" }
+  }
+}
+```
+
+`autoteam upgrade` 拿现在的文件和它比：一致就是你没动过，直接换成新模板；不一致就是你有意改过，只打印差异、不覆盖。`autoteam diff --check` 也靠它区分“本地改过”和“模板漂移”。`autoteam.conf`、`registry.yaml`、`Makefile` 是你的，不记。内容没变时不重写，不会因为时间戳多出 diff。`autoteam doctor` 检查它的版本和当前 autoteam 一致。可以用 jq 查询：`jq -r '.files[".autoteam/playbook.md"].sha256' .autoteam/.lock.json`。

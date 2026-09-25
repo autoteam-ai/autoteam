@@ -10,6 +10,7 @@ title: 常见问题
 
 | 现象 | 原因和处理 |
 |---|---|
+| `检测到旧版布局` | 配置还在旧位置（`ops/` 下的 `agents/`）：`autoteam migrate --dry-run` 看计划，再 `autoteam migrate`，见 [autoteam migrate](../reference/cli.md#autoteam-migrate) |
 | `找不到 multica CLI` | `brew install multica-ai/tap/multica`；装了桌面端的，autoteam 也会找 `/Applications/Multica.app` 里自带的 CLI |
 | `multica 默认 profile 没有配置服务器` | 有多个 profile 时 autoteam 不会猜：`--profile <名字>` 或 `export AUTOTEAM_MULTICA_PROFILE=<名字>`；一个都没有就先 `multica setup cloud` |
 | `没有指定 Multica 工作区` | 在 `.autoteam/autoteam.conf` 写 `AUTOTEAM_MULTICA_WORKSPACE=<slug>`，或加 `--workspace` |

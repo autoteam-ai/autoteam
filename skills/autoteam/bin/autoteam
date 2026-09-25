@@ -17,7 +17,7 @@ AUTOTEAM_LIB=$AUTOTEAM_HOME/lib
 # shellcheck disable=SC2034  # 在 lib 里使用
 AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/templates
 
-for autoteam_lib in common conf render registry instructions lock init upgrade github multica doctor; do
+for autoteam_lib in common conf render registry instructions lock init upgrade github multica migrate doctor; do
   # shellcheck source=/dev/null
   . "$AUTOTEAM_LIB/$autoteam_lib.sh"
 done
@@ -38,6 +38,7 @@ autoteam —— 把自管理 agent 团队流程装进你的项目
   runtimes   列出 Multica runtime，帮你填 registry.yaml 的 runtime 字段
   diff       对比已安装文件和当前模板
   eject      把包内的角色指令 / autopilot 复制到 .autoteam/instructions/ 自己维护
+  migrate    把旧版布局迁到 .autoteam/（一次性；--dry-run 只看计划）
   version    打印版本
 
 通用选项：
@@ -70,6 +71,7 @@ autoteam_main() {
     upgrade)  cmd_upgrade ${args[@]+"${args[@]}"} ;;
     diff)     cmd_diff ${args[@]+"${args[@]}"} ;;
     eject)    cmd_eject ${args[@]+"${args[@]}"} ;;
+    migrate)  cmd_migrate ${args[@]+"${args[@]}"} ;;
     version|--version|-v) echo "autoteam $(autoteam_version)" ;;
     help|--help|-h) autoteam_usage ;;
     *) autoteam_usage >&2; die "未知命令：$cmd" ;;

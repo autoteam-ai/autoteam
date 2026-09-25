@@ -93,10 +93,12 @@ Makefile                       check / dev / deploy（已有就不动，只检�
 .github/workflows/gate.yml     必需检查 check：PR 行数、重复代码、make check
 .github/workflows/deploy.yml   合并后部署，结果通知 Planner
 .github/workflows/rollback.yml Planner 回滚用
-.autoteam/                    配置、团队清单、四个角色指令、8 个 autopilot、三个辅助脚本
+.autoteam/                     配置、团队清单、经验库、辅助脚本、.lock.json（升级依据）
 ```
 
-逐个文件的说明见[生成的文件](docs/reference/files.md)。
+四个角色指令、autopilot 和 `planner-mcp.json` **不落盘**：它们随 autoteam 包发布，升级 autoteam 就升级了它们；要按项目改某一份，`autoteam eject` 到 `.autoteam/instructions/`。逐个文件的说明见[生成的文件](docs/reference/files.md)。
+
+已经按旧版布局装过的项目（配置放在 `ops/` 下的 `agents/` 子目录）：运行 `autoteam migrate --dry-run` 看计划，再 `autoteam migrate` 一次迁完。
 
 ## 文档
 
