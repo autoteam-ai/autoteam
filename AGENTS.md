@@ -57,7 +57,6 @@ make publish   # 发版：发到 npm，由人执行；DRY_RUN=1 只演练
 | `.autoteam/**`、`.github/**` 其余部分 | 本仓库自己的配置、脚本、工作流 | 受 CODEOWNERS 保护，必须由人批准 |
 
 - 改规则就改 `skills/autoteam/instructions/**` 或 `skills/autoteam/templates/**`，同一个 PR 里不需要再同步副本。因此这类 PR 必然带上受保护路径，必须人批准——**改规则由人拍板**，这是设计。
-- 本仓库目前 eject 了 `planner` / `implementer` / `reviewer` 三个角色（`.autoteam/instructions/roles/`），带着 `AUTOTEAM_CODEOWNERS_GATE=off` 的分支说明；这三个角色改包内文本不会生效，要改这里的文件。
 - 三个工作流（gate / deploy / rollback）按本仓库需要改过，登记在 `.autoteam/autoteam.conf` 的 `AUTOTEAM_DIFF_IGNORE` 里，`autoteam diff --check` 会跳过它们。改模板里的工作流时，记得手工看一眼本仓库这份要不要跟。
 - 一律用仓库里的 `bash ./autoteam`（或 `bash skills/autoteam/bin/autoteam`），不要用全局装的 skill——自举的前提是永远跑正在开发的这一版。
 - `site/dist/` 是文档站的构建输出（会发布到 autoteam-ai.github.io/autoteam/），npm 包放 `build/pkg/`，别放错。
