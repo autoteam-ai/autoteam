@@ -11,7 +11,7 @@ title: 四个角色
 | Reviewer | 评审 PR | 改代码、验收 | 支持 | 不支持 |
 | Auditor | 代码健康审计、agent 成绩单 | 改代码、直接建任务 | 不需要 | 支持 |
 
-角色指令在目标仓库的 `.autoteam/<角色>.md`，是 Multica 里 agent 指令的唯一来源：修改走 PR，合并后 `autoteam multica --apply` 同步。禁止项都带了原因，模型遵守得会好很多。
+角色指令是 Multica 里 agent 指令的唯一来源。它随 autoteam 包发布、**不落盘在你的仓库里**：规则由包版本固定，升级 autoteam 后 `autoteam multica --apply` 同步。要按项目改，`autoteam eject <角色>` 到 `.autoteam/instructions/roles/<角色>.md`（受 CODEOWNERS 保护，修改走 PR）。禁止项都带了原因，模型遵守得会好很多。
 
 ## 规则怎么变好
 

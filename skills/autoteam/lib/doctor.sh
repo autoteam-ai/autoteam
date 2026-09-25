@@ -34,6 +34,11 @@ cmd_doctor() {
   cd "$root" || die "进不去 $root"
 
   section "本地文件"
+  if [ -d "$AUTOTEAM_LEGACY_DIR" ]; then
+    fail "检测到旧版布局 $AUTOTEAM_LEGACY_DIR/：运行 autoteam migrate 迁到 $AUTOTEAM_DIR/（先加 --dry-run 看计划）"
+    print_summary
+    return 1
+  fi
   if ! conf_exists "$root"; then
     fail "没有 $AUTOTEAM_CONF_REL：先运行 autoteam init"
     print_summary

@@ -28,7 +28,9 @@ git clone https://github.com/autoteam-ai/autoteam ~/.autoteam
 autoteam init --workspace <Multica 工作区 slug>
 ```
 
-已有的文件不会被覆盖，AGENTS.md、CODEOWNERS、.gitignore 只追加一个受管块。被跳过的文件用 `autoteam diff <文件>` 看差异，手动合并。
+已有的文件不会被覆盖，AGENTS.md、CODEOWNERS、.gitignore 只追加一个受管块。被跳过的文件用 `autoteam diff <文件>` 看差异，手动合并。文件都装在 `.autoteam/` 下（清单见[生成的文件](../reference/files.md)）；角色指令不落盘，随 autoteam 包走。
+
+> 如果项目是按旧版布局装的（配置在 `ops/` 下的 `agents/` 子目录），不要再跑 `init`，改用 `autoteam migrate --dry-run` 看计划、`autoteam migrate` 迁移，见 [autoteam migrate](../reference/cli.md#autoteam-migrate)。
 
 ## 3. 适配
 

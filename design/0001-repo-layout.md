@@ -1,6 +1,6 @@
 # 0001 仓库结构重整：一个产品目录，一个安装目录
 
-- 状态：已定稿，待实施
+- 状态：已实施（2026-09-26，见 §11）
 - 日期：2026-09-22
 - 影响：仓库结构、npm 包边界、装进用户项目的路径（**breaking**，配 `autoteam migrate`）
 
@@ -182,3 +182,15 @@ autoteam/                        ← 仓库根：只放开发基础设施
 - Claude Code plugins reference（`skills` 字段的叠加语义、`"."`）：<https://code.claude.com/docs/en/plugins-reference>
 - github/spec-kit issue #38（收进 `.specify/` 的理由）：<https://github.com/github/spec-kit/issues/38>
 - copier 的更新机制：<https://copier.readthedocs.io/en/stable/updating/>
+
+## 11. 实施记录（与设计不一致的地方）
+
+五个 PR 按 §7 的拆分全部合并（HDGCS-59 至 HDGCS-63）。与设计不一致的地方：
+
+1. **`autoteam upgrade` 不打印指令文本 diff**（§3 D3 的缓解、§9 风险表）。包里只带当前版本、没有旧版可比，所以改成：升级 PR 描述里由人贴 `git diff <旧 tag> <新 tag> -- skills/autoteam/instructions`；已 eject 的用 `autoteam eject --diff`；`doctor` 核对 Multica 与生效文本。已写进 `docs/concepts/guardrails.md`。
+2. **`upgrade` 只有两方对比，没有三方合并**（§4 D4）。同样因为包里不带历史模板：改过的文件只打印“当前文件 → 新模板”的差异，不写。
+3. **`migrate` 的指令比对多做了两步机械换算**：旧路径换成新路径；autopilot 旧版渲染出的 `cron: <值>` 在值等于 `autoteam.conf` 里 `AUTOTEAM_CRON_*` 的时候换回 `cron_key`。否则旧指令和包内文本永远不会字节一致，“一致的删除”形同虚设。即便如此，包本身升级过时，旧指令仍会被判为“与包内不同”而保留成 eject（宁可多留、不误删），文档提示用 `autoteam eject --diff` 判断。
+4. **`migrate` 写的 lock**：对每个落盘文件记**模板**的 sha（不是当前文件的 sha）。旧版装的、和新模板不同的文件因此在 `upgrade` 里显示为“本地已修改”、不会被覆盖，要人用 `autoteam init --force <文件>` 决定。
+5. **§6 第 9 条（CI 守卫：全仓库不得再出现旧路径）没有做成 CI 检查**，本次只做了验收命令 `git grep`；旧路径字面量只允许出现在 `lib/migrate.sh`（测试里分两段拼），已写进 `AGENTS.md`。
+6. **文档里也不出现旧路径字面量**（为了让验收的 `git grep` 为空），提到旧版布局时写成“`ops/` 下的 `agents/` 子目录”。
+

@@ -75,7 +75,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--skip-multica` | 不检查 Multica |
 | `--profile`、`--workspace` | 同 autoteam multica |
 
-检查项：工作流文件和受管块、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的自定义状态、agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目、autopilot 和触发器；以及 registry 里每个 agent 的 runtime 上有没有它角色的 App 私钥（按 `gh-app-token.sh --find-key` 的顺序查）——runtime 就是本机（本机 daemon 管着它）而缺私钥报 ❌，远端 runtime 从这里看不到磁盘，只提示到那台机器上跑 doctor。
+检查项：是不是还停在旧版布局（是就只报这一条，提示 `autoteam migrate`）；工作流文件和受管块、`.lock.json` 的版本、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的自定义状态、agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目、autopilot 和触发器；以及 registry 里每个 agent 的 runtime 上有没有它角色的 App 私钥（按 `gh-app-token.sh --find-key` 的顺序查）——runtime 就是本机（本机 daemon 管着它）而缺私钥报 ❌，远端 runtime 从这里看不到磁盘，只提示到那台机器上跑 doctor。
 
 ## autoteam runtimes
 
@@ -110,6 +110,23 @@ autoteam upgrade .github/workflows/gate.yml
 结束后更新 lock 的版本号。`.lock.json` 要提交入库：它是全团队升级的依据。旧版 autoteam 装的项目没有 lock，第一次 `upgrade` 会生成，和模板不一致的文件一律当作改过。
 
 升级 autoteam 的步骤：更新 autoteam（`npx skills update autoteam` 或 `git pull`）→ `autoteam upgrade` → 处理它列出的本地改过的文件 → 提交、合并 → `autoteam multica --apply`。角色指令和 autopilot 不在 `autoteam diff` 的范围内：没 eject 的直接跟着包走，eject 过的用 `autoteam eject --diff` 看差异。
+
+## autoteam migrate
+
+```bash
+autoteam migrate --dry-run    # 只打印计划
+autoteam migrate              # 执行，不提交、不推送
+```
+
+把旧版布局（配置放在 `ops/` 下的 `agents/` 子目录，指令也落盘）一次性迁到 `.autoteam/`。旧目录存在才算旧版布局；`.autoteam/` 已经存在时拒绝执行（两边都有内容需要人工合并）。做这些事，逐条打印结果：
+
+1. 角色指令、autopilot、`planner-mcp.json` 和包内对应文件逐个比对：内容一致的删除（不再落盘）；改过的保留到 `.autoteam/instructions/`，当作已 eject。比对前先把旧路径换成新路径，并把 autopilot 里旧版渲染出的 `cron: <值>` 换回 `cron_key`（值和 `autoteam.conf` 一致才算没改过）。“与包内不同”也可能只是包升级过：用 `autoteam eject --diff` 看差异，没有自己的改动就删掉那份
+2. `git mv` 把旧目录搬成 `.autoteam/`，`local/`（私钥）一起带走；`ops/` 空了就删
+3. `.gitignore`、`.github/CODEOWNERS`、`AGENTS.md` 三个受管块换成新模板，路径就对了；没有受管块的文件不碰
+4. 写 `.autoteam/.lock.json`
+5. 列出仓库里其余仍写着旧路径的文件（你自己写的 README、workflow、AGENTS.md 正文，以及旧版装的 `.github/workflows/*.yml`、`.autoteam/scripts/*.sh` 等），不自动改。由 autoteam 生成、没手改过的，用 `autoteam diff` 看差异、`autoteam init --force <文件>` 换成新模板
+
+只碰上面这些文件。迁完后：处理残留 → `autoteam doctor` → 走 PR 提交 → 合并后 `autoteam multica --apply`。
 
 ## autoteam eject
 

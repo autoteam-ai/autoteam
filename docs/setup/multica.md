@@ -29,7 +29,7 @@ autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_M
 
 autoteam 按 `.autoteam/registry.yaml` 的每一行建 agent（已存在就更新）：
 
-- 指令取 `.autoteam/<角色>.md` 的全文。指令文件放在仓库里，修改走 PR，合并后重新运行 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和仓库不一致（指令漂移）。
+- 指令取角色指令的全文：默认是 autoteam 包内的版本（升级 autoteam 就升级了它），要按项目改就 `autoteam eject <角色名>` 到 `.autoteam/instructions/roles/`，修改走 PR。都要合并后重新运行 `autoteam multica --apply` 才生效；`autoteam doctor` 能发现 Multica 里的指令和生效文本不一致（指令漂移）。
 - `runtime` 写 `provider@设备`（`autoteam runtimes` 列出可选值）或 runtime ID；runtime 不在线时 autoteam 会提醒，任务会排队等它上线。
 - `model` 为 default 时用 runtime 的默认模型；Planner 建议写最强的模型。
 - `mcp`：Planner 做 Web 项目线上验收时挂浏览器自动化，写 `mcp: planner-mcp.json`。

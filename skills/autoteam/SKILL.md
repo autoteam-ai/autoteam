@@ -27,7 +27,9 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 1. 生成文件
 
-`autoteam init --workspace <slug>`。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。
+先看有没有旧版布局（配置放在 `ops/` 下的 `agents/` 子目录）：有就不要 `init`，改跑 `autoteam migrate --dry-run` 给用户看计划，同意后 `autoteam migrate`，再处理它列出的残留引用（不自动改的部分）。
+
+没有旧版布局：`autoteam init --workspace <slug>`。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。
 
 ### 2. 适配（需要判断的部分）
 
@@ -67,6 +69,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 - autoteam 更新后：`npx skills update autoteam`（或 `git pull`）→ `autoteam upgrade`（按 `.autoteam/.lock.json` 覆盖没改过的文件，改过的只打印差异）→ 把列出的改过的文件给用户看，由用户决定手工合并还是 `autoteam init --force <文件>` → 连同 `.lock.json` 提交合并 → `autoteam multica --apply` 同步指令。
 - 改了 registry、`autoteam.conf` 的 `AUTOTEAM_CRON_*`，或 eject 出来的指令（`.autoteam/instructions/`）：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和生效文本不一致。角色指令和 autopilot 默认不落盘、跟着 autoteam 包走；要按项目改某一份，`autoteam eject <角色名|autopilot 名|planner-mcp.json>`，升级后用 `autoteam eject --diff` 看包内新版本的差异。
+- 旧版布局升上来：`autoteam doctor` 会提示 `autoteam migrate`，一次性迁移，不提交、不推送；迁完后走 PR 提交，用户自己写在 README、workflow、AGENTS.md 里的旧路径由用户处理。
 - 其他问题先跑 `autoteam doctor`，再查 autoteam 文档的 `docs/operations/troubleshooting.md`。
 
 同步读取失败最多尝试 3 次；写操作不自动重试。失败时会以非零退出码结束，输出“同步不完整”，按所选部分列出已完成、失败或部分完成、未执行的清单；已写入的改动不回滚，修复后可重新运行。重复挂载同一个仓库视为已是最新。`--only statuses` 不读取 runtime。

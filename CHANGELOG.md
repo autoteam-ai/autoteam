@@ -2,6 +2,23 @@
 
 ## 未发布
 
+### ⚠️ 破坏性变更：新目录布局 + `autoteam migrate`（结构重整 5/5）
+
+结构重整（1/5–4/5）合起来是一次 breaking 升级，这一条是面向用户的汇总。已装机的项目要迁移，一条命令：
+
+```bash
+autoteam migrate --dry-run   # 只看计划
+autoteam migrate             # 执行；不提交、不推送
+```
+
+- **`ops/` 下的 `agents/` 目录改名为 `.autoteam/`**，拍平：`autoteam.conf`、`registry.yaml`、`playbook.md`、`README.md`、`scripts/`、`local/` 直接在 `.autoteam/` 下。`.autoteam/.lock.json` 记装机版本和每个文件的 sha256。受管块（`.gitignore`、`.github/CODEOWNERS`、`AGENTS.md`）里的路径同步换掉；`AUTOTEAM_PR_SIZE_EXCLUDE` 的默认值换成 `.autoteam/**`。
+- **角色指令、autopilot、`planner-mcp.json` 不再落盘**：`autoteam multica` / `autoteam doctor` 直接读 autoteam 包内的版本，规则由包版本固定。要按项目改某一份，`autoteam eject` 到 `.autoteam/instructions/`（受 CODEOWNERS 保护）。代价：升级时指令文本的变化不再出现在 PR diff 里，见 `docs/concepts/guardrails.md`。
+- **`autoteam upgrade` 取代 `init --force` 的升级用法**；删除 `AUTOTEAM_DIFF_IGNORE`（`.lock.json` 自动推断哪些文件改过）；autopilot front matter 的 `cron:` 改为 `cron_key:`。
+- **新增 `autoteam migrate [--dry-run]`**：识别旧版布局（配置放在 `ops/` 下的 `agents/` 子目录）→ `git mv` 成 `.autoteam/`（`local/` 私钥一起带走）→ 旧目录里的角色指令、autopilot、`planner-mcp.json` 逐个和包内文件比对，一致的删除，改过的保留到 `.autoteam/instructions/` 当作已 eject（旧路径先换成新路径、`cron:` 值等于 `autoteam.conf` 里的才算没改过；不一致的 `cron:` 会转成 `cron_key` 并提醒核对）→ 更新三个受管块 → 写 `.lock.json` → 列出仓库里其余仍写着旧路径的文件（README、workflow、AGENTS.md 正文，以及旧版装的 `.github/workflows/*.yml`、`.autoteam/scripts/*.sh`），**不自动改**，由人处理。逐条打印结果；只碰这些文件，不提交、不推送。`.autoteam/` 已存在时拒绝执行。
+- `autoteam doctor` 发现旧版布局时只报一条 ❌，提示 `autoteam migrate`。
+- 不为旧路径保留兼容读取：迁移是一次性的。
+- 文档全面对齐新结构：「生成的文件」补目录树和「不再落盘」、命令参考补 `migrate` / `eject` / `upgrade`、配置参考补 `.lock.json`，并在安全边界和不变量里讲清楚“规则由包版本固定，改规则 = eject 后受 CODEOWNERS 保护，或升级版本（版本号变更本身受保护）”。
+
 ### `.lock.json` + `autoteam upgrade`，删 `AUTOTEAM_DIFF_IGNORE`（结构重整 4/5）
 
 - **`autoteam init` 写 `.autoteam/.lock.json`**：包版本、`generated_at`，以及每个落盘文件的 sha256（受管块记块内内容）。`autoteam.conf`、`registry.yaml`、`Makefile` 是你的，不记。lock 要入库，它是全团队升级的依据；内容没变时不重写，不会因为时间戳多出 diff。
