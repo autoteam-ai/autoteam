@@ -11,6 +11,7 @@
 | `scripts/loop-guard.sh` | 统计打回和验收不通过的次数，判断是否升级给人 |
 | `scripts/merge-mode.sh` | 判断这个 PR 由谁放行、由谁合并（platform / staged / reviewer） |
 | `scripts/health-metrics.sh` | 代码健康指标，Auditor 每周用 |
+| `.lock.json` | 装机版本和每个文件的 sha256，`autoteam upgrade` 靠它判断哪些文件你改过；要入库 |
 | `local/` | 本机私钥等，不入库 |
 
 ## 角色指令默认不在这里

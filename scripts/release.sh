@@ -68,6 +68,12 @@ for f in .autoteam/planner.md .autoteam/autopilots .autoteam/planner-mcp.json .a
   [ ! -e "$f" ] || die "装出来的项目不该有 $f（指令默认取包内版本，不落盘）"
 done
 grep -rq '{{AUTOTEAM_' . 2>/dev/null && die "装出来的文件里还有没替换的占位符"
+[ "$(jq -r .version .autoteam/.lock.json)" = "$version" ] || die "装出来的 .autoteam/.lock.json 版本不对"
+# 改一个文件再 upgrade：改过的要保留、并被报告出来
+echo "# 冒烟：本地改动" >> .autoteam/scripts/loop-guard.sh
+upgraded=$(NO_COLOR=1 bash "$tmp/package/bin/autoteam" upgrade) || die "用打出来的包跑 autoteam upgrade 失败"
+case $upgraded in *"本地已修改，未覆盖 .autoteam/scripts/loop-guard.sh"*) ;; *) die "upgrade 没有报告本地改过的文件" ;; esac
+grep -q '冒烟：本地改动' .autoteam/scripts/loop-guard.sh || die "upgrade 覆盖了本地改过的文件"
 cd "$ROOT"
 
 cp "$tmp/$tarball" "build/pkg/$tarball"
