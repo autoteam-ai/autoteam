@@ -29,7 +29,7 @@ title: 常见问题
 |---|---|
 | 运行失败：`Failed to authenticate: OAuth session expired and could not be refreshed` | runtime 在线不代表 agent CLI 能用：那台机器上 Claude Code 等的订阅登录过期了，到机器上重新登录。`autoteam doctor` 会报出每个 agent 最近一次失败的原因；修好之前可以先在 registry.yaml 里把 agent 挪到别的 runtime |
 | 运行失败：`You've hit your session limit · resets 1:10am` | 订阅的窗口额度用完了。平台不会自动重试额度类错误，任务停在原状态；Planner 下一次巡检会重新派发（额度恢复后也可以手动触发“推进巡检”）。同一个订阅账号下的所有 agent 共用额度，registry.yaml 里要如实写 account；额度经常不够，就加一个其他厂商或按量计费的 agent 分担 |
-| 批准了任务，Planner 没反应 | 子任务要指派给 Planner、从 backlog 改成 approved 才会叫醒它；直接新建成 approved 的不会。也可能 Planner 的 runtime 离线，看 `autoteam runtimes` |
+| 批准了任务，Planner 没反应 | 子任务要指派给 Planner、从 backlog 改成 todo 才会叫醒它；指派人不是 Planner 就叫醒不了它。也可能 Planner 的 runtime 离线，看 `autoteam runtimes` |
 | Planner 派发了，Implementer 没开始 | runtime 离线或并发满了（任务在排队，排队超过 2 小时会失败）；或者 agent 是 private，而触发链路上的人不是 agent 的创建者：把 `AUTOTEAM_AGENT_ACCESS` 改成 workspace 后 `autoteam multica --apply --only agents` |
 | Reviewer 没被叫醒 | 评论里只写了 `@名字`，没用提及链接 `[@名字](mention://agent/<UUID>)`；或者用了 `/note` |
 | 改了状态为什么没人被叫醒 | Multica 0.5 起，自定义状态不再负责唤醒，唤醒只靠指派和 @提及，见[唤醒规则](../concepts/lifecycle.md#唤醒规则multica-05) |
@@ -42,7 +42,7 @@ title: 常见问题
 | `New changes require approval from someone other than X because they were the last pusher` | 规则集的 `require_last_push_approval`：最后一次推送的人不能当批准人。agent 流程里不会遇到（Implementer 推、Reviewer 批）。人改规则文件时会撞上——`.autoteam/` 受 CODEOWNERS 保护只有人能批，而人又是推送者。让机器账号推这个分支，人只负责批准；注意 GitHub 更新"最后推送者"有延迟，换完身份等几分钟再重试。换身份推送要先清空凭据助手，否则系统钥匙串里的凭据优先：<br>`git -c credential.helper= -c credential.helper='!f() { echo username=x-access-token; echo password=$BOT_TOKEN; }; f' push` |
 | PR 迟迟不合并 | 检查没过、审批数不够、CODEOWNERS 要求你批准（改了规则文件）、或者没开自动合并。`gh pr view <PR> --json mergeStateStatus,autoMergeRequest,reviewDecision` |
 | PR 合并后任务直接变成 done 了 | PR 正文写了 `Closes XXX-123` 之类的关闭关键字，Multica 的 GitHub 集成会直接设为完成。只在标题写任务编号 |
-| 运行失败后任务回到了 todo 而不是 rework | 平台的失败回滚只写内置状态，Planner 巡检时会处理 |
+| 运行失败后任务回到了 todo 而不是 in_progress | 平台的失败回滚只写内置状态，Planner 巡检时会处理 |
 | 部署了但 Planner 没验收 | 看 deploy.yml 的 notify planner 步骤；“部署结果”是 run_only，Planner 的 runtime 离线时会跳过，巡检会补查超过 1 小时的待上线任务 |
 | autopilot 自己停了 | 过去 7 天至少 50 次运行、失败率 90% 时平台会自动暂停，看运行历史里的报错 |
 | agent 说“验证通过”但其实没跑 | 指令要求贴输出；不贴的在评审里打回。规律性出现就在 AGENTS.md 里补规则（带原因） |

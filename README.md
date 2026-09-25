@@ -12,20 +12,18 @@
 flowchart TD
     H(["人"]) -->|"① 提需求"| P1["Planner 拆分"]
     P1 -->|"② 子任务放进 backlog"| BL["待审核"]
-    BL -->|"③ 人批准"| AP["已批准 approved"]
-    AP -->|"④ Planner 选人派发"| TODO["待办 todo"]
-    TODO --> I["Implementer"]
-    I -->|"⑤ 提交 PR，@Reviewer"| CR["待评审 code_review"]
+    BL -->|"③ 人批准：改成 todo"| TODO["待办 todo"]
+    TODO -->|"④ Planner 选人派发"| I["Implementer"]
+    I -->|"⑤ 提交 PR，@Reviewer"| CR["审核中 in_review"]
     CR --> R["Reviewer"]
-    R -->|"有阻塞项，@Implementer"| RW["返工 rework"]
-    RW --> I
+    R -->|"有阻塞项，@Implementer 改回 in_progress"| I
     R -->|"⑥ 批准，检查通过后自动合并、部署"| SH["待上线 shipping"]
     SH -->|"⑦ 部署 webhook"| P2["Planner 线上验收"]
     P2 -->|"通过"| DONE["完成 done"]
-    P2 -->|"不通过"| RW
+    P2 -->|"不通过，改回 in_progress"| I
 ```
 
-人在日常流转里只做一件事：把 Planner 拆好的任务从“待审核”改成“已批准”。原来靠人把关的环节，换成了 agent 绕不过去的规则：
+人在日常流转里只做一件事：把 Planner 拆好的任务从“待审核”（backlog）改成“待办”（todo）。原来靠人把关的环节，换成了 agent 绕不过去的规则：
 
 | 原来靠人 | 现在靠什么 |
 |---|---|

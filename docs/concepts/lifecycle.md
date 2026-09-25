@@ -6,16 +6,14 @@ title: 任务状态和唤醒
 
 ## 状态
 
-Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 4 个自定义状态。命令里写的是 key，看板上显示的是名称。
+Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 1 个自定义状态 `shipping`。命令里写的是 key，看板上显示的是名称。
 
 | 设计中的状态 | key | 类型 | 类别 | 谁设置 | 下一步怎么被叫醒 |
 |---|---|---|---|---|---|
 | 待审核 | `backlog` | 内置 | unstarted | Planner 建子任务时，指派给自己 | 不启动运行，等人批准 |
-| 已批准 | `approved` | 自定义 | unstarted | **只能是人** | 离开 backlog 会叫醒指派人 Planner，立即派发 |
-| 待办 | `todo` | 内置 | unstarted | Planner 改指派为 Implementer | 指派即启动 Implementer |
-| 实现中 | `in_progress` | 内置 | started | Implementer 开工时 | 运行失败时平台回滚到 `todo`，巡检兜底 |
-| 待评审 | `code_review` | 自定义 | started | Implementer | 评论里 @Reviewer |
-| 返工 | `rework` | 自定义 | started | Reviewer 或 Planner | 评论里 @Implementer |
+| 待办 | `todo` | 内置 | unstarted | **人批准**：把 `backlog` 改成 `todo`，指派人仍是 Planner；Planner 派发时改指派为 Implementer | 离开 backlog 会叫醒指派人 Planner，立即派发；指派给 Implementer 即启动它 |
+| 实现中 | `in_progress` | 内置 | started | Implementer 开工时，被打回或验收不通过后重新开工时 | 运行失败时平台回滚到 `todo`，巡检兜底 |
+| 审核中 | `in_review` | 内置 | started | Implementer 提交 PR 后 | 评论里 @Reviewer |
 | 待上线 | `shipping` | 自定义 | started | Reviewer | 部署 webhook 叫醒 Planner；巡检补查超过 1 小时没验收的 |
 | 完成 | `done` | 内置 | done | Planner 验收通过后 | — |
 | 升级 | `blocked` | 内置 | started | Planner | 在父任务评论里提及人 |
@@ -23,13 +21,16 @@ Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 4
 
 几点注意：
 
-1. **类别创建后不能改**。建错了只能在界面里归档，再重新运行 `autoteam multica --apply`。
-2. **平台自己改状态时只写内置状态**：运行失败回滚到 `todo`，不会回到 `rework`；PR 带关闭关键字合并会直接设为 `done`。所以 PR 标题只写任务编号（建立关联），不写 `Closes XXX-123`。
-3. **“已批准”agent 也能改**。平台拦不住，靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
+1. **人批准就是把 `backlog` 改成 `todo`**。不需要单独的“已批准”状态：任务离开 backlog 本来就会叫醒指派人，指派人仍是 Planner，所以 Planner 醒来看到 `todo` 就知道已经批准。
+2. **打回和返工不占状态**。Reviewer 在 PR 上要求修改，并在评论里 @Implementer；Implementer 被 @ 后第一步把任务改回 `in_progress`。Planner 验收不通过时同样把任务改回 `in_progress` 并 @Implementer。打回次数由 `loop-guard.sh` 从 GitHub 评审记录和评论里统计，不依赖任何状态。
+3. **为什么保留 `shipping`**：它表示“已合并、等线上验收”。部署通知和巡检补查都靠它找任务；如果和 `in_review` 合并，就只能逐个查 PR，看板上也看不出哪些已经合进 main。
+4. **类别创建后不能改**。建错了只能在界面里归档，再重新运行 `autoteam multica --apply`。
+5. **平台自己改状态时只写内置状态**：运行失败回滚到 `todo`；PR 带关闭关键字合并会直接设为 `done`。所以 PR 标题只写任务编号（建立关联），不写 `Closes XXX-123`。
+6. **“批准”agent 也能做**。平台拦不住 agent 把任务从 `backlog` 改成 `todo`，靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
 
 ## 唤醒规则（Multica 0.5）
 
-研究文档的第 4、6 步假设“自定义状态继承类别的行为”，例如把任务改成返工（todo 类别）就会重新唤醒 Implementer。Multica 0.5（2026-09-18）改了状态模型：自定义状态只继承生命周期（unstarted / started / done / closed），**不再继承**停车、唤醒、失败回滚这些行为。现在只有这几种情况会启动 agent：
+研究文档的第 4、6 步假设“自定义状态继承类别的行为”，例如把任务改成一个 todo 类别的自定义状态就会重新唤醒 Implementer。Multica 0.5（2026-09-18）改了状态模型：自定义状态只继承生命周期（unstarted / started / done / closed），**不再继承**停车、唤醒、失败回滚这些行为。现在只有这几种情况会启动 agent：
 
 | 动作 | 结果 |
 |---|---|
@@ -47,7 +48,7 @@ Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 4
 
 ## 批次
 
-Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。第 1 批全部完成后平台会叫醒父任务的指派人（Planner），它再派发第 2 批里已批准的任务。第 1 批没全部完成，第 2 批就算被批准了，Planner 也不会派发。
+Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。第 1 批全部完成后平台会叫醒父任务的指派人（Planner），它再派发第 2 批里已批准（人已改为 `todo`）的任务。第 1 批没全部完成，第 2 批就算被批准了，Planner 也不会派发。
 
 ## 防止来回打转
 
@@ -65,7 +66,7 @@ Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。第 1 批全�
 以“按日期导出订单”为例：
 
 1. 人在 Chat 里告诉 Planner（或者建任务指派给 Planner）。Planner 拆出：查询接口、生成 CSV（第 1 批），导出页面（第 2 批），放进 `backlog`，提及人请他批准。
-2. 人把三个任务改为 `approved`。每改一个，Planner 就被叫醒一次：第 1 批的两个立即派发，第 2 批的先不动。
+2. 人把三个任务从 `backlog` 改为 `todo`（指派人仍是 Planner）。每改一个，Planner 就被叫醒一次：第 1 批的两个立即派发，第 2 批的先不动。
 3. Planner 按额度选人，比如查询接口派给 `impl-claude`、评审给 `rev-codex`，生成 CSV 派给 `impl-codex`、评审给 `rev-claude`，在评论里写明理由。
-4. Implementer 提交 PR、打开自动合并、把任务改为 `code_review` 并 @Reviewer；被打回一次后修改，第二次批准，检查通过后自动合并并部署。
+4. Implementer 提交 PR、打开自动合并、把任务改为 `in_review` 并 @Reviewer；被打回一次后改回 `in_progress` 修改，再回到 `in_review`，第二次批准，检查通过后自动合并并部署。
 5. 部署工作流通过 webhook 叫醒 Planner，它在线上验证通过后设为 `done`；第 1 批全部完成后被叫醒，派发导出页面。

@@ -46,8 +46,8 @@ agents:                         # 每个 agent 一行
 
 ```mermaid
 flowchart TD
-    S["一个已批准的任务"] --> C1{"有在线、并发没满的<br/>Implementer？"}
-    C1 -->|"没有"| WAIT["留在已批准<br/>下一轮巡检再试"]
+    S["一个已批准的 todo 任务"] --> C1{"有在线、并发没满的<br/>Implementer？"}
+    C1 -->|"没有"| WAIT["留在 todo<br/>下一轮巡检再试"]
     C1 -->|"有"| C2{"账号额度够<br/>做完这个任务？"}
     C2 -->|"不够"| WAIT
     C2 -->|"够"| SORT["排序：成绩单通过率优先<br/>其次订阅、点数、按量"]

@@ -66,7 +66,7 @@ autoteam multica                 # 预览
 autoteam multica --apply         # 想先不让定时任务跑，加 --paused
 ```
 
-会建 4 个自定义状态、registry 里的 agent、一个项目、8 个 autopilot，并把部署 webhook 地址写进 GitHub secret（[第 4–6 步](multica.md)）。
+会建 1 个自定义状态（shipping）、registry 里的 agent、一个项目、8 个 autopilot，并把部署 webhook 地址写进 GitHub secret（[第 4–6 步](multica.md)）。
 
 ## 7. 验收
 

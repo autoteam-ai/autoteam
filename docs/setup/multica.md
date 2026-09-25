@@ -14,16 +14,30 @@ autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_M
 
 ## 状态
 
-建 4 个自定义状态（需要工作区 owner 或 admin）。Multica CLI 没有建状态的命令，autoteam 直接调 Multica 的 `/api/issue-statuses` 接口，token 从 profile 的配置文件里读，通过 stdin 交给 curl，不会出现在进程参数里。
+建 1 个自定义状态（需要工作区 owner 或 admin）。其余流程用到的状态都是 Multica 内置的（`backlog`、`todo`、`in_progress`、`in_review`、`blocked`、`done`、`cancelled`），不用建。Multica CLI 没有建状态的命令，autoteam 直接调 Multica 的 `/api/issue-statuses` 接口，token 从 profile 的配置文件里读，通过 stdin 交给 curl，不会出现在进程参数里。
 
 | key | 名称 | 类别 |
 |---|---|---|
-| `approved` | 已批准 | unstarted |
-| `code_review` | 待评审 | started |
-| `rework` | 返工 | started |
 | `shipping` | 待上线 | started |
 
-接口调用失败（没有权限、接口变了）时，autoteam 会列出手工步骤：Settings → Issue Statuses 里按上表添加，key 必须一致。类别建好后不能改。为什么这些状态不负责唤醒，见[任务状态和唤醒](../concepts/lifecycle.md)。
+接口调用失败（没有权限、接口变了）时，autoteam 会列出手工步骤：Settings → Issue Statuses 里按上表添加，key 必须一致。类别建好后不能改。为什么只保留 `shipping`、以及自定义状态为什么不负责唤醒，见[任务状态和唤醒](../concepts/lifecycle.md)。
+
+## 从旧版本升级
+
+旧版本会建 4 个自定义状态：`approved`、`code_review`、`rework`、`shipping`。现在只保留 `shipping`，另外三个由内置状态代替：
+
+| 旧状态 | 改用 |
+|---|---|
+| `approved`（已批准） | `todo`：人把任务从 `backlog` 改成 `todo`，指派人仍是 Planner |
+| `code_review`（待评审） | `in_review` |
+| `rework`（返工） | `in_progress` |
+
+升级步骤：
+
+1. 升级 autoteam，合并新的角色指令后运行 `autoteam multica --apply --only agents`，让 Multica 里的 agent 用上新指令。
+2. 把停在旧状态的任务移走：`approved` → `todo`、`code_review` → `in_review`、`rework` → `in_progress`。改状态时加 `--no-start`，避免误唤醒；用 `multica issue list --project <项目> --output json` 逐个项目核对，确认没有任务还停在这三个状态。`approved` 的任务指派人是 Planner，移到 `todo` 时不加 `--no-start`，它会被叫醒并派发。
+3. 到 Multica 界面（Settings → Issue Statuses）把 `approved`、`code_review`、`rework` 三个状态归档，需要工作区 owner 或 admin。状态的类别建好后不能改，`autoteam multica --apply` 也不会删除已有的状态，所以只能手工归档。
+4. 运行 `autoteam doctor`，确认没有指令漂移，并且自定义状态一项只要求 `shipping`。
 
 ## agent 和计费注册表
 
@@ -49,10 +63,10 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 | 设计中的触发 | 实现 |
 |---|---|
 | 人下发需求 | 在 Chat 里和 Planner 对话，或建任务指派给 Planner |
-| 人批准 | 把子任务从 `backlog` 改成 `approved`，平台叫醒指派人 Planner |
+| 人批准 | 把子任务从 `backlog` 改成 `todo`，指派人仍是 Planner，平台叫醒它 |
 | Planner 派发 | `multica issue status X todo --no-start` 再 `multica issue assign X --to <Implementer>` |
 | 唤醒 Reviewer | Implementer 在评论里 `[@rev-xxx](mention://agent/<UUID>)` |
-| 退回返工 | Reviewer 把状态改为 `rework`，并在评论里提及 Implementer |
+| 退回返工 | Reviewer 在评论里提及 Implementer，Implementer 把状态改回 `in_progress` |
 | 批次推进 | 子任务带 `--parent` 和 `--stage`，最早一批完成时叫醒父任务的指派人 Planner |
 | 部署通知 | “部署结果” autopilot 的 webhook，请求里的 JSON 交给 Planner |
 | 升级 | Reviewer @Planner；Planner 设为 `blocked` 并提及人 |
