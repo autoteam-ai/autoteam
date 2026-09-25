@@ -2,7 +2,7 @@
 title: 老代码巡检
 role: auditor
 mode: create_issue
-cron: {{AUTOTEAM_CRON_LEGACY_SWEEP}}
+cron_key: AUTOTEAM_CRON_LEGACY_SWEEP
 issue_title: 老代码巡检 {{date}}
 ---
 找出一年没动过的模块，判断还有没有在用：

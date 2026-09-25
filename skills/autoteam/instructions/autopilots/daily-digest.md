@@ -2,7 +2,7 @@
 title: 每日摘要
 role: planner
 mode: create_issue
-cron: {{AUTOTEAM_CRON_DAILY_DIGEST}}
+cron_key: AUTOTEAM_CRON_DAILY_DIGEST
 issue_title: 每日摘要 {{date}}
 subscriber: human
 ---

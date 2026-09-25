@@ -57,7 +57,7 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 | 部署通知 | “部署结果” autopilot 的 webhook，请求里的 JSON 交给 Planner |
 | 升级 | Reviewer @Planner；Planner 设为 `blocked` 并提及人 |
 
-定时触发和部署通知由 `.autoteam/autopilots/*.md` 定义，autoteam 按 front matter 建 autopilot 和触发器，正文是每次运行的 runbook：
+定时触发和部署通知由 autoteam 包内的 autopilot 指令定义（想改某一个，`autoteam eject <名字>` 落到 `.autoteam/instructions/autopilots/`），autoteam 按 front matter 建 autopilot 和触发器，正文是每次运行的 runbook：
 
 | 名称 | 指派 | 触发 | 模式 |
 |---|---|---|---|

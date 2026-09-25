@@ -32,7 +32,8 @@ render_file() {
   render_string "${content%x}"
 }
 
-# 安装清单：<模板路径> <目标路径> <方式>
+# 安装清单：<模板路径> <目标路径> <方式>。角色指令、autopilot、planner-mcp.json 不在里面：
+# 它们默认不落盘，读取见 instructions.sh，要自己改用 autoteam eject
 #   file     整文件，已存在则跳过（--force 覆盖）
 #   exec     同 file，写完加可执行位
 #   config   只在不存在时创建，--force 也不覆盖（用户数据）
@@ -51,23 +52,12 @@ root/github/workflows/rollback.yml    .github/workflows/rollback.yml          fi
 autoteam/autoteam.conf                $AUTOTEAM_DIR/autoteam.conf                config
 autoteam/registry.yaml                $AUTOTEAM_DIR/registry.yaml                config
 autoteam/README.md                    $AUTOTEAM_DIR/README.md                    file
-../instructions/roles/planner.md      $AUTOTEAM_DIR/planner.md                   file
-../instructions/roles/implementer.md  $AUTOTEAM_DIR/implementer.md               file
-../instructions/roles/reviewer.md     $AUTOTEAM_DIR/reviewer.md                  file
-../instructions/roles/auditor.md      $AUTOTEAM_DIR/auditor.md                   file
-../instructions/planner-mcp.json      $AUTOTEAM_DIR/planner-mcp.json             file
 autoteam/playbook.md                  $AUTOTEAM_DIR/playbook.md                  file
 autoteam/scripts/gh-app-token.sh      $AUTOTEAM_DIR/scripts/gh-app-token.sh      exec
 autoteam/scripts/loop-guard.sh        $AUTOTEAM_DIR/scripts/loop-guard.sh        exec
 autoteam/scripts/merge-mode.sh        $AUTOTEAM_DIR/scripts/merge-mode.sh        exec
 autoteam/scripts/health-metrics.sh    $AUTOTEAM_DIR/scripts/health-metrics.sh    exec
 EOF
-  local f name
-  for f in "$AUTOTEAM_TEMPLATES"/../instructions/autopilots/*.md; do
-    [ -f "$f" ] || continue
-    name=${f##*/}
-    printf '%-37s %-39s %s\n' "../instructions/autopilots/$name" "$AUTOTEAM_DIR/autopilots/$name" file
-  done
 }
 
 # 受管块的开始/结束标记（按目标文件类型）

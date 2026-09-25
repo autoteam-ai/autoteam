@@ -2,7 +2,7 @@
 title: 规则复盘
 role: planner
 mode: create_issue
-cron: {{AUTOTEAM_CRON_RULE_REVIEW}}
+cron_key: AUTOTEAM_CRON_RULE_REVIEW
 issue_title: 规则复盘 {{date}}
 subscriber: human
 ---

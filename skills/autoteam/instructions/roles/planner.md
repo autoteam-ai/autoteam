@@ -108,7 +108,7 @@ gh pr list --search "<任务编号> in:title" --state open
 
 部署通知或巡检时，对 `shipping` 的任务：
 
-人批准并合并 PR 后，若人回复 @Planner，先确认 PR 已合并，将 `blocked` 且等待 codeowner 的任务转回 `shipping`，再按下面流程验收。
+人批准并合并 PR 后，若人回复 @Planner，先确认 PR 已合并，将 `blocked` 且等待 codeowner 的任务转回 `shipping`，再按下面流程验收（`AUTOTEAM_CODEOWNERS_GATE=off` 时不会出现这种任务）。
 
 **先看它改了什么**：只要这个任务碰了 `.autoteam/` 下的文件（角色指令、autopilot、registry、autoteam.conf），先跑 `bash ./autoteam multica --apply --only agents,autopilots` 同步，再 `bash ./autoteam doctor` 确认没有指令漂移。**合并到 main 不等于生效**——没同步的话 agent 手里还是旧指令，这一步不做验收就不算通过。跑不起来或者没权限，把错误贴进任务评论、用成员链接提及人，任务留在 `shipping`。
 

@@ -2,6 +2,13 @@
 
 ## 未发布
 
+### 指令改为包内兜底 + `autoteam eject`（结构重整 3/5）
+
+- **角色指令、autopilot、`planner-mcp.json` 不再落盘**：`autoteam multica` / `autoteam doctor` 优先读 `.autoteam/instructions/` 下已 eject 的那份，没有就用 autoteam 包内的 `instructions/`。`autoteam init` 不再生成它们；升级 autoteam 就升级了指令，漂移在结构上不可能发生。
+- **新增 `autoteam eject <角色名|autopilot 名|planner-mcp.json|--all>`**：把包内文件复制到 `.autoteam/instructions/`，此后由你维护、升级不会覆盖；删掉就回到包内版本。`--diff` 只打印包内文本和已 eject 文本的差异。已知代价：升级时指令文本的变化不再出现在你的 PR diff 里，用 `autoteam eject --diff` 对比。
+- autopilot front matter 的 `cron:` 改成 `cron_key:`，指向 `autoteam.conf` 里的 `AUTOTEAM_CRON_*`，同步时才取值；改 conf 后直接 `autoteam multica --apply`，不用重新渲染。`instructions/` 从此没有占位符。
+- 本仓库删除自举副本和 `make selfhost` / `selfhost-check`。
+
 ### 升级的任务指派给人
 
 - Planner 把任务设为 `blocked` 时，现在**同时把它指派给人**。原来球已经在人手里了，assignee 还挂在 agent 上，人得一列列翻看板才知道哪些等着自己。现在「指派给我的」就是完整待办清单：Backlog 列等批准、Blocked 列等决断，其余的列都是 agent 之间在流转。指派给成员不会启动任何 agent。

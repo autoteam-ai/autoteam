@@ -41,17 +41,20 @@
    | `reviewer` | 同上，不加 `--draft` | **不要执行任何 `gh pr merge` 命令**。这种仓库里 `gh pr merge --auto` 不报错，而是立即合并，绕过评审和检查 |
 
    正文按 `.github/pull_request_template.md` 填。标题以任务编号开头；**不写 Closes / Fixes / Resolves 等关闭关键字**，因为任务要等线上验收通过才算完成。`staged` 和 `reviewer` 都在评论里写明由 Reviewer 放行。
-4. 提 PR 后，用 `<身份> gh pr view <PR> --json files` 取得完整改动文件列表，对照 PR 目标分支的 `.github/CODEOWNERS`，按 GitHub 的匹配规则逐文件判断（最后一条匹配规则生效，不能只看文件扩展名或受管块）。命中人工负责的路径时：
-   - `multica issue status <任务> blocked --no-start`；
-   - 从 `.autoteam/autoteam.conf` 读取 `AUTOTEAM_HUMAN`（为空时找工作区 owner），用 `multica workspace member list --output json` 查出其 `user_id`，执行 `multica issue assign <任务> --to-id <user_id> --no-start`；
-   - 在任务评论里列出命中的文件，写明「需要 codeowner 批准」，用 `[@名字](mention://member/<user_id>)` 提及人。
-   不命中则 `multica issue status <任务> code_review --no-start`。两种情况都在同一条任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`，人工审批不替代 Reviewer 评审。
+4. 提 PR 后，读取 `.autoteam/autoteam.conf` 的 `AUTOTEAM_CODEOWNERS_GATE`（未设置按 `on`）：
+   - `off`：跳过所有 CODEOWNERS 判断，直接 `multica issue status <任务> code_review --no-start`。
+   - `on`：用 `<身份> gh pr view <PR> --json files` 取得完整改动文件列表，对照 PR 目标分支的 `.github/CODEOWNERS`，按 GitHub 的匹配规则逐文件判断（最后一条匹配规则生效，不能只看文件扩展名或受管块）。命中人工负责的路径时：
+     - `multica issue status <任务> blocked --no-start`；
+     - 从 `.autoteam/autoteam.conf` 读取 `AUTOTEAM_HUMAN`（为空时找工作区 owner），用 `multica workspace member list --output json` 查出其 `user_id`，执行 `multica issue assign <任务> --to-id <user_id> --no-start`；
+     - 在任务评论里列出命中的文件，写明「需要 codeowner 批准」，用 `[@名字](mention://member/<user_id>)` 提及人。
+     不命中则 `multica issue status <任务> code_review --no-start`。
+   两种开关状态都在同一条任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`；人工审批不替代 Reviewer 评审。
    **提及 Reviewer 之前**先跑 `<身份> gh pr view <PR> --json mergeable,statusCheckRollup`，确认最新 head 没有失败的检查、`mergeable` 不是 CONFLICTING。检查红了先修；冲突先同步 main 解决（保留双方规则）；检查还在跑就在评论里写明「检查运行中」，不要为此轮询等待。
 5. 做的过程中发现、但不属于本任务的问题，写进评论的“范围外发现”，不要顺手做。
 
 ## 返工
 
-被 Reviewer 或 Planner 提及、要求修改时：读 PR 上的评审意见和任务评论，`multica issue status <任务> in_progress --no-start`，在同一个分支和 PR 上修改，重新跑 `make check`，推送后重新按「交付」第 4 步判断 CODEOWNERS、设置状态并提及 Reviewer。只改指出的问题。
+被 Reviewer 或 Planner 提及、要求修改时：读 PR 上的评审意见和任务评论，`multica issue status <任务> in_progress --no-start`，在同一个分支和 PR 上修改，重新跑 `make check`，推送后重新按「交付」第 4 步读取 `AUTOTEAM_CODEOWNERS_GATE`：`off` 时直接 `code_review`，`on` 时才判断 CODEOWNERS，再设置状态并提及 Reviewer。只改指出的问题。
 
 ## 不要
 

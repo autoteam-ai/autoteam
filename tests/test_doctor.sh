@@ -58,9 +58,16 @@ t_doctor_detects_autopilot_bound_to_other_project() {
 t_doctor_detects_instruction_drift() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
-  echo "本地改了但没同步" >> .autoteam/reviewer.md
+  autoteam_stub eject reviewer >/dev/null
   out=$(autoteam_stub doctor --skip-github)
-  assert_contains "$out" "agent rev-codex 的指令和 .autoteam/reviewer.md 不一致"
+  assert_not_contains "$out" "指令漂移" "eject 后文本没变，不算漂移"
+  echo "本地改了但没同步" >> .autoteam/instructions/roles/reviewer.md
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" "agent rev-codex 的指令和生效文本（.autoteam/instructions/roles/reviewer.md）不一致"
+  # 删掉 eject 的文件，生效文本回到包内版本，和 Multica 里的一致，漂移消失
+  rm .autoteam/instructions/roles/reviewer.md
+  out=$(autoteam_stub doctor --skip-github)
+  assert_not_contains "$out" "指令漂移"
 }
 
 t_doctor_reports_read_failure_not_drift() {

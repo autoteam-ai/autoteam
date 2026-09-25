@@ -23,7 +23,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--human <成员名>` | 负责批准和接收升级的 Multica 成员 |
 | `--timezone <时区>` | autopilot 时区，默认 Asia/Shanghai |
 | `--force` | 覆盖与模板不同的文件、替换受管块。三种不覆盖：`autoteam.conf`、`registry.yaml`（用户数据），以及 `AUTOTEAM_DIFF_IGNORE` 里登记的（有意改过的，比如加了运行时的 gate.yml）——显式点名文件时才动它们 |
-| `[文件...]` | 只处理这些文件，例如 `autoteam init --force .autoteam/reviewer.md` |
+| `[文件...]` | 只处理这些文件，例如 `autoteam init --force .autoteam/playbook.md` |
 | `--dry-run` | 只列出会做什么 |
 
 写文件的规则：
@@ -93,4 +93,18 @@ autoteam diff --check               # 有差异就退出码 1，给 CI 用
 
 `--check` 是给 CI 的漂移闸门：跳过 `autoteam.conf`、`registry.yaml`（装的是用户数据，本来就该不一样），以及 `autoteam.conf` 里 `AUTOTEAM_DIFF_IGNORE` 登记的文件（按本项目需要改过的，比如加了运行时的 gate.yml）。有差异时打印 diff 并退出码 1。
 
-升级 autoteam 的步骤：更新 autoteam（`npx skills update autoteam` 或 `git pull`）→ `autoteam init` 补上新增的文件 → `autoteam diff` 看已有文件的差异 → 没改过的文件用 `autoteam init --force <文件...>` 覆盖，改过的（比如加了运行时的 gate.yml）手动合并 → 提交、合并 → `autoteam multica --apply`。
+升级 autoteam 的步骤：更新 autoteam（`npx skills update autoteam` 或 `git pull`）→ `autoteam init` 补上新增的文件 → `autoteam diff` 看已有文件的差异 → 没改过的文件用 `autoteam init --force <文件...>` 覆盖，改过的（比如加了运行时的 gate.yml）手动合并 → 提交、合并 → `autoteam multica --apply`。角色指令和 autopilot 不在 `autoteam diff` 的范围内：没 eject 的直接跟着包走，eject 过的用 `autoteam eject --diff` 看差异。
+
+## autoteam eject
+
+```bash
+autoteam eject reviewer             # 角色名：planner / implementer / reviewer / auditor
+autoteam eject patrol               # autopilot 名
+autoteam eject planner-mcp.json
+autoteam eject --all                # 全部
+autoteam eject --diff reviewer      # 只看差异，不写文件
+```
+
+角色指令、autopilot、`planner-mcp.json` 默认不落盘在你的仓库里：`autoteam multica` 直接读 autoteam 包内的版本。`eject` 把包内的文件复制到 `.autoteam/instructions/`（`roles/<角色>.md`、`autopilots/<名字>.md`、`planner-mcp.json`），此后由你维护，升级不会覆盖；读取时优先用落盘的那份，删掉它就回到包内版本。已存在的文件不会被覆盖。
+
+`--diff` 打印包内文本和已 eject 文本的差异，没 eject 过的目标提示“未 eject”。升级 autoteam 之后，用它看包内的新版本改了什么，再手动合并进你的那份。
