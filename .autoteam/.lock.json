@@ -1,0 +1,20 @@
+{
+  "version": "0.1.0",
+  "generated_at": "2026-09-25T14:22:32Z",
+  "files": {
+    ".autoteam/README.md": { "kind": "file", "sha256": "4286bfe3f6facdf64b3582d99a15a524bbae870f797056f295c9298951e5964b" },
+    ".autoteam/playbook.md": { "kind": "file", "sha256": "5bb7df26327ec06f9f2e8982c50ebf2470fc0eb470ba5c9a50bd0cff140600dc" },
+    ".autoteam/scripts/gh-app-token.sh": { "kind": "file", "sha256": "2a6ddfc77f5301f1129d7a33dffdef46935243d897b712669ff9cc4bc1ceb5e9" },
+    ".autoteam/scripts/health-metrics.sh": { "kind": "file", "sha256": "18caf5aae7f21816a0000a9d2e53c5353f9a26ea4c85fcb201d6ee3fcd9464b9" },
+    ".autoteam/scripts/loop-guard.sh": { "kind": "file", "sha256": "a6c0eb2f75ce9b816067297df31f164a6043a4beff456d0fb4ebb547e726ca6b" },
+    ".autoteam/scripts/merge-mode.sh": { "kind": "file", "sha256": "8add493689d2a51bea1803138ea70707d860ecc646a10f28ab41f5e1694da847" },
+    ".github/CODEOWNERS": { "kind": "block", "sha256": "2edd24b01f313a3f0dcd03d2924930ffd247a735d6bbff2a587a593a418348c8" },
+    ".github/pull_request_template.md": { "kind": "file", "sha256": "a8e06748c00528ae2d97221a9162284053dad545fc0bffccd2524cfc1ec39b03" },
+    ".github/workflows/deploy.yml": { "kind": "file", "sha256": "5f6ac6e7d09b6197431fe1bee6b52ae4cdadf59b0c34b951e3b07342ca6d1627" },
+    ".github/workflows/gate.yml": { "kind": "file", "sha256": "c2052364ea5120ddd3397c7dd013221e0ed47c64d8c5d731e05f546d8d95ca20" },
+    ".github/workflows/rollback.yml": { "kind": "file", "sha256": "dd79c11958b154fdcc79e6c64b5c6c22cd1dfa5714822ed95f71f210649ee6bd" },
+    ".gitignore": { "kind": "block", "sha256": "dd5d86136f662b6a909bdde3fdd910499877bd854921c955f827337c8d877c6b" },
+    ".jscpd.json": { "kind": "file", "sha256": "07d737fc41eedd7354b26087c3040016ed9b11be8fb845f4cf0c3100ed00bcde" },
+    "AGENTS.md": { "kind": "block", "sha256": "8cf32315663e2f9cc339fe1094ba94406a01b36f336f17bff175f50655cbe399" }
+  }
+}

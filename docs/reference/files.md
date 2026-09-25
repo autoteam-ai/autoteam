@@ -20,6 +20,7 @@ title: 生成的文件
 | `.autoteam/README.md` | 目录说明 | 模板 | ✅ |
 | `.autoteam/autoteam.conf` | 配置（[说明](config.md#autoteamconf)） | 人 | ✅ |
 | `.autoteam/registry.yaml` | 计费注册表和团队清单（[说明](config.md#registryyaml)） | 人 | ✅ |
+| `.autoteam/.lock.json` | 装机版本和每个文件的 sha256，`autoteam upgrade` 靠它判断哪些文件改过；要入库 | 工具 | ✅ |
 | `.autoteam/playbook.md` | 本项目的经验库，Planner 每次开工必读；由 Planner 提议、人批准 | 人 | ✅ |
 | `.autoteam/instructions/**` | 可选，`autoteam eject` 落盘的角色指令、autopilot、`planner-mcp.json`；有这份就优先用，没有则用 autoteam 包内的 | 人 | ✅ |
 | `.autoteam/scripts/gh-app-token.sh` | 用 App 私钥铸 token，给 agent 提供 GitHub 身份 | 模板 | ✅ |
@@ -27,6 +28,6 @@ title: 生成的文件
 | `.autoteam/scripts/merge-mode.sh` | 判断这个 PR 由谁放行、由谁合并（platform / staged / reviewer） | 模板 | ✅ |
 | `.autoteam/scripts/health-metrics.sh` | 代码健康指标 | 模板 | ✅ |
 
-“模板”表示一般不需要手改，升级 autoteam 时用 `autoteam diff` / `autoteam init --force` 更新；“人”表示装完后按项目情况修改。
+“模板”表示一般不需要手改，升级 autoteam 时用 `autoteam upgrade` 更新（改过的文件它不会动）；“人”表示装完后按项目情况修改。
 
 autoteam 不会删除任何文件，也不会删除 GitHub 或 Multica 上的任何东西。卸载时手动删掉这些文件和受管块，在 Multica 里删掉对应的 agent 和 autopilot，在 GitHub 上删掉规则集 `autoteam` 和 secret `MULTICA_DEPLOY_HOOK`。

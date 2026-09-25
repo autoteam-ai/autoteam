@@ -81,6 +81,21 @@ cmd_doctor() {
   [ "$AUTOTEAM_ERRORS" -eq 0 ]
 }
 
+# 老项目没有 lock 只提醒：升级时 autoteam upgrade 会生成
+doctor_lock() {
+  local v current
+  current=$(autoteam_version)
+  if [ ! -f "$AUTOTEAM_LOCK_REL" ]; then
+    warn "没有 $AUTOTEAM_LOCK_REL（旧版 autoteam 装的项目）：运行 autoteam upgrade 生成，升级靠它判断哪些文件改过"
+  elif ! v=$(jq -er '.version' "$AUTOTEAM_LOCK_REL" 2>/dev/null); then
+    fail "$AUTOTEAM_LOCK_REL 读不出 version：不是合法的 lock，运行 autoteam upgrade 重新生成"
+  elif [ "$v" != "$current" ]; then
+    warn "$AUTOTEAM_LOCK_REL 记录的版本是 $v，当前 autoteam 是 $current：运行 autoteam upgrade"
+  else
+    ok "$AUTOTEAM_LOCK_REL 版本 $v，与当前 autoteam 一致"
+  fi
+}
+
 doctor_files() {
   local tpl target mode missing="" t start
   while read -r tpl target mode; do
@@ -105,6 +120,7 @@ EOF
     ok "工作流文件齐全"
   fi
 
+  doctor_lock
   if [ -f Makefile ]; then
     for t in check dev deploy; do
       grep -Eq "^${t}[[:space:]]*:" Makefile || fail "Makefile 缺少 $t 目标"

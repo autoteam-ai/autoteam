@@ -22,7 +22,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--workspace <slug>` | Multica 工作区 |
 | `--human <成员名>` | 负责批准和接收升级的 Multica 成员 |
 | `--timezone <时区>` | autopilot 时区，默认 Asia/Shanghai |
-| `--force` | 覆盖与模板不同的文件、替换受管块。三种不覆盖：`autoteam.conf`、`registry.yaml`（用户数据），以及 `AUTOTEAM_DIFF_IGNORE` 里登记的（有意改过的，比如加了运行时的 gate.yml）——显式点名文件时才动它们 |
+| `--force` | 覆盖与模板不同的文件、替换受管块，不管改没改过；`autoteam.conf`、`registry.yaml`（用户数据）不覆盖。升级请用 `autoteam upgrade`，它不会动你改过的文件 |
 | `[文件...]` | 只处理这些文件，例如 `autoteam init --force .autoteam/playbook.md` |
 | `--dry-run` | 只列出会做什么 |
 
@@ -91,9 +91,25 @@ autoteam diff --check               # 有差异就退出码 1，给 CI 用
 
 对比已安装的文件和当前模板的渲染结果，受管块只比较块内内容。
 
-`--check` 是给 CI 的漂移闸门：跳过 `autoteam.conf`、`registry.yaml`（装的是用户数据，本来就该不一样），以及 `autoteam.conf` 里 `AUTOTEAM_DIFF_IGNORE` 登记的文件（按本项目需要改过的，比如加了运行时的 gate.yml）。有差异时打印 diff 并退出码 1。
+`--check` 是给 CI 的漂移闸门：跳过 `autoteam.conf`、`registry.yaml`（装的是用户数据，本来就该不一样）；`.autoteam/.lock.json` 显示本地改过的文件（比如加了运行时的 gate.yml）报告为“本地已修改”，不算漂移。剩下的差异就是“模板更新了、文件还是装机时的样子”，打印 diff 并退出码 1，用 `autoteam upgrade` 更新。
 
-升级 autoteam 的步骤：更新 autoteam（`npx skills update autoteam` 或 `git pull`）→ `autoteam init` 补上新增的文件 → `autoteam diff` 看已有文件的差异 → 没改过的文件用 `autoteam init --force <文件...>` 覆盖，改过的（比如加了运行时的 gate.yml）手动合并 → 提交、合并 → `autoteam multica --apply`。角色指令和 autopilot 不在 `autoteam diff` 的范围内：没 eject 的直接跟着包走，eject 过的用 `autoteam eject --diff` 看差异。
+## autoteam upgrade
+
+```bash
+autoteam upgrade              # 升级全部文件
+autoteam upgrade --dry-run    # 只列计划
+autoteam upgrade .github/workflows/gate.yml
+```
+
+`autoteam init` 在 `.autoteam/.lock.json` 记下版本和每个文件的 sha256（受管块记块内内容）。`upgrade` 拿现在的文件比一次：
+
+- 和 lock 一致（没改过）：直接换成新模板，不需要 `--force`
+- 不一致（本地改过）：不写，打印当前文件和新模板的差异，由你决定——保留改动就手工合并需要的部分，放弃改动就 `autoteam init --force <文件>`。包里不带历史模板，所以只有两方对比
+- `autoteam.conf`、`registry.yaml`、`Makefile` 不动；缺的文件补上
+
+结束后更新 lock 的版本号。`.lock.json` 要提交入库：它是全团队升级的依据。旧版 autoteam 装的项目没有 lock，第一次 `upgrade` 会生成，和模板不一致的文件一律当作改过。
+
+升级 autoteam 的步骤：更新 autoteam（`npx skills update autoteam` 或 `git pull`）→ `autoteam upgrade` → 处理它列出的本地改过的文件 → 提交、合并 → `autoteam multica --apply`。角色指令和 autopilot 不在 `autoteam diff` 的范围内：没 eject 的直接跟着包走，eject 过的用 `autoteam eject --diff` 看差异。
 
 ## autoteam eject
 

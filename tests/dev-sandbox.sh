@@ -59,5 +59,9 @@ echo "== diff --check（漂移闸门）=="
 run diff --check
 
 echo
+echo "== upgrade（按 .lock.json 升级，没改过的覆盖、改过的只报告）=="
+run upgrade
+
+echo
 echo "沙盒在 $SANDBOX"
 echo "可以在里面直接试：bash $ROOT/skills/autoteam/bin/autoteam -C $SANDBOX <命令>"

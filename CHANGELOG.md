@@ -2,6 +2,13 @@
 
 ## 未发布
 
+### `.lock.json` + `autoteam upgrade`，删 `AUTOTEAM_DIFF_IGNORE`（结构重整 4/5）
+
+- **`autoteam init` 写 `.autoteam/.lock.json`**：包版本、`generated_at`，以及每个落盘文件的 sha256（受管块记块内内容）。`autoteam.conf`、`registry.yaml`、`Makefile` 是你的，不记。lock 要入库，它是全团队升级的依据；内容没变时不重写，不会因为时间戳多出 diff。
+- **新增 `autoteam upgrade [--dry-run] [文件...]`**：现在的 sha 和 lock 一致（没改过）就直接换成新模板，不需要 `--force`；不一致（本地改过）只打印当前文件和新模板的差异，不写，给出下一步（保留就手工合并，放弃就 `autoteam init --force <文件>`）。包里不带历史模板，所以是两方对比。结束后 lock 的版本号推进到当前包。旧项目没有 lock 时，第一次 `upgrade` 生成它，和模板不一致的文件一律当作改过。
+- **删除 `AUTOTEAM_DIFF_IGNORE`**：它记的就是"哪些文件我故意改过"，lock 能自动推断。`autoteam diff --check` 改为按 lock 判断，本地改过的报告为"本地已修改"、不算漂移。`autoteam init --force` 不再跳过任何模板文件——要安全升级用 `upgrade`。旧 `autoteam.conf` 里残留的这个键不再有作用，可以删掉。
+- `autoteam doctor` 新增：`.lock.json` 的版本和当前包一致；不一致提示 `autoteam upgrade`，没有 lock 只提醒、不报错。
+
 ### 指令改为包内兜底 + `autoteam eject`（结构重整 3/5）
 
 - **角色指令、autopilot、`planner-mcp.json` 不再落盘**：`autoteam multica` / `autoteam doctor` 优先读 `.autoteam/instructions/` 下已 eject 的那份，没有就用 autoteam 包内的 `instructions/`。`autoteam init` 不再生成它们；升级 autoteam 就升级了指令，漂移在结构上不可能发生。

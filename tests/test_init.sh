@@ -42,6 +42,7 @@ t_init_is_idempotent() {
   new_repo
   autoteam_offline init --owner alice >/dev/null
   before=$(find . -path ./.git -prune -o -type f -print0 | xargs -0 shasum | sort)
+  sleep 1 # 跨过一秒：.lock.json 不能只因为 generated_at 变了就重写
   out=$(autoteam_offline init --owner alice)
   after=$(find . -path ./.git -prune -o -type f -print0 | xargs -0 shasum | sort)
   assert_eq "$after" "$before" "第二次运行不应改动文件"
@@ -142,52 +143,86 @@ t_registry_parsing_and_validation() {
   assert_contains "$out" "rc=1"
 }
 
+# 模拟"装机时的模板和现在不一样"：改文件，再把 lock 里的 sha 改成改后的样子
+fake_old_install() {
+  echo "# 旧模板" >> "$1"
+  sha=$(shasum -a 256 < "$1" | cut -d' ' -f1)
+  sed -i.bak "s|\(\"$1\": { \"kind\": \"file\", \"sha256\": \"\)[0-9a-f]*|\1$sha|" .autoteam/.lock.json
+  rm -f .autoteam/.lock.json.bak
+}
+
+t_init_writes_lock() {
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  assert_eq "$(jq -r .version .autoteam/.lock.json)" "$(autoteam_offline version | cut -d' ' -f2)"
+  assert_eq "$(jq -r '.files[".github/workflows/gate.yml"].sha256' .autoteam/.lock.json)" \
+    "$(shasum -a 256 < .github/workflows/gate.yml | cut -d' ' -f1)"
+  assert_eq "$(jq -r '.files["AGENTS.md"].kind' .autoteam/.lock.json)" block
+  # 用户的文件不进 lock；lock 本身要入库，不能被受管块忽略
+  assert_eq "$(jq -r '.files | has(".autoteam/autoteam.conf") or has(".autoteam/registry.yaml") or has("Makefile")' .autoteam/.lock.json)" false
+  git check-ignore -q .autoteam/.lock.json && tfail ".lock.json 不该被 .gitignore 忽略"
+  assert_contains "$(autoteam_offline doctor --skip-github --skip-multica)" "与当前 autoteam 一致"
+  # 已有 lock 时 init 保留版本号，由 upgrade 推进
+  sed -i.bak 's/"version": ".*"/"version": "0.0.1"/' .autoteam/.lock.json
+  autoteam_offline init >/dev/null
+  assert_eq "$(jq -r .version .autoteam/.lock.json)" 0.0.1
+  assert_contains "$(autoteam_offline doctor --skip-github --skip-multica)" "记录的版本是 0.0.1"
+}
+
+t_upgrade_overwrites_unmodified_keeps_modified() {
+  setup_ready_repo
+  fake_old_install .autoteam/playbook.md
+  echo "# 本地加的" >> .autoteam/scripts/loop-guard.sh
+  kept=$(jq -r '.files[".autoteam/scripts/loop-guard.sh"].sha256' .autoteam/.lock.json)
+
+  out=$(autoteam_offline upgrade --dry-run)
+  assert_contains "$out" "没有写任何文件"
+  assert_file_contains .autoteam/playbook.md "# 旧模板"
+
+  out=$(autoteam_offline upgrade)
+  assert_contains "$out" "覆盖 .autoteam/playbook.md"
+  assert_eq "$(grep -c '旧模板' .autoteam/playbook.md)" 0 "没改过的文件应被覆盖"
+  assert_contains "$out" "本地已修改，未覆盖 .autoteam/scripts/loop-guard.sh"
+  assert_contains "$out" "-# 本地加的"
+  assert_contains "$out" "autoteam init --force <文件>"
+  assert_file_contains .autoteam/scripts/loop-guard.sh "# 本地加的"
+  assert_eq "$(jq -r '.files[".autoteam/scripts/loop-guard.sh"].sha256' .autoteam/.lock.json)" "$kept" "改过的文件保留原记录"
+  assert_contains "$out" "已是最新 .github/workflows/gate.yml"
+}
+
+t_upgrade_without_lock_keeps_differing_files() {
+  setup_ready_repo
+  rm .autoteam/.lock.json
+  echo "# 本地加的运行时" >> .github/workflows/gate.yml
+  out=$(autoteam_offline doctor --skip-github --skip-multica)
+  assert_contains "$out" "没有 .autoteam/.lock.json"
+  out=$(autoteam_offline upgrade)
+  assert_contains "$out" "无法判断是否改过，未覆盖 .github/workflows/gate.yml"
+  assert_file_contains .github/workflows/gate.yml "本地加的运行时"
+  out=$(autoteam_offline upgrade)
+  assert_contains "$out" "本地已修改，未覆盖 .github/workflows/gate.yml"
+}
+
 # autoteam diff --check：CI 用来挡住"改了模板但没同步到本仓库"的漂移
-t_diff_check_exits_nonzero_on_drift() {
+t_diff_check_uses_lock() {
   setup_ready_repo
   out=$(autoteam_offline diff --check) ; rc=$?
   assert_eq "$rc" 0 "刚装完不该有漂移"
   assert_contains "$out" "与模板一致"
+  assert_not_contains "$out" "registry.yaml"
 
-  echo "# 手改的" >> .autoteam/playbook.md
+  # 用户改过的不算漂移
+  echo "# 本项目加的运行时" >> .github/workflows/gate.yml
+  out=$(autoteam_offline diff --check) ; rc=$?
+  assert_eq "$rc" 0
+  assert_contains "$out" "本地已修改 .github/workflows/gate.yml"
+
+  # 模板变了、文件还是装机时的样子：漂移
+  fake_old_install .autoteam/playbook.md
   out=$(autoteam_offline diff --check) ; rc=$?
   assert_eq "$rc" 1 "有漂移要退出码 1"
   assert_contains "$out" ".autoteam/playbook.md"
-  assert_contains "$out" "AUTOTEAM_DIFF_IGNORE"
-}
-
-t_diff_check_skips_user_data_and_ignored_files() {
-  setup_ready_repo
-  # registry.yaml 装的是用户数据，和模板不一样是正常的，--check 不该报它
-  out=$(autoteam_offline diff --check) ; rc=$?
-  assert_eq "$rc" 0
-  assert_not_contains "$out" "registry.yaml"
-
-  # 登记为有意改过的文件要被跳过
-  echo "# 本项目加的运行时" >> .github/workflows/gate.yml
-  out=$(autoteam_offline diff --check) ; rc=$?
-  assert_eq "$rc" 1 "还没登记时应该报出来"
-  # 同名键第一条生效，所以要改那一行而不是追加
-  sed -i.bak 's|^AUTOTEAM_DIFF_IGNORE=$|AUTOTEAM_DIFF_IGNORE=.github/workflows/gate.yml|' .autoteam/autoteam.conf
-  out=$(autoteam_offline diff --check) ; rc=$?
-  assert_eq "$rc" 0 "登记之后就不该再报"
-  assert_contains "$out" "已忽略 .github/workflows/gate.yml"
-}
-
-# 升级时 --force 不该覆盖"有意改过"的文件：这是 first-run 里踩过的坑（改过的 gate.yml 被冲掉）
-t_force_skips_files_listed_in_diff_ignore() {
-  setup_ready_repo
-  sed -i.bak 's|^AUTOTEAM_DIFF_IGNORE=$|AUTOTEAM_DIFF_IGNORE=.github/workflows/gate.yml|' .autoteam/autoteam.conf
-  echo "# 本项目加的运行时" >> .github/workflows/gate.yml
-  before=$(shasum .github/workflows/gate.yml | cut -d' ' -f1)
-
-  out=$(autoteam_offline init --force)
-  assert_contains "$out" "跳过 .github/workflows/gate.yml"
-  assert_eq "$(shasum .github/workflows/gate.yml | cut -d' ' -f1)" "$before" "--force 不该覆盖登记过的文件"
-
-  # 显式点名时还是要覆盖，否则没法升级它
-  autoteam_offline init --force .github/workflows/gate.yml >/dev/null
-  assert_not_contains "$(cat .github/workflows/gate.yml)" "本项目加的运行时" "显式点名时应该覆盖"
+  assert_contains "$out" "autoteam upgrade"
 }
 
 # autoteam eject：把包内指令复制到 .autoteam/instructions/，此后由用户维护
