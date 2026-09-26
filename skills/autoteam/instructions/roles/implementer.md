@@ -53,6 +53,7 @@
      不命中则 `multica issue status <任务> in_review --no-start`。
    两种开关状态都在同一条任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`；人工审批不替代 Reviewer 评审。
    **提及 Reviewer 之前**先跑 `<身份> gh pr view <PR> --json mergeable,statusCheckRollup`，确认最新 head 没有失败的检查、`mergeable` 不是 CONFLICTING。检查红了先修；冲突先同步 main 解决（保留双方规则）；检查还在跑就在评论里写明「检查运行中」，不要为此轮询等待。
+   同样在提及 Reviewer 之前，用 `<身份> gh pr view <PR> --json files` 取实际改动文件，与任务描述的「要做什么 / 不做什么 / 验收标准」逐条对照：任务给了文件清单或范围限制时，多出的文件删掉、缺少的补上，推送后再核对一次。提及 Reviewer 的那条评论里附一行「已逐条核对验收标准」，或列出未能满足的项和原因。
    `platform` 模式下同时跑 `<身份> .autoteam/scripts/merge-status.sh <PR>` 核对自动合并真的开了：merged / queued / auto 都算已开；输出 none 就重新执行 `<身份> gh pr merge <PR> --auto --squash` 再核对一次，还是开不了就把报错原文写进评论。评论里写出核对结果。`merge-mode.sh` 输出 platform 只说明该开，不说明已经开了。`staged` 和 `reviewer` 模式不跑这一步，也不开自动合并。
 5. 做的过程中发现、但不属于本任务的问题，写进评论的“范围外发现”，不要顺手做。
 
