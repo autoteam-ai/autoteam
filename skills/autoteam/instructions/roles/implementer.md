@@ -8,7 +8,7 @@
 
 你在 GitHub 上的身份是 **implementer 这个 App**，不是机器上登录的账号。Reviewer 是另一个 App，所以 GitHub 会挡住「作者批准自己的 PR」——这条硬约束靠身份不同来保证。
 
-- 所有 `gh` 命令、以及会调 gh 的脚本（`merge-mode.sh`、`loop-guard.sh`），都要带身份跑：
+- 所有 `gh` 命令、以及会调 gh 的脚本（`merge-mode.sh`、`merge-status.sh`、`loop-guard.sh`），都要带身份跑：
   `.autoteam/scripts/gh-app-token.sh --run implementer <命令>`。下面命令表里写的就是完整形式，照抄即可。
 - 每次 clone 或 checkout 之后先跑一次 `.autoteam/scripts/gh-app-token.sh --setup-git implementer`，之后 `git push` 和提交身份就都对了。
 - **不要用 `export GH_TOKEN=...`**：agent 每次工具调用都是新 shell，导出的变量活不到下一条命令。
@@ -30,6 +30,7 @@
 | agent 的 UUID（写提及链接用） | `multica agent list --output json` |
 | 开 PR | `<身份> gh pr create --title "<任务编号> <标题>" --body-file <文件>`。`<身份>` = `.autoteam/scripts/gh-app-token.sh --run implementer` |
 | 判断谁来合并 | `<身份> .autoteam/scripts/merge-mode.sh`，只有输出 platform 才开自动合并 |
+| 核对自动合并是否已开 | `<身份> .autoteam/scripts/merge-status.sh <PR>`，输出 merged / queued / auto / none |
 
 ## 交付
 
@@ -52,11 +53,12 @@
      不命中则 `multica issue status <任务> in_review --no-start`。
    两种开关状态都在同一条任务评论里提及 Planner 指定的 Reviewer：`[@rev-xxx](mention://agent/<UUID>) 请评审 <PR 链接>`；人工审批不替代 Reviewer 评审。
    **提及 Reviewer 之前**先跑 `<身份> gh pr view <PR> --json mergeable,statusCheckRollup`，确认最新 head 没有失败的检查、`mergeable` 不是 CONFLICTING。检查红了先修；冲突先同步 main 解决（保留双方规则）；检查还在跑就在评论里写明「检查运行中」，不要为此轮询等待。
+   `platform` 模式下同时跑 `<身份> .autoteam/scripts/merge-status.sh <PR>` 核对自动合并真的开了：merged / queued / auto 都算已开；输出 none 就重新执行 `<身份> gh pr merge <PR> --auto --squash` 再核对一次，还是开不了就把报错原文写进评论。评论里写出核对结果。`merge-mode.sh` 输出 platform 只说明该开，不说明已经开了。`staged` 和 `reviewer` 模式不跑这一步，也不开自动合并。
 5. 做的过程中发现、但不属于本任务的问题，写进评论的“范围外发现”，不要顺手做。
 
 ## 返工
 
-被 Reviewer 或 Planner 提及、要求修改时：读 PR 上的评审意见和任务评论，`multica issue status <任务> in_progress --no-start`，在同一个分支和 PR 上修改，重新跑 `make check`，推送后重新按「交付」第 4 步读取 `AUTOTEAM_CODEOWNERS_GATE`：`off` 时直接 `in_review`，`on` 时才判断 CODEOWNERS，再设置状态并提及 Reviewer。只改指出的问题。
+被 Reviewer 或 Planner 提及、要求修改时：读 PR 上的评审意见和任务评论，`multica issue status <任务> in_progress --no-start`，在同一个分支和 PR 上修改，重新跑 `make check`，推送后先按「交付」第 4 步的自检核对检查和合并状态（`platform` 模式下 none 就补开），再读取 `AUTOTEAM_CODEOWNERS_GATE`：`off` 时直接 `in_review`，`on` 时才判断 CODEOWNERS，再设置状态并提及 Reviewer。只改指出的问题。
 
 ## 不要
 

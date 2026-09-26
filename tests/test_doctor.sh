@@ -234,6 +234,48 @@ EOF
   assert_eq "$(run false 403)" reviewer "GitHub Free 私有仓库应该是 reviewer"
 }
 
+t_merge_status_script() {
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  echo 'AUTOTEAM_REPO=acme/shop' >> .autoteam/autoteam.conf
+  mkdir -p bin
+  # gh 桩：记下 graphql 的变量，返回 GH_PR 作为 pullRequest；GH_FAIL=1 模拟查询失败
+  cat > bin/gh <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" > "$GH_LOG"
+[ "$GH_FAIL" = 1 ] && { echo "gh: HTTP 502" >&2; exit 1; }
+printf '{"data":{"repository":{"pullRequest":%s}}}\n' "$GH_PR"
+EOF
+  chmod +x bin/gh
+  log=$WORK/gh.log
+  run() { PATH="$WORK/bin:$PATH" GH_LOG=$log GH_FAIL=${2:-0} GH_PR=$1 bash .autoteam/scripts/merge-status.sh 7; }
+  assert_eq "$(run '{"state":"MERGED","isInMergeQueue":false,"autoMergeRequest":null}')" merged "已合并"
+  assert_eq "$(run '{"state":"OPEN","isInMergeQueue":true,"autoMergeRequest":null}')" queued "直接入队时 autoMergeRequest 为空"
+  assert_eq "$(run '{"state":"OPEN","isInMergeQueue":false,"autoMergeRequest":{"enabledAt":"2026-09-26T00:00:00Z"}}')" auto "已开自动合并"
+  assert_eq "$(run '{"state":"OPEN","isInMergeQueue":false,"autoMergeRequest":null}')" none "漏开自动合并"
+  assert_eq "$(run '{"state":"CLOSED","isInMergeQueue":false,"autoMergeRequest":null}')" closed "关闭未合并"
+  assert_contains "$(cat "$log")" "owner=acme"
+  assert_contains "$(cat "$log")" "name=shop"
+  assert_contains "$(cat "$log")" "number=7"
+  # 查询失败、找不到 PR、参数不对：不输出结果，退出码非 0，不能被当成 none
+  out=$(run '{}' 1 2>/dev/null) && tfail "查询失败应返回非 0"
+  assert_eq "$out" ""
+  out=$(run null 2>/dev/null) && tfail "找不到 PR 应返回非 0"
+  assert_eq "$out" ""
+  PATH="$WORK/bin:$PATH" bash .autoteam/scripts/merge-status.sh abc 2>/dev/null && tfail "PR 编号不是数字应返回非 0"
+  true
+}
+
+t_instructions_check_merge_status() {
+  dir=$ROOT/skills/autoteam/instructions
+  for f in roles/implementer.md roles/reviewer.md roles/planner.md autopilots/patrol.md; do
+    assert_file_contains "$dir/$f" "merge-status.sh <PR>"
+  done
+  assert_file_contains "$dir/roles/reviewer.md" "Implementer 漏开自动合并，已补开"
+  assert_file_contains "$dir/roles/planner.md" "【补开自动合并】"
+  assert_file_contains "$dir/roles/planner.md" "不要用你的身份跑 \`merge-mode.sh\`"
+}
+
 t_health_metrics_outputs_json_and_markdown() {
   new_repo
   autoteam_offline init --owner alice >/dev/null

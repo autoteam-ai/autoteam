@@ -1,13 +1,14 @@
 {
   "version": "0.1.0",
-  "generated_at": "2026-09-25T14:22:32Z",
+  "generated_at": "2026-09-26T16:04:26Z",
   "files": {
-    ".autoteam/README.md": { "kind": "file", "sha256": "4286bfe3f6facdf64b3582d99a15a524bbae870f797056f295c9298951e5964b" },
+    ".autoteam/README.md": { "kind": "file", "sha256": "b48af0390632c8538fa7dc991aa24f9799822b83d86b85bb905742a5bad9a93a" },
     ".autoteam/playbook.md": { "kind": "file", "sha256": "5bb7df26327ec06f9f2e8982c50ebf2470fc0eb470ba5c9a50bd0cff140600dc" },
     ".autoteam/scripts/gh-app-token.sh": { "kind": "file", "sha256": "2a6ddfc77f5301f1129d7a33dffdef46935243d897b712669ff9cc4bc1ceb5e9" },
     ".autoteam/scripts/health-metrics.sh": { "kind": "file", "sha256": "18caf5aae7f21816a0000a9d2e53c5353f9a26ea4c85fcb201d6ee3fcd9464b9" },
     ".autoteam/scripts/loop-guard.sh": { "kind": "file", "sha256": "a6c0eb2f75ce9b816067297df31f164a6043a4beff456d0fb4ebb547e726ca6b" },
     ".autoteam/scripts/merge-mode.sh": { "kind": "file", "sha256": "8add493689d2a51bea1803138ea70707d860ecc646a10f28ab41f5e1694da847" },
+    ".autoteam/scripts/merge-status.sh": { "kind": "file", "sha256": "630c037a6f983260842f7fec794ca964990f89ce613ac03f5689fb172c78f30a" },
     ".github/CODEOWNERS": { "kind": "block", "sha256": "2edd24b01f313a3f0dcd03d2924930ffd247a735d6bbff2a587a593a418348c8" },
     ".github/pull_request_template.md": { "kind": "file", "sha256": "a8e06748c00528ae2d97221a9162284053dad545fc0bffccd2524cfc1ec39b03" },
     ".github/workflows/deploy.yml": { "kind": "file", "sha256": "5f6ac6e7d09b6197431fe1bee6b52ae4cdadf59b0c34b951e3b07342ca6d1627" },
