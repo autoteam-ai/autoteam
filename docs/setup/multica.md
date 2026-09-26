@@ -35,9 +35,9 @@ autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_M
 升级步骤：
 
 1. 升级 autoteam，合并新的角色指令后运行 `autoteam multica --apply --only agents`，让 Multica 里的 agent 用上新指令。
-2. 把停在旧状态的任务移走：`approved` → `todo`、`code_review` → `in_review`、`rework` → `in_progress`。改状态时加 `--no-start`，避免误唤醒；用 `multica issue list --project <项目> --output json` 逐个项目核对，确认没有任务还停在这三个状态。`approved` 的任务指派人是 Planner，移到 `todo` 时不加 `--no-start`，它会被叫醒并派发。
+2. 把停在旧状态的任务移走：`approved` → `todo`、`code_review` → `in_review`、`rework` → `in_progress`。改状态时加 `--no-start`，避免误唤醒；用 `multica issue list --project <项目> --output json` 逐个项目核对，确认没有任务还停在这三个状态。`approved` → `todo` 不算“离开 backlog”，不会叫醒 Planner：这些任务先加 `--no-start` 改回 `backlog`，再不加 `--no-start` 改成 `todo`，和新流程的批准一样，离开 backlog 时叫醒指派人 Planner 去派发。
 3. 到 Multica 界面（Settings → Issue Statuses）把 `approved`、`code_review`、`rework` 三个状态归档，需要工作区 owner 或 admin。状态的类别建好后不能改，`autoteam multica --apply` 也不会删除已有的状态，所以只能手工归档。
-4. 运行 `autoteam doctor`，确认没有指令漂移，并且自定义状态一项只要求 `shipping`。
+4. 运行 `autoteam doctor`，确认没有指令漂移，并且自定义状态一项只要求 `shipping`。这一项要等同一次状态精简里 doctor 和角色指令的改动随 autoteam 发布后才成立；装的版本还没有这部分改动时，doctor 仍会提示缺少这三个旧状态，先不要按提示把它们建回来。
 
 ## agent 和计费注册表
 
