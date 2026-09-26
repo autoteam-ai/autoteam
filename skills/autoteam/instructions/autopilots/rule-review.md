@@ -6,6 +6,9 @@ cron_key: AUTOTEAM_CRON_RULE_REVIEW
 issue_title: 规则复盘 {{date}}
 subscriber: human
 ---
+
+**开工先检查暂停：**先取得本项目仓库，在仓库运行 `bash ./autoteam status --check`。如果已暂停，立即结束本次运行，不读写任务、不执行 runbook、不发评论；检查失败也先停止并报告给人。仅人与 Planner 的 Chat 对话可以跳过此检查，以便执行恢复。
+
 做一次规则复盘，写在本任务的评论里，然后把本任务设为 done。
 
 这是把经验变成规则的地方：agent 团队跑得好不好，最终看**人还要介入多少次**，而降低它的办法是把每次介入的原因变成一条规则或一个参数。

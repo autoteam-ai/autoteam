@@ -4,6 +4,9 @@ role: planner
 mode: run_only
 trigger: webhook
 ---
+
+**开工先检查暂停：**先取得本项目仓库，在仓库运行 `bash ./autoteam status --check`。如果已暂停，立即结束本次运行，不读写任务、不执行 runbook、不发评论；检查失败也先停止并报告给人。仅人与 Planner 的 Chat 对话可以跳过此检查，以便执行恢复。
+
 这次运行由 GitHub 的部署工作流触发，请求体是 JSON：kind（deploy 或 rollback）、sha、result（success 或 failure）、repo、run_url。
 
 - kind=deploy、result=success：按 .autoteam/planner.md 的“验收”，找出 shipping 且合并提交包含在 sha 里的任务，逐条线上验收。

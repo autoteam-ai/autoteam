@@ -4,6 +4,9 @@ role: planner
 mode: run_only
 cron_key: AUTOTEAM_CRON_PATROL
 ---
+
+**开工先检查暂停：**先取得本项目仓库，在仓库运行 `bash ./autoteam status --check`。如果已暂停，立即结束本次运行，不读写任务、不执行 runbook、不发评论；检查失败也先停止并报告给人。仅人与 Planner 的 Chat 对话可以跳过此检查，以便执行恢复。
+
 按 .autoteam/planner.md 做一次推进巡检：
 
 1. 派发已放行且前面批次已经全部 done 的任务：`todo` 且指派给 Planner 自己（人改到 `todo` 即放行，按 .autoteam/planner.md 的「派发」推进，不要退回 backlog，也不要评论请人批准）。

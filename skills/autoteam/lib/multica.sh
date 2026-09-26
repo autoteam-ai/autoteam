@@ -74,7 +74,7 @@ mc() {
   local attempts=1 attempt=1 rc out
   if [ "${MC_SYNC_ACTIVE:-0}" = 1 ]; then
     case "${1:-} ${2:-} ${3:-}" in
-      "workspace get "*|"runtime list "*|"agent list "*|"agent get "*|"project list "*|"project resource list"|"autopilot list "*|"autopilot get "*|"user profile get") attempts=3 ;;
+      "workspace get "*|"runtime list "*|"agent list "*|"agent get "*|"agent tasks "*|"issue list "*|"issue get "*|"project list "*|"project resource list"|"autopilot list "*|"autopilot get "*|"user profile get") attempts=3 ;;
     esac
   fi
   if [ "$attempts" = 1 ]; then

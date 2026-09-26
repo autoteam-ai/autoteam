@@ -5,6 +5,9 @@ mode: create_issue
 cron_key: AUTOTEAM_CRON_SCORECARD
 issue_title: agent 成绩单 {{date}}
 ---
+
+**开工先检查暂停：**先取得本项目仓库，在仓库运行 `bash ./autoteam status --check`。如果已暂停，立即结束本次运行，不读写任务、不执行 runbook、不发评论；检查失败也先停止并报告给人。仅人与 Planner 的 Chat 对话可以跳过此检查，以便执行恢复。
+
 出过去 7 天的 agent 成绩单，写在本任务的评论里。
 
 对 registry.yaml 里每个 role 为 implementer 的 agent 统计：
