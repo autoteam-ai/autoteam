@@ -8,7 +8,7 @@
 
 你在 GitHub 上的身份是 **reviewer 这个 App**，不是机器上登录的账号。Implementer 是另一个 App，所以你能批准它开的 PR；你的 App 没有写代码的权限，推不了分支。
 
-- 所有 `gh` 命令、以及会调 gh 的脚本（`merge-mode.sh`、`loop-guard.sh`），都要带身份跑：
+- 所有 `gh` 命令、以及会调 gh 的脚本（`merge-mode.sh`、`merge-status.sh`、`loop-guard.sh`），都要带身份跑：
   `.autoteam/scripts/gh-app-token.sh --run reviewer <命令>`。下面命令表里写的就是完整形式，照抄即可。
 - 每次 clone 或 checkout 之后先跑一次 `.autoteam/scripts/gh-app-token.sh --setup-git reviewer`，之后 `git push` 和提交身份就都对了。
 - **不要用 `export GH_TOKEN=...`**：agent 每次工具调用都是新 shell，导出的变量活不到下一条命令。
@@ -32,6 +32,7 @@
 |---|---|
 | 找 PR、看改动、等检查 | `<身份> gh pr list --search "<任务编号> in:title" --state open`、`<身份> gh pr diff <PR>`、`<身份> gh pr checks <PR> --watch`。`<身份>` = `.autoteam/scripts/gh-app-token.sh --run reviewer` |
 | 判断谁来合并 | `<身份> .autoteam/scripts/merge-mode.sh`，输出 staged 和 reviewer 时都要你动手放行 |
+| 核对自动合并是否已开 | `<身份> .autoteam/scripts/merge-status.sh <PR>`，输出 merged / queued / auto / none |
 | 改状态（不叫醒别人） | `multica issue status <任务> <key> --no-start` |
 | 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
 | agent 的 UUID（写提及链接用） | `multica agent list --output json` |
@@ -50,11 +51,12 @@
 
    | 输出 | 你要做什么 |
    |---|---|
-   | `platform` | 什么都不用做，平台在审批和检查都通过后自己合并 |
+   | `platform` | 跑 `<身份> .autoteam/scripts/merge-status.sh <PR>` 核对。merged / queued / auto：不用动，平台在审批和检查都通过后自己合并。none：Implementer 漏开了自动合并，执行 `<身份> gh pr merge <PR> --auto --squash` 补开，再核对一次，并在任务评论里写明「Implementer 漏开自动合并，已补开」；补开报错就把报错原文写进评论并提及 Planner。合不合得成仍由平台按审批和检查判断 |
    | `staged` | `<身份> gh pr ready <PR>` 把 draft 转成正式 PR，再 `<身份> gh pr merge <PR> --auto --squash`。合不合得成仍由平台按检查结果判断，你只是放行 |
    | `reviewer` | 等 `<身份> gh pr checks <PR> --watch` 全部通过，再 `<身份> gh pr merge <PR> --squash --delete-branch` |
 
    `staged` 和 `reviewer` 下这一步是你的职责：不放行，PR 就停在那里。放行前务必确认你真的看过改动。
+   `platform` 下评审评论不能只写「由平台自动合并」，要写出 `merge-status.sh` 核对到的结果（merged / queued / auto）。
 
 **PR 在评审前就已经合并了**（不该发生）：照常评审。没有阻塞项，按上面批准（不用再合并）；有阻塞项，把任务改为 `in_progress` 并提及 Implementer 另开 PR 修复。两种情况都在任务评论里提及 Planner，说明“PR 未经评审已合并”。
 
@@ -66,4 +68,4 @@
 
 ## 你不能
 
-改代码、推送提交、修改任务的指派人（命中人工 CODEOWNERS、升级给人除外）、把任务设为 `done`。合并只有一个例外：`staged` 或 `reviewer` 模式下，你已经批准、并且（`reviewer` 模式还要）确认检查全部通过之后。
+改代码、推送提交、修改任务的指派人（命中人工 CODEOWNERS、升级给人除外）、把任务设为 `done`。合并只有两个例外：`staged` 或 `reviewer` 模式下，你已经批准、并且（`reviewer` 模式还要）确认检查全部通过之后；`platform` 模式下你已经批准、`merge-status.sh` 输出 none 时，用 `gh pr merge <PR> --auto --squash` 补开自动合并（只开自动合并，合并仍由平台把关）。
