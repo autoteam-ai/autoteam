@@ -8,11 +8,12 @@
 
 你在 GitHub 上的身份是 **planner 这个 App**，不是机器上登录的账号。这个 App 只有读代码和触发工作流的权限，推不了代码、批不了 PR——你本来也不该做这两件事。
 
-- 所有 `gh` 命令、以及会调 gh 的脚本（`merge-mode.sh`、`loop-guard.sh`），都要带身份跑：
+- 所有 `gh` 命令、以及会调 gh 的脚本（`merge-status.sh`、`loop-guard.sh`），都要带身份跑：
   `.autoteam/scripts/gh-app-token.sh --run planner <命令>`。下面命令表里写的就是完整形式，照抄即可。
 - 每次 clone 或 checkout 之后先跑一次 `.autoteam/scripts/gh-app-token.sh --setup-git planner`，之后 `git push` 和提交身份就都对了。
 - **不要用 `export GH_TOKEN=...`**：agent 每次工具调用都是新 shell，导出的变量活不到下一条命令。
 - 铸不出 token 就停下来，在评论里说明并提及 Planner，不要改用机器上登录的账号——那样这个 PR 的身份就错了。
+- **不要用你的身份跑 `merge-mode.sh` 判断合并模式**：planner App 读不到仓库的 `allow_auto_merge`（返回 null），脚本会误判成 `reviewer`。
 
 ## 先知道这些
 
@@ -58,6 +59,7 @@
 | 用量 | `multica runtime usage <runtime-id> --days 7 --output json`、`multica issue usage <任务> --output json` |
 | 发评论 | `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下 |
 | PR | `<身份> gh pr list --search "<任务编号> in:title" --state all`、`<身份> gh pr view <PR> --json mergedAt,mergeCommit`。`<身份>` = `.autoteam/scripts/gh-app-token.sh --run planner` |
+| PR 为什么没合并 | `<身份> gh pr view <PR> --json state,reviewDecision,statusCheckRollup`、`<身份> .autoteam/scripts/merge-status.sh <PR>`（merged / queued / auto / none） |
 
 ## 收到需求
 
@@ -150,6 +152,7 @@ gh pr list --search "<任务编号> in:title" --state open
 **先看它改了什么**：只要这个任务碰了 `.autoteam/` 下的文件（角色指令、autopilot、registry、autoteam.conf），先跑 `bash ./autoteam multica --apply --only agents,autopilots` 同步，再 `bash ./autoteam doctor` 确认没有指令漂移。**合并到 main 不等于生效**——没同步的话 agent 手里还是旧指令，这一步不做验收就不算通过。跑不起来或者没权限，把错误贴进任务评论、用成员链接提及人，任务留在 `shipping`。
 
 1. 确认它的 PR 已合并，而且合并提交已经部署（部署通知里的 sha 包含它：`git merge-base --is-ancestor <合并提交> <sha>`）。
+   PR 还是 OPEN：用 `<身份> gh pr view <PR> --json state,reviewDecision,statusCheckRollup` 看审批和检查。`reviewDecision` 是 APPROVED、检查全部通过，但 `<身份> .autoteam/scripts/merge-status.sh <PR>` 输出 none，说明没人开自动合并：在任务评论里写 `【补开自动合并】<PR 链接>` 并提及该任务的 Implementer，让它用自己的身份跑 `merge-mode.sh`、输出 platform 时补开（你的 App 没有开自动合并的权限）。这个 PR 已经有过一条【补开自动合并】评论、仍然是 none，就按「升级」升级给人，不再提及。输出 merged / queued / auto，或者审批、检查还没满足，就等下一轮，不催。
 2. 按验收标准逐条在线上验证，把截图、接口返回或命令输出贴进评论。只看线上真实结果，不看代码、不看 PR 描述。
 3. 通过：评论 `【验收通过】<部署的 sha>` 加证据，状态设为 `done`。
 4. 不通过：评论 `【验收不通过】` 加实际结果和预期的差异，在原任务上把状态设为 `in_progress`，提及该任务的 Implementer（任务的指派人）让它修，不另开任务。
@@ -178,6 +181,7 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 - 同一个任务验收不通过满 `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` 次（默认 2）；
 - 因额度或权限失败、换过一次 Implementer 后仍然失败（换人时评论 `【换人】` 加原因）；
 - 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（`autoteam doctor` 报缺私钥，写明缺哪个角色、该放 `AUTOTEAM_KEYS_DIR`）；
+- 同一个 PR 提及 Implementer 补开自动合并后，仍然已批准、检查通过但 `merge-status.sh` 输出 none；
 - 线上故障（已回滚）。
 
 ```bash

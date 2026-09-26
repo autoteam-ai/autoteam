@@ -33,3 +33,5 @@
 ## 踩过的坑
 
 <!-- 例：某个命令的默认行为会造成什么后果（像 gh pr merge --auto 在没有闸门的仓库里会立即合并） -->
+
+- 2026-09-26：`merge-mode.sh` 输出 platform 不代表自动合并已开启；Implementer 曾漏开（HDGCS-72/82），PR 批准且检查全绿却一直不合并。靠 Implementer 自检、Reviewer 用 `merge-status.sh` 核对并补开、巡检兜底。Planner App 读不到 `allow_auto_merge`，不能用它跑 `merge-mode.sh`。
