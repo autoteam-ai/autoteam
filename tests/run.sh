@@ -2,6 +2,12 @@
 # 运行全部测试：bash tests/run.sh [测试函数名的关键字]
 set -o pipefail
 
+# Runtime hosts can export AUTOTEAM_* credentials.  Tests create their own
+# configuration fixtures, so inherited values must not override those files.
+while IFS= read -r var; do
+  unset "$var"
+done < <(compgen -v AUTOTEAM_)
+
 # shellcheck source=tests/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
