@@ -324,8 +324,44 @@ $rows
 EOF
 }
 
+# agent 实际绑定的 runtime / 模型 / 并发要和 registry 一致。有人在界面上直接改绑时指令不变，
+# 只比指令会报"一致"，运行却因为换了 runtime 或模型失败。比对用 autoteam multica 那一份。
+doctor_agent_config() {
+  local name=$1 cur=$2 runtimes=$3 runtime=$4 model=$5 max=$6 rid field have want diff line
+  rid=$(mc_runtime_id "$runtimes" "$runtime" || true)
+  if [ -z "$rid" ]; then
+    fail "agent $name：registry 里的 runtime $runtime 在工作区找不到（autoteam runtimes 列出可选值）"
+    return 0
+  fi
+  diff=$(mc_agent_config_diff "$cur" "$rid" "$model" "$max")
+  [ -n "$diff" ] || return 0
+  # 不能用 IFS=$'\t' read 拆：tab 是空白分隔符，相邻的 tab 会被合并，实际值为空（未绑定）时
+  # 要求值会被读进实际值里。按 tab 逐段切，空字段才保得住。
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    field=${line%%$'\t'*} line=${line#*$'\t'}
+    have=${line%%$'\t'*} want=${line#*$'\t'}
+    if [ "$field" = runtime ]; then
+      have="$(doctor_runtime_label "$runtimes" "$have")"
+      want="$runtime（$(doctor_runtime_label "$runtimes" "$rid")）"
+    fi
+    fail "agent $name 的 $field 与 registry 不一致：实际 $have，registry 要求 $want"
+  done <<EOF
+$diff
+EOF
+  hint "恢复成 registry 的配置：autoteam multica --apply --only agents；如果是有意迁移，先改 registry.yaml 走 PR"
+}
+
+# runtime ID 显示成「名字 ID 前 8 位」，列表里没有就原样显示 ID
+doctor_runtime_label() {
+  local runtimes=$1 id=$2 rt_name
+  [ -n "$id" ] || { printf '未绑定'; return 0; }
+  rt_name=$(jq -r --arg id "$id" '[.[] | select(.id == $id)][0].name // empty' <<<"$runtimes")
+  printf '%s' "${rt_name:+$rt_name }${id:0:8}"
+}
+
 doctor_multica() {
-  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role rid want instr catalog list f title id project last
+  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want instr catalog list f title id project last
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "$ws"
@@ -355,7 +391,7 @@ EOF
   doctor_mc_read "runtime 列表" runtime list && runtimes=$MC_READ_OUT
   doctor_mc_read "agent 列表" agent list && agents=$MC_READ_OUT
   if [ -n "$rows" ] && [ -n "$agents" ]; then
-    while IFS=$'\t' read -r name role _; do
+    while IFS=$'\t' read -r name role _ runtime model max _; do
       [ -n "$name" ] || continue
       id=$(jq -r --arg n "$name" '[.[] | select(.name == $n)][0].id // empty' <<<"$agents")
       if [ -z "$id" ]; then fail "agent $name 不存在（autoteam multica --apply）"; continue; fi
@@ -373,6 +409,7 @@ EOF
       else
         ok "agent $name（$role）指令一致，runtime 在线"
       fi
+      [ -z "$runtimes" ] || doctor_agent_config "$name" "$cur" "$runtimes" "$runtime" "$model" "$max"
       # runtime 在线不代表 agent CLI 能用（比如订阅登录过期），看最近一次运行
       last=$(mc agent tasks "$id" --output json 2>/dev/null | jq -c '[.[] | select(.status == "completed" or .status == "failed")][0] // empty')
       if [ -n "$last" ] && [ "$(jq -r '.status' <<<"$last")" = failed ]; then

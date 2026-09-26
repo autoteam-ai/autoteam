@@ -102,8 +102,14 @@ case "$1 $2" in
     echo '{"ok":true}' ;;
   "agent update")
     id=$3
+    # 没传 --model / --max-concurrent-tasks 就保持原值；--model "" 清空
+    m=$(flag --model "$@") && has_m=1 || has_m=""
     jq --arg id "$id" --arg rt "$(flag --runtime-id "$@")" --arg ins "$(flag --instructions "$@")" \
-       'map(if .id == $id then .runtime_id = $rt | .instructions = $ins else . end)' "$agents" > "$agents.tmp"
+       --arg m "$m" --arg has_m "$has_m" --arg max "$(flag --max-concurrent-tasks "$@" || true)" \
+       'map(if .id == $id then .runtime_id = $rt | .instructions = $ins
+              | (if $has_m != "" then .model = $m else . end)
+              | (if $max != "" then .max_concurrent_tasks = ($max | tonumber) else . end)
+            else . end)' "$agents" > "$agents.tmp"
     mv "$agents.tmp" "$agents"
     jq -n --arg id "$id" '{id: $id}' ;;
   "project list") cat "$projects" ;;

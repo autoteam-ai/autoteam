@@ -501,15 +501,31 @@ multica_agent_create() {
   fi
 }
 
+# agent 在 Multica 上的 runtime / 模型 / 并发和 registry 解析出的值逐项比对，不一致的每项输出一行：
+# 字段<TAB>实际值<TAB>registry 要求的值。autoteam multica 和 autoteam doctor 共用这一份比对。
+mc_agent_config_diff() {
+  local cur=$1 rid=$2 model=$3 max=$4 have
+  have=$(jq -r '.runtime_id // ""' <<<"$cur")
+  [ "$have" = "$rid" ] || printf 'runtime\t%s\t%s\n' "$have" "$rid"
+  { [ "$model" = "-" ] || [ "$model" = default ]; } && model=""
+  have=$(jq -r '.model // ""' <<<"$cur")
+  [ "$have" = "$model" ] || printf '模型\t%s\t%s\n' "${have:-default}" "${model:-default}"
+  [ "$max" != "-" ] || return 0
+  have=$(jq -r '.max_concurrent_tasks' <<<"$cur")
+  [ "$have" = "$max" ] || printf '并发\t%s\t%s\n' "$have" "$max"
+}
+
 multica_agent_update() {
-  local id=$1 name=$2 role=$3 rid=$4 model=$5 max=$6 mcp=$7 envf=$8 cur changes="" want_instr want_model out
+  local id=$1 name=$2 role=$3 rid=$4 model=$5 max=$6 mcp=$7 envf=$8 cur changes="" want_instr want_model out field
   cur=$(mc agent get "$id" --output json) || { fail "读取 agent $name 失败"; return 0; }
   want_instr=$(read_file "$(instructions_path roles "$role.md")") || { fail "找不到角色指令 $role.md"; return 0; }
   [ "$(jq -r '.instructions' <<<"$cur")" = "${want_instr%$'\n'}" ] || [ "$(jq -r '.instructions' <<<"$cur")" = "$want_instr" ] || changes="$changes 指令"
-  [ "$(jq -r '.runtime_id' <<<"$cur")" = "$rid" ] || changes="$changes runtime"
+  while IFS=$'\t' read -r field _; do
+    [ -z "$field" ] || changes="$changes $field"
+  done <<EOF
+$(mc_agent_config_diff "$cur" "$rid" "$model" "$max")
+EOF
   want_model=$model; { [ "$want_model" = "-" ] || [ "$want_model" = default ]; } && want_model=""
-  [ "$(jq -r '.model // ""' <<<"$cur")" = "$want_model" ] || changes="$changes 模型"
-  if [ "$max" != "-" ] && [ "$(jq -r '.max_concurrent_tasks' <<<"$cur")" != "$max" ]; then changes="$changes 并发"; fi
   if [ "$(jq -r '.archived_at // empty' <<<"$cur")" != "" ]; then
     fail "agent $name 已归档：在界面里恢复（multica agent restore $id）后再运行"
     return 0
