@@ -29,10 +29,10 @@ title: 常见问题
 |---|---|
 | 运行失败：`Failed to authenticate: OAuth session expired and could not be refreshed` | runtime 在线不代表 agent CLI 能用：那台机器上 Claude Code 等的订阅登录过期了，到机器上重新登录。`autoteam doctor` 会报出每个 agent 最近一次失败的原因；修好之前可以先在 registry.yaml 里把 agent 挪到别的 runtime |
 | 运行失败：`You've hit your session limit · resets 1:10am` | 订阅的窗口额度用完了。平台不会自动重试额度类错误，任务停在原状态；Planner 下一次巡检会重新派发（额度恢复后也可以手动触发“推进巡检”）。同一个订阅账号下的所有 agent 共用额度，registry.yaml 里要如实写 account；额度经常不够，就加一个其他厂商或按量计费的 agent 分担 |
-| 批准了任务，Planner 没反应 | 子任务要指派给 Planner、从 backlog 改成 todo 才会叫醒它；指派人不是 Planner 就叫醒不了它。也可能 Planner 的 runtime 离线，看 `autoteam runtimes` |
+| 批准了任务，Planner 没反应 | 确认任务指派给 Planner，且确实从 `backlog` 改成 `todo`；用 `multica issue runs <任务>` 看是否生成运行。`--no-start` 会抑制启动，本工作区还观察到界面改状态后未生成运行的实例，见[唤醒规则](../concepts/lifecycle.md#唤醒规则multica-051-起)。有运行但未执行时检查 `autoteam runtimes` |
 | Planner 派发了，Implementer 没开始 | runtime 离线或并发满了（任务在排队，排队超过 2 小时会失败）；或者 agent 是 private，而触发链路上的人不是 agent 的创建者：把 `AUTOTEAM_AGENT_ACCESS` 改成 workspace 后 `autoteam multica --apply --only agents` |
 | Reviewer 没被叫醒 | 评论里只写了 `@名字`，没用提及链接 `[@名字](mention://agent/<UUID>)`；或者用了 `/note` |
-| 改了状态为什么没人被叫醒 | Multica 0.5 起，自定义状态不再负责唤醒，唤醒只靠指派和 @提及，见[唤醒规则](../concepts/lifecycle.md#唤醒规则multica-05) |
+| 改了状态为什么没人被叫醒 | Multica 0.5 起，自定义状态不再负责唤醒；0.5.1 起还可为任务单独设置事件或定时唤醒，见[唤醒规则](../concepts/lifecycle.md#唤醒规则multica-051-起) |
 | `Can not approve your own pull request` | Implementer 和 Reviewer 是同一个身份：两个 `AUTOTEAM_*_APP_ID` 配成了一个，或者还没建 App。建两个 App；在此之前用试用模式（Reviewer 会改用【批准】评论评审） |
 | PR 刚开就被合并了，没经过评审 | 没有平台闸门的仓库里执行了 `gh pr merge --auto`，它会立即合并。确认 Implementer 的指令是最新的（先跑 `merge-mode.sh`，输出 reviewer 时不合并）；根本的解决是让规则集生效 |
 | 检查一通过 PR 就被合并，Reviewer 来不及看 | 规则集的必需检查生效了，但审批数是 0（单身份只能这样），平台看没有别的条件就合并了。`merge-mode.sh` 认出这种情况会输出 `staged`，Implementer 应该开 draft PR——draft 不能开自动合并，要等 Reviewer `gh pr ready` 才放行 |

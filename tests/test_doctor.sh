@@ -360,3 +360,28 @@ t_doctor_keys_remote_runtime_only_hints() {
   assert_contains "$out" "agent impl-claude 的 runtime claude@machine-a 不在本机"
   assert_eq "$rc" 0 "runtime 都不在本机时缺私钥只是提示：$(printf '%s' "$out" | grep '❌')"
 }
+
+t_doctor_auditor_uses_planner_key() {
+  doctor_keys_repo
+  out=$(STUB_LOCAL_RUNTIMES=rt-c-claude-0000 autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_eq "$rc" 1 "auditor 本机 runtime 缺 planner 私钥应算错误"
+  assert_contains "$out" "本机没有 planner 的私钥，但 agent auditor 的 runtime rt-c-claude-0000 在这台机器上（auditor 使用 planner 身份）"
+  assert_contains "$out" "AUTOTEAM_PLANNER_APP_KEY"
+  assert_contains "$out" "planner.pem"
+
+  : > "$WORK/.home/.autoteam/planner.pem"
+  out=$(STUB_LOCAL_RUNTIMES=rt-c-claude-0000 autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "本机有 planner 的私钥（agent auditor 的 runtime 在本机；auditor 使用 planner 身份）"
+  assert_not_contains "$out" "本机没有 planner 的私钥"
+  assert_eq "$rc" 0 "auditor 有 planner 私钥时不应有错误：$(printf '%s' "$out" | grep '❌')"
+}
+
+t_doctor_auditor_remote_runtime_hints() {
+  doctor_keys_repo
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "agent auditor 的 runtime rt-c-claude-0000 不在本机：auditor 使用 planner 身份，planner 的私钥要到那台机器上检查"
+  assert_eq "$rc" 0 "auditor runtime 不在本机时只提示：$(printf '%s' "$out" | grep '❌')"
+}
