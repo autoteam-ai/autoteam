@@ -9,7 +9,8 @@
 #                     自己提交了多少次、评审了多少个 PR。这套流程做得好不好，看它降不降
 #   human_review_per_merged_pr  human_7d.reviews / prs_7d.merged：人工评审次数相对合并 PR 数
 #                     的归一化比值，分母为 0 或缺数据时为 null
-# 依赖 git、jq；PR 指标需要已登录的 gh；重复代码需要 npx（设 AUTOTEAM_SKIP_JSCPD=1 跳过）。
+#   approvals_7d      自主放行和人批准任务各自的数量、人取消率、评审打回率、验收失败率
+# 依赖 git、jq；PR 指标需要已登录的 gh；批准指标需要 multica；重复代码需要 npx（设 AUTOTEAM_SKIP_JSCPD=1 跳过）。
 set -eo pipefail
 
 format=md
@@ -47,7 +48,7 @@ fi
 # 某个时间窗口内改过、现在还存在的文件
 changed_files() {
   git log --since="$1" ${2:+--until="$2"} --name-only --pretty=format: | sed '/^$/d' | sort -u \
-    | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+    | while IFS= read -r f; do if [ -f "$f" ]; then printf '%s\n' "$f"; fi; done
 }
 
 # 2. 老文件改动占比
@@ -102,8 +103,74 @@ if [ -n "$owner" ]; then
   human=$(jq -n --argjson c "${commits:-0}" --argjson r "$reviews" '{commits: $c, reviews: $r}')
 fi
 
+# 6. 近 7 天的批准质量。只统计有 backlog→todo 活动记录的任务；Planner 代人
+# 操作须有【人工授权放行】记录，自主放行须有本人写的【自主放行】记录。
+approvals=null
+mc=${MULTICA_BIN:-multica}
+project_name=$(sed -n 's/^AUTOTEAM_MULTICA_PROJECT=//p' "$root/.autoteam/autoteam.conf" | head -n 1)
+if [ -n "$project_name" ] && command -v "$mc" >/dev/null 2>&1; then
+  if projects=$("$mc" project list --output json 2>/dev/null); then
+    project_id=$(jq -r --arg name "$project_name" '[.[] | select(.title == $name) | .id][0] // empty' <<<"$projects")
+    if [ -n "$project_id" ]; then
+      : > "$tmp/approvals.jsonl"
+      since7=$(jq -rn 'now - 7 * 86400 | strftime("%Y-%m-%dT%H:%M:%SZ")')
+      offset=0
+      approvals_ok=1
+      while :; do
+        if ! page=$("$mc" issue list --project "$project_id" --limit 100 --offset "$offset" --fields id,identifier,updated_at --output json 2>/dev/null); then
+          approvals_ok=0; break
+        fi
+        while IFS=$'\t' read -r id key; do
+          [ -n "$id" ] || continue
+          if ! history=$("$mc" issue timeline "$id" --activity-only --output json 2>/dev/null) ||
+             ! comments=$("$mc" issue comment list "$id" --full --output json 2>/dev/null); then
+            approvals_ok=0; break
+          fi
+          jq -cn --arg key "$key" --arg since "$since7" --argjson history "$history" --argjson comments "$comments" '
+            ($comments | if type == "array" then . else .comments // [] end) as $notes
+            | [ $history[] | select(.action == "status_changed" and .details.from == "backlog" and .details.to == "todo" and .created_at >= $since) ]
+            | .[] as $approval
+            | [ $notes[] | select(.author_id == $approval.actor_id and .created_at <= $approval.created_at) ] as $prior
+            | (if $approval.actor_type == "member" or any($prior[]; .content | contains("【人工授权放行】")) then "human"
+               elif any($prior[]; .content | contains("【自主放行】")) then "auto"
+               else empty end) as $kind
+            | {key: $key, kind: $kind, approved_at: $approval.created_at,
+               cancelled: any($history[]; .action == "status_changed" and .details.to == "cancelled" and .actor_type == "member" and .created_at > $approval.created_at),
+               acceptance_failed: any($notes[]; .created_at > $approval.created_at and (.content | contains("【验收不通过】")))}' >> "$tmp/approvals.jsonl"
+        done < <(jq -r --arg since "$since7" '.issues[] | select(.updated_at >= $since) | [.id, .identifier] | @tsv' <<<"$page")
+        [ "$approvals_ok" = 1 ] || break
+        count=$(jq '.issues | length' <<<"$page")
+        offset=$((offset + count))
+        [ "$(jq -r '.has_more' <<<"$page")" = true ] || break
+        [ "$count" -gt 0 ] || { approvals_ok=0; break; }
+      done
+      if [ "$approvals_ok" = 1 ]; then
+        reviews='[]'
+        if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+          if ! reviews=$(gh pr list --state all --limit 200 --json title,reviews 2>/dev/null); then reviews='null'; fi
+        else
+          reviews='null'
+        fi
+        approvals=$(jq -s --argjson reviews "$reviews" '
+          def rate($rows; $field): if ($rows | length) == 0 then null else (([$rows[] | select(.[$field])] | length) * 1000 / ($rows | length) | round / 10) end;
+          [ .[] | . as $issue | .review_rejected = (if $reviews == null then null else any($reviews[];
+              (.title | startswith($issue.key + " ")) and
+              any(.reviews[]?; .state == "CHANGES_REQUESTED" or ((.body // "") | startswith("【阻塞】")))) end) ] as $all
+          | {auto: [$all[] | select(.kind == "auto")], human: [$all[] | select(.kind == "human")]}
+          | with_entries(.value as $rows | .value = {
+              count: ($rows | length),
+              cancelled_pct: rate($rows; "cancelled"),
+              review_rejected_pct: (if $reviews == null then null else rate($rows; "review_rejected") end),
+              acceptance_failed_pct: rate($rows; "acceptance_failed")
+            })' "$tmp/approvals.jsonl")
+      fi
+    fi
+  fi
+fi
+
 json=$(jq -n \
   --argjson human "$human" \
+  --argjson approvals "$approvals" \
   --argjson dup "$dup" \
   --argjson legacy "$(pct "$legacy" "$total")" --argjson files "$total" --argjson days "$days" \
   --argjson rework "$(pct "$both" "$w1")" \
@@ -117,6 +184,7 @@ json=$(jq -n \
     rework_14d_pct: $rework,
     prs_7d: $prs,
     human_7d: $human,
+    approvals_7d: $approvals,
     human_review_per_merged_pr: (
       ($human.reviews) as $rev | ($prs.merged) as $merged
       | if ($rev == null) or ($merged == null) or ($merged == 0) then null
@@ -142,6 +210,10 @@ jq -r '
   "| 平均打回次数 | \(.prs_7d.avg_rejections | v) |",
   "| 人工介入：本人提交 / 评审 PR（近 7 天） | \(.human_7d.commits | v) / \(.human_7d.reviews | v) |",
   "| 人工评审 / 合并 PR 比值（近 7 天） | \(.human_review_per_merged_pr | v) |",
+  "| 自主放行 / 人批准数（近 7 天） | \(.approvals_7d.auto.count | v) / \(.approvals_7d.human.count | v) |",
+  "| 人取消率 %：自主 / 人批准 | \(.approvals_7d.auto.cancelled_pct | v) / \(.approvals_7d.human.cancelled_pct | v) |",
+  "| 评审打回率 %：自主 / 人批准 | \(.approvals_7d.auto.review_rejected_pct | v) / \(.approvals_7d.human.review_rejected_pct | v) |",
+  "| 验收失败率 %：自主 / 人批准 | \(.approvals_7d.auto.acceptance_failed_pct | v) / \(.approvals_7d.human.acceptance_failed_pct | v) |",
   "",
   "生成时间 \(.generated_at)"
 ' <<<"$json"

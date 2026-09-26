@@ -36,6 +36,14 @@ Auditor 每周跑，你也可以随时在仓库里跑：
 | `prs_7d.first_pass_pct` | 近 7 天合并的 PR 里，从没被打回的比例 |
 | `prs_7d.avg_rejections` | 平均打回次数 |
 | `human_7d.commits` / `human_7d.reviews` | 近 7 天人（`AUTOTEAM_OWNER`）自己提交、评审 PR 的次数 |
+| `approvals_7d.auto.count` / `approvals_7d.human.count` | 近 7 天自主放行 / 人批准的任务数；以 backlog→todo 活动记录为准，Planner 代人操作需有 `【人工授权放行】` 评论 |
+| `approvals_7d.auto.cancelled_pct` / `approvals_7d.human.cancelled_pct` | 各组批准任务后来被成员取消的比例 |
+| `approvals_7d.auto.review_rejected_pct` / `approvals_7d.human.review_rejected_pct` | 各组有 PR 被要求修改（`CHANGES_REQUESTED` 或 `【阻塞】`）的任务比例 |
+| `approvals_7d.auto.acceptance_failed_pct` / `approvals_7d.human.acceptance_failed_pct` | 各组出现 `【验收不通过】` 评论的任务比例 |
+
+比例的分母是相应组的批准任务数，同一任务多次打回只计一次；分母为零时是 `null`。Multica 不可用时整个 `approvals_7d` 为 `null`；GitHub 不可用时评审打回率为 `null`。脚本需要当前身份能读取本项目任务及其历史、评论。
+
+**收紧阈值：**任意连续 7 天，自主放行任务被人取消的比例 **超过 20%**，Planner 就提任务请人把 `AUTOTEAM_AUTO_APPROVE_MAX_PER_DAY` 调小，或关闭自主放行。对照同窗口人批准任务的取消率、打回率和验收失败率，查清偏差后再决定改动。
 
 跨文件调用数这类指标和语言强相关，脚本没有内置；需要的话在 Auditor 的 runbook 里加上你项目的计算方法。
 

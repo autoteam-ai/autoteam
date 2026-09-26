@@ -242,6 +242,8 @@ t_health_metrics_outputs_json_and_markdown() {
   echo a > old.txt && git add old.txt && GIT_AUTHOR_DATE="@$old" GIT_COMMITTER_DATE="@$old" git commit -qm old
   echo b > hot.txt && git add hot.txt && GIT_AUTHOR_DATE="@$mid" GIT_COMMITTER_DATE="@$mid" git commit -qm mid
   echo a2 >> old.txt && echo b2 >> hot.txt && git add old.txt hot.txt && git commit -qm now
+  echo temporary > zzz-deleted.txt && git add zzz-deleted.txt && git commit -qm temporary
+  git rm -q zzz-deleted.txt && git commit -qm deleted
   out=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
   assert_eq "$(jq -r '.duplication_pct' <<<"$out")" null
   assert_eq "$(jq -r '.files_changed' <<<"$out")" 2
@@ -249,6 +251,7 @@ t_health_metrics_outputs_json_and_markdown() {
   assert_eq "$(jq -r '.rework_14d_pct' <<<"$out")" 50.0
   # 没有 gh：prs_7d 和 human_7d.reviews 都是 null，归一化比值也应是 null（零分母场景之一）
   assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" null
+  assert_eq "$(jq -r '.approvals_7d' <<<"$out")" null
   md=$(env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 老文件改动占比 %（近 30 天，2 个文件） | 50.0 |"
   assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | — |"
@@ -308,6 +311,48 @@ t_health_metrics_human_review_per_merged_pr_zero_denominator() {
   assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" null
   md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | — |"
+}
+
+t_health_metrics_approval_comparison() {
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  git commit --allow-empty -qm seed
+  mkdir -p "$WORK/approval-bin"
+  cat > "$WORK/approval-bin/multica" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  'project list') echo '[{"id":"proj","title":"autoteam"}]' ;;
+  'issue list') echo '{"issues":[{"id":"a","identifier":"TST-1","updated_at":"2099-01-01T00:00:00Z"},{"id":"b","identifier":"TST-2","updated_at":"2099-01-01T00:00:00Z"},{"id":"c","identifier":"TST-3","updated_at":"2099-01-01T00:00:00Z"}],"has_more":false}' ;;
+  'issue timeline')
+    case "$3" in
+      a) echo '[{"action":"status_changed","actor_id":"planner","actor_type":"agent","created_at":"2099-01-01T00:00:01Z","details":{"from":"backlog","to":"todo"}},{"action":"status_changed","actor_type":"member","created_at":"2099-01-01T00:00:03Z","details":{"from":"todo","to":"cancelled"}}]' ;;
+      b|c) echo '[{"action":"status_changed","actor_id":"planner","actor_type":"agent","created_at":"2099-01-01T00:00:01Z","details":{"from":"backlog","to":"todo"}}]' ;;
+    esac ;;
+  'issue comment')
+    case "$4" in
+      a) echo '[{"author_id":"planner","created_at":"2099-01-01T00:00:00Z","content":"【自主放行】理由"},{"created_at":"2099-01-01T00:00:02Z","content":"【验收不通过】"}]' ;;
+      b) echo '[{"author_id":"planner","created_at":"2099-01-01T00:00:00Z","content":"【自主放行】理由"}]' ;;
+      c) echo '[{"author_id":"planner","created_at":"2099-01-01T00:00:00Z","content":"【人工授权放行】Song 批准"}]' ;;
+    esac ;;
+esac
+EOF
+  cat > "$WORK/approval-bin/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  'auth status') exit 0 ;;
+  'pr list') echo '[{"title":"TST-1 change","reviews":[{"state":"CHANGES_REQUESTED"}]}]' ;;
+esac
+EOF
+  chmod +x "$WORK/approval-bin/multica" "$WORK/approval-bin/gh"
+  # 模板初始化的项目名由仓库自动识别；与测试桩保持一致。
+  sed -i 's/^AUTOTEAM_MULTICA_PROJECT=.*/AUTOTEAM_MULTICA_PROJECT=autoteam/' .autoteam/autoteam.conf
+  out=$(env PATH="$WORK/approval-bin:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
+  assert_eq "$(jq -r '.approvals_7d.auto.count' <<<"$out")" 2
+  assert_eq "$(jq -r '.approvals_7d.human.count' <<<"$out")" 1
+  assert_eq "$(jq -r '.approvals_7d.auto.cancelled_pct' <<<"$out")" 50
+  assert_eq "$(jq -r '.approvals_7d.auto.review_rejected_pct' <<<"$out")" 50
+  assert_eq "$(jq -r '.approvals_7d.auto.acceptance_failed_pct' <<<"$out")" 50
+  assert_eq "$(jq -r '.approvals_7d.human.cancelled_pct' <<<"$out")" 0
 }
 
 # 私钥检查：registry 里 planner 在 machine-c、impl-claude 在 machine-a、rev-codex 在 machine-b
