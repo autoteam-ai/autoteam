@@ -18,5 +18,5 @@ issue_title: agent 成绩单 {{date}}
 - 验收不通过次数；
 - 单任务花费：multica issue usage <任务> --output json 的 token 用量平均值。
 
-用表格输出，指出明显偏低的 agent 和可能的原因，然后按 .autoteam/auditor.md 提及 Planner，并把本任务设为 done。
+用表格输出，指出明显偏低的 agent 和可能的原因，然后按 Auditor 角色指令提及 Planner，并把本任务设为 done。
 如果铸不出 planner token，在报告里明确写「loop-guard 未运行，数字为人工归纳」。

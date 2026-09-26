@@ -14,4 +14,4 @@ issue_title: 整合审计 {{date}}
 2. 跑 npx --yes jscpd@5 --config .jscpd.json --reporters console .，结合 git log 找出过去 7 天新增的重复代码块，带文件路径和行号。
 3. 找出该复用现有函数或组件、却重新实现的地方。
 
-每条建议写成能独立完成、能单独评审的小任务，然后按 .autoteam/auditor.md 提及 Planner，并把本任务设为 done。
+每条建议写成能独立完成、能单独评审的小任务，然后按 Auditor 角色指令提及 Planner，并把本任务设为 done。

@@ -37,4 +37,4 @@ subscriber: human
 
 没有值得改的，只回复“本周无需调整”，不要建任务。
 
-最后按 .autoteam/auditor.md 提及 Planner。你只出报告，不建任务、不改代码。
+最后按 Auditor 角色指令提及 Planner。你只出报告，不建任务、不改代码。

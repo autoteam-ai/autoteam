@@ -75,7 +75,7 @@ title: 安全边界和保护等级
 
 四个角色指令、autopilot 的 runbook、`planner-mcp.json` 不写进你的仓库：`autoteam multica --apply` 直接读 autoteam 包内的版本。这样做的结果：
 
-- **改规则只有两条路，都要人批准**：一是 `autoteam eject` 把某一份落到 `.autoteam/instructions/`，它在 CODEOWNERS 保护的目录里，改动走 PR 由人批准；二是升级 autoteam 版本，版本号变更（`.autoteam/.lock.json`、依赖清单里的版本）本身受 CODEOWNERS 保护，也要人批准。agent 没有第三条路：仓库里没有一份“指令文件”可以顺手改。
+- **改规则只有两条路，都要人批准**：一是 `autoteam eject` 把某一份落到 `.autoteam/instructions/`，它在 CODEOWNERS 保护的目录里，改动走 PR 由人批准；二是升级 autoteam 版本，`.autoteam/.lock.json` 中的版本号变更本身受 CODEOWNERS 保护，也要人批准。agent 没有第三条路：仓库里没有一份“指令文件”可以顺手改。
 - **不会漂移**：仓库里不再有一份可能和 Multica 不一致的指令副本，能漂移的只剩 eject 出来的那几份，`autoteam doctor` 会拿 Multica 里的文本和生效文本比对。
 - **代价**：升级版本时，指令文本的变化不再出现在 PR 的 diff 里，只剩版本号。缓解：升级 PR 的描述里贴上两个版本之间指令文本的差异（在 autoteam 仓库里 `git diff <旧版 tag> <新版 tag> -- skills/autoteam/instructions`）再让人批准；已 eject 的那几份用 `autoteam eject --diff <名字>` 对比包内的新版本；`autoteam doctor` 在同步后核对 Multica 里的文本和生效文本一致。`autoteam upgrade` 不打印指令的差异——包里只带当前版本，没有旧版可比。
 
