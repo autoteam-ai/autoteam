@@ -10,10 +10,10 @@ title: 第 7 步：跑通第一个需求
 
 1. **提需求**：在 Multica 的 Chat 里告诉 Planner，或者建一个任务指派给 Planner（状态 todo）。需求要小，拆出来两三个子任务，最好有一个依赖另一个（能看到批次推进）。
 2. **看拆分**：Planner 会建父任务和子任务（状态 backlog，指派给它自己），并在父任务里提及你。检查每个子任务都有“为什么做 / 要做什么 / 不做什么 / 验收标准”，验收标准写明了在线上怎么验证。
-3. **批准**：把子任务改成“已批准”（approved）。每改一个，Planner 就会被叫醒一次，第 1 批立即派发，第 2 批等第 1 批完成。
+3. **批准**：把子任务从 backlog 改成 todo（指派人仍是 Planner）。每改一个，Planner 就会被叫醒一次，第 1 批立即派发，第 2 批等第 1 批完成。
 4. **看派发**：Planner 在评论里写明 Implementer、Reviewer 和选择理由，然后指派 Implementer。
-5. **看实现**：Implementer 把任务改为 in_progress，开分支、跑 `make dev` 和 `make check`，开 PR（标题以任务编号开头，没有关闭关键字），平台闸门生效时打开自动合并，把任务改为 code_review 并 @Reviewer。
-6. **看评审**：Reviewer 等检查跑完，批准或打回。打回时任务变成 rework，Implementer 被 @ 后修改。
+5. **看实现**：Implementer 把任务改为 in_progress，开分支、跑 `make dev` 和 `make check`，开 PR（标题以任务编号开头，没有关闭关键字），平台闸门生效时打开自动合并，把任务改为 in_review 并 @Reviewer。
+6. **看评审**：Reviewer 等检查跑完，批准或打回。打回时 Reviewer 在 PR 上要求修改并 @Implementer，Implementer 把任务改回 in_progress 后修改。
 7. **看合并和部署**：检查通过后平台自动合并（降级模式下由 Reviewer 合并），deploy.yml 运行 `make deploy` 并通知 Planner。
 8. **看验收**：Planner 在线上验证，贴出证据，评论【验收通过】并设为 done；第 1 批全部完成后，它被叫醒并派发第 2 批。
 9. **看 Auditor**：在 Multica 里手动触发一次“整合审计”，确认报告任务生成、Planner 被 @ 后把建议拆进 backlog。
@@ -62,7 +62,7 @@ title: 第 7 步：跑通第一个需求
 | 2 | 项目改名后 autopilot 还绑着旧 `project_id`，照常运行、照常成功，只是在旧项目里找任务，Planner 一直报"无待验收任务" | apply 时比对 `project_id`，doctor 把绑错项目当错误报 |
 | 3 | 给 Reviewer 配了机器账号的 `env_file`，apply 却报"已是最新"——env 读不回来没法比对，判断里又漏了它，token 一次都没同步 | 和 MCP 配置一样：registry 里写了就每次重写 |
 | 4 | 人改规则文件时合不了，GitHub 说"最后推送的人不能当批准人"，换机器账号重推当场也没生效 | 两件事叠在一起：换身份推送要先清空凭据助手（否则系统钥匙串的凭据优先），而且 GitHub 更新"最后推送者"有延迟。正确做法是机器账号推、人批准，当场没生效就等几分钟重试 |
-| 5 | Implementer 开完 PR 才撞到额度上限，巡检只看到"运行失败"就改派，新 Implementer 把同一个功能重做了一遍，留下两个 PR | Planner 换人前先查 `gh pr list --search "<任务编号> in:title"`，有 PR 就转 `code_review` 交给 Reviewer，不重做 |
+| 5 | Implementer 开完 PR 才撞到额度上限，巡检只看到"运行失败"就改派，新 Implementer 把同一个功能重做了一遍，留下两个 PR | Planner 换人前先查 `gh pr list --search "<任务编号> in:title"`，有 PR 就转 `in_review` 交给 Reviewer，不重做 |
 
 2 和 3 是同一类错误，都是**比对不全面导致"已是最新"撒谎**。这类问题最难发现：命令返回成功，doctor 全绿，只有跑到那一步才发现链路是断的。现在两条都有回归测试。
 

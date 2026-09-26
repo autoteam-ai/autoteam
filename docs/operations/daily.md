@@ -13,7 +13,7 @@ title: 日常操作
 | 闸门 | 在哪 | 谁挡住 agent | 什么时候来 |
 |---|---|---|---|
 | 规则文件 PR 的批准 | GitHub | 规则集要求 Code Owner 审批，而 CODEOWNERS 不支持 GitHub App，只能写人 | agent 每次要改 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` |
-| 任务从「待审核」改成「已批准」 | Multica，**Backlog 列** | 只有指令约束——agent 技术上改得了，靠每日摘要里的批准核对发现 | 日常最频繁，Planner 每拆一批就提及你 |
+| 任务从「待审核」（backlog）改成「待办」（todo） | Multica，**Backlog 列** | 只有指令约束——agent 技术上改得了，靠每日摘要里的批准核对发现 | 日常最频繁，Planner 每拆一批就提及你 |
 | 处理 blocked 的升级 | Multica，**Blocked 列**（任务会指派给你） | 指令约束 | 打回 2 次 / 验收不通过 2 次 / 换人后仍失败 / 线上故障已回滚 |
 | `make publish` 发版 | 你的机器 | 不接进任何自动流程，`package.json` 和 `scripts/release.sh` 又受 CODEOWNERS 保护 | 你想发版的时候（仅 autoteam 自己这个仓库） |
 
@@ -32,9 +32,9 @@ title: 日常操作
 这是人在日常流转里唯一的操作。
 
 - Planner 拆好的子任务在 backlog（待审核），它会在父任务评论里提及你。
-- 看每个子任务的“为什么做 / 不做什么 / 验收标准”，值得做就改成“已批准”（approved），不值得做就改成 cancelled 并写一句原因。
+- 看每个子任务的“为什么做 / 不做什么 / 验收标准”，值得做就改成“待办”（todo，指派人保持 Planner），不值得做就改成 cancelled 并写一句原因。
 - 可以一次批准多个。Planner 每个都会被叫醒一次，前面批次没完成的会先留着。
-- **agent 也有改状态的权限**，平台拦不住它把任务改成已批准。每日摘要里有批准核对，发现 agent 批准的要处理。
+- **agent 也有改状态的权限**，平台拦不住它把任务从 backlog 改成 todo。每日摘要里有批准核对，发现 agent 批准的要处理。
 
 ## 评论的讲究
 

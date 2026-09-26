@@ -2,6 +2,12 @@
 
 ## 未发布
 
+### 行为变更：自定义状态只保留 `shipping`
+
+- **去掉 `approved`、`code_review`、`rework` 三个自定义状态**：人批准 = 把任务从 `backlog` 改成 `todo`（指派人仍是 Planner），提交 PR 后改 `in_review`，打回后 Implementer 把任务改回 `in_progress`。Multica 0.5 起自定义状态不再负责唤醒，这三个状态在看板上只是重复了内置状态的意思；`shipping` 保留，部署通知和巡检补查靠它找「已合并、等线上验收」的任务。
+- **需要升级步骤**：先把停在旧状态的任务分别移到 `todo` / `in_review` / `in_progress`，再到 Multica 界面归档这三个状态（类别建好后不能改，`--apply` 也不会删除状态）。步骤见[从旧版本升级](docs/setup/multica.md#从旧版本升级)。
+- 文档（`docs/`、README）同步改成新的状态模型；指令、代码和测试的改动在另一个任务里。
+
 ### ⚠️ 破坏性变更：新目录布局 + `autoteam migrate`（结构重整 5/5）
 
 结构重整（1/5–4/5）合起来是一次 breaking 升级，这一条是面向用户的汇总。已装机的项目要迁移，一条命令：
