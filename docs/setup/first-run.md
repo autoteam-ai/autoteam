@@ -10,7 +10,7 @@ title: 第 7 步：跑通第一个需求
 
 1. **提需求**：在 Multica 的 Chat 里告诉 Planner，或者建一个任务指派给 Planner（状态 todo）。需求要小，拆出来两三个子任务，最好有一个依赖另一个（能看到批次推进）。
 2. **看拆分**：Planner 会建父任务和子任务（状态 backlog，指派给它自己），并在父任务里提及你。检查每个子任务都有“为什么做 / 要做什么 / 不做什么 / 验收标准”，验收标准写明了在线上怎么验证。
-3. **批准**：把子任务从 backlog 改成 todo（指派人仍是 Planner）。每改一个，Planner 就会被叫醒一次，第 1 批立即派发，第 2 批等第 1 批完成。
+3. **批准**：把子任务从 backlog 改成 todo（指派人仍是 Planner）。每改一个，用 `multica issue runs <任务>` 确认 Planner 的运行已生成；界面批准并非每次都成功唤醒，见[界面批准后的唤醒核对](../concepts/lifecycle.md#界面批准后的唤醒核对)。第 1 批由 Planner 派发，第 2 批等第 1 批完成。
 4. **看派发**：Planner 在评论里写明 Implementer、Reviewer 和选择理由，然后指派 Implementer。
 5. **看实现**：Implementer 把任务改为 in_progress，开分支、跑 `make dev` 和 `make check`，开 PR（标题以任务编号开头，没有关闭关键字），平台闸门生效时打开自动合并，把任务改为 in_review 并 @Reviewer。
 6. **看评审**：Reviewer 等检查跑完，批准或打回。打回时 Reviewer 在 PR 上要求修改并 @Implementer，Implementer 把任务改回 in_progress 后修改。
