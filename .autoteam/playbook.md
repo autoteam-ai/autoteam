@@ -22,6 +22,7 @@
 ## 参数为什么是现在这个值
 
 - 2026-09-24：`AUTOTEAM_CODEOWNERS_GATE` 从 `on` 调为 `off`；初期阶段优先迭代速率。退出条件由人决定。
+- 2026-09-26：`impl-codex`、`rev-codex`、`auditor` 从 `gpt-5.6-terra` 改为 `gpt-6-sol`；依据 OpenAI 官方费用对比，且 `gpt-6-astra` token 成本过高，未选用。
 
 <!-- 每次调 autoteam.conf 的参数，在这里记一行：从多少改到多少、因为观察到什么。
      没有这段，半年后没人敢动这些数字 -->

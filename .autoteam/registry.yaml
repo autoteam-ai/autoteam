@@ -9,7 +9,7 @@ accounts:
 agents:
   planner:     { role: planner,     account: claude-max,   runtime: claude@devcontainer-cloud,  model: default, max_tasks: 5 }
   impl-claude: { role: implementer, account: claude-max,   runtime: claude@devcontainer-cloud,  model: default, max_tasks: 3 }
-  impl-codex:  { role: implementer, account: chatgpt-plus, runtime: codex@devcontainer-cloud,   model: gpt-5.6-terra, max_tasks: 3 }
+  impl-codex:  { role: implementer, account: chatgpt-plus, runtime: codex@devcontainer-cloud,   model: gpt-6-sol, max_tasks: 3 }
   rev-claude:  { role: reviewer,    account: claude-max,   runtime: claude@devcontainer-cloud,  model: default, max_tasks: 3 }
-  rev-codex:   { role: reviewer,    account: chatgpt-plus, runtime: codex@devcontainer-cloud,   model: gpt-5.6-terra, max_tasks: 3 }
-  auditor:     { role: auditor,     account: chatgpt-plus, runtime: codex@devcontainer-cloud,  model: gpt-5.6-terra, max_tasks: 1 }
+  rev-codex:   { role: reviewer,    account: chatgpt-plus, runtime: codex@devcontainer-cloud,   model: gpt-6-sol, max_tasks: 3 }
+  auditor:     { role: auditor,     account: chatgpt-plus, runtime: codex@devcontainer-cloud,  model: gpt-6-sol, max_tasks: 1 }
