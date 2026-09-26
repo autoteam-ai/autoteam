@@ -13,13 +13,15 @@ done
 set -- "${args[@]}"
 case "$1 $2" in
   'project list') echo '[{"id":"project-1","title":"shop"}]' ;;
-  'issue list') echo '{"issues":[{"id":"note-1","title":"运营笔记"}],"has_more":false}' ;;
+  'issue list')
+    if [ "${STOP_NO_NOTE:-0}" = 1 ]; then echo '{"issues":[],"has_more":false}'
+    else echo '{"issues":[{"id":"note-1","title":"运营笔记"}],"has_more":false}'; fi ;;
   'issue get')
     if [ -f "$STOP_STATE/marker" ]; then jq -n --argjson marker "$(cat "$STOP_STATE/marker")" '{metadata:{"autoteam.paused":$marker}}';
     else echo '{"metadata":{}}'; fi ;;
   'issue metadata')
     case $3 in
-      set) while [ $# -gt 0 ]; do if [ "$1" = --value ]; then printf '%s' "$2" > "$STOP_STATE/marker"; break; fi; shift; done ;;
+      set) while [ $# -gt 0 ]; do if [ "$1" = --value ]; then jq -n --arg value "$2" '$value' > "$STOP_STATE/marker"; break; fi; shift; done ;;
       delete) rm "$STOP_STATE/marker" ;;
     esac
     echo '{}' ;;
@@ -67,7 +69,7 @@ t_stop_preview_and_apply() {
   assert_not_contains "$(cat "$STOP_LOG")" 'autopilot update'
   out=$(stop_cmd stop --apply --keep-run run-chat)
   assert_contains "$out" '已停止本项目'
-  assert_eq "$(jq -r '.active_autopilots[0]' "$STOP_STATE/marker")" ap-active
+  assert_eq "$(jq -r 'fromjson | .active_autopilots[0]' "$STOP_STATE/marker")" ap-active
   assert_eq "$(jq -r '.[] | select(.id=="ap-active") | .status' "$STOP_STATE/autopilots")" paused
   assert_contains "$(cat "$STOP_LOG")" 'issue cancel-task run-work'
   assert_not_contains "$(cat "$STOP_LOG")" 'issue cancel-task run-chat'
@@ -79,7 +81,7 @@ t_stop_repeat_preserves_original_and_resume() {
   stop_fixture
   stop_cmd stop --apply --keep-run run-chat >/dev/null
   stop_cmd stop --apply --keep-run run-chat >/dev/null
-  assert_eq "$(jq -r '.active_autopilots | join(",")' "$STOP_STATE/marker")" ap-active
+  assert_eq "$(jq -r 'fromjson | .active_autopilots | join(",")' "$STOP_STATE/marker")" ap-active
   out=$(stop_cmd resume)
   assert_contains "$out" '巡检'
   assert_file "$STOP_STATE/marker"
@@ -90,4 +92,23 @@ t_stop_repeat_preserves_original_and_resume() {
   assert_eq "$(jq -r '.[] | select(.id=="ap-other") | .status' "$STOP_STATE/autopilots")" active
   assert_contains "$(stop_cmd status --check)" '未暂停'
   assert_contains "$(stop_cmd resume --apply)" '无需恢复'
+}
+
+t_stop_string_marker_roundtrip() {
+  stop_fixture
+  stop_cmd stop --apply --keep-run run-chat >/dev/null
+  assert_eq "$(jq -r 'type' "$STOP_STATE/marker")" string 'CLI 将 JSON 对象存为字符串'
+  assert_contains "$(cat "$STOP_LOG")" 'metadata set note-1 --key autoteam.paused --type string'
+  assert_contains "$(stop_cmd status)" '已暂停'
+  assert_contains "$(stop_cmd stop --keep-run run-chat)" '保留原始恢复列表'
+  stop_cmd resume --apply >/dev/null
+  assert_no_file "$STOP_STATE/marker"
+}
+
+t_stop_status_without_operational_note() {
+  stop_fixture
+  STOP_NO_NOTE=1; export STOP_NO_NOTE
+  assert_contains "$(stop_cmd status --check)" '未暂停'
+  assert_contains "$(stop_cmd stop)" '预览完成'
+  if stop_cmd stop --apply >/dev/null 2>&1; then tfail '没有运营笔记时不能执行 stop'; fi
 }

@@ -34,14 +34,14 @@ stop_setup() {
     more=$(jq -r '.has_more' <<<"$issues")
     offset=$((offset + $(jq '.issues | length' <<<"$issues")))
   done
-  [ -n "$STOP_NOTE_ID" ] || die "项目没有运营笔记任务；先让 Planner 创建"
-  stop_read_marker
+  STOP_MARKER=""
+  [ -z "$STOP_NOTE_ID" ] || stop_read_marker
 }
 
 stop_read_marker() {
   local issue
   issue=$(mc issue get "$STOP_NOTE_ID" --output json) || die "读取运营笔记失败"
-  STOP_MARKER=$(jq -c '.metadata["autoteam.paused"] // empty' <<<"$issue")
+  STOP_MARKER=$(jq -c '.metadata["autoteam.paused"] // empty | if type == "string" then fromjson else . end' <<<"$issue") || die "暂停标记格式错误，停止操作"
   if [ -n "$STOP_MARKER" ]; then
     jq -e 'type == "object" and (.active_autopilots | type == "array")' <<<"$STOP_MARKER" >/dev/null || die "暂停标记格式错误，停止操作"
   fi
@@ -75,7 +75,7 @@ stop_runs() {
 }
 
 cmd_stop() {
-  local profile="" apply=0 keep="" list ids marker actor run_id _run_status _issue_id
+  local profile="" apply=0 keep="" list ids marker actor ap_id run_id _run_status _issue_id
   while [ $# -gt 0 ]; do
     case $1 in
       --apply) apply=1; shift ;;
@@ -103,14 +103,15 @@ cmd_stop() {
   info "将取消的运行："
   if [ -n "$STOP_RUNS" ]; then printf '%s' "$STOP_RUNS" | tr '\t' ' '; else info "  无"; fi
   [ "$apply" = 1 ] || { info "预览完成；加 --apply 执行"; return; }
+  [ -n "$STOP_NOTE_ID" ] || die "项目没有运营笔记任务；先让 Planner 创建"
   if [ -z "$STOP_MARKER" ]; then
     actor=$(mc user profile get --output json) || die "读取操作人失败"
     marker=$(jq -nc --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson actor "$(jq -c '{id,name}' <<<"$actor")" --argjson ids "$ids" '{at:$at,operator:$actor,active_autopilots:$ids}')
-    mc issue metadata set "$STOP_NOTE_ID" --key autoteam.paused --value "$marker" --output json >/dev/null || die "写入暂停标记失败"
+    mc issue metadata set "$STOP_NOTE_ID" --key autoteam.paused --type string --value "$marker" --output json >/dev/null || die "写入暂停标记失败"
   fi
-  while IFS= read -r run_id; do
-    [ -n "$run_id" ] || continue
-    mc autopilot update "$run_id" --status paused --output json >/dev/null || die "暂停 autopilot $run_id 失败"
+  while IFS= read -r ap_id; do
+    [ -n "$ap_id" ] || continue
+    mc autopilot update "$ap_id" --status paused --output json >/dev/null || die "暂停 autopilot $ap_id 失败"
   done < <(jq -r --arg p "$STOP_PROJECT_ID" '.autopilots[] | select(.project_id == $p and .status == "active") | .id' <<<"$list")
   while IFS=$'\t' read -r run_id _run_status _issue_id; do
     [ -n "$run_id" ] || continue

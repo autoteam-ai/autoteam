@@ -67,7 +67,7 @@ autoteam [-C <目录>] <命令> [选项]
 
 ## autoteam stop / resume / status
 
-紧急开关只影响 `AUTOTEAM_MULTICA_PROJECT` 指定的项目，暂停标记保存在该项目「运营笔记」任务的 `autoteam.paused` metadata 中，记录 UTC 时间、操作人、停止前 active 的 autopilot ID。项目须先有「运营笔记」任务。
+紧急开关只影响 `AUTOTEAM_MULTICA_PROJECT` 指定的项目，暂停标记保存在该项目「运营笔记」任务的 `autoteam.paused` metadata 中，记录 UTC 时间、操作人、停止前 active 的 autopilot ID。执行 `stop --apply` 前须有「运营笔记」；没有该任务时 `status` 报未暂停，Planner 可照常创建它。
 
 | 命令 | 效果 |
 |---|---|
