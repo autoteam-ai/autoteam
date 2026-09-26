@@ -65,6 +65,20 @@ autoteam [-C <目录>] <命令> [选项]
 
 环境变量：`AUTOTEAM_MULTICA_BIN`（multica 可执行文件路径）、`MULTICA_TOKEN` / `MULTICA_SERVER_URL`（覆盖 profile 里的 API 凭据，只用于建状态）。
 
+## autoteam stop / resume / status
+
+紧急开关只影响 `AUTOTEAM_MULTICA_PROJECT` 指定的项目，暂停标记保存在该项目「运营笔记」任务的 `autoteam.paused` metadata 中，记录 UTC 时间、操作人、停止前 active 的 autopilot ID。执行 `stop --apply` 前须有「运营笔记」；没有该任务时 `status` 报未暂停，Planner 可照常创建它。
+
+| 命令 | 效果 |
+|---|---|
+| `autoteam stop` | 预览将暂停的 autopilot、将取消的 running/queued 运行 |
+| `autoteam stop --apply [--keep-run <运行 ID>]` | 写标记、暂停本项目 active 的 autopilot，并取消 registry agent 的运行；`--keep-run` 保留当前 Chat 运行 |
+| `autoteam resume` | 预览恢复列表 |
+| `autoteam resume --apply` | 只恢复标记记录的 autopilot，清除标记；已取消的运行不会自动重跑 |
+| `autoteam status [--check]` | 显示暂停状态；`--check` 在暂停时退出码为 1，供 agent 开工检查 |
+
+这三个命令均支持 `--profile <名字>`。连续 stop 保留首次标记里的恢复列表；原来就 paused 的 autopilot 不会被 resume 启动。预览不会写 Multica。
+
 ## autoteam doctor
 
 只读检查，逐项给出 ✅ / ⚠️ / ❌，有 ❌ 时退出码为 1。

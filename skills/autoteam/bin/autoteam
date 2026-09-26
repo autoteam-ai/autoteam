@@ -17,7 +17,7 @@ AUTOTEAM_LIB=$AUTOTEAM_HOME/lib
 # shellcheck disable=SC2034  # 在 lib 里使用
 AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/templates
 
-for autoteam_lib in common conf render registry instructions lock init upgrade github multica migrate doctor; do
+for autoteam_lib in common conf render registry instructions lock init upgrade github multica stop migrate doctor; do
   # shellcheck source=/dev/null
   . "$AUTOTEAM_LIB/$autoteam_lib.sh"
 done
@@ -34,6 +34,9 @@ autoteam —— 把自管理 agent 团队流程装进你的项目
   upgrade    按 .autoteam/.lock.json 升级：没改过的文件直接覆盖，改过的只打印差异
   github     配置 GitHub：仓库设置、规则集、environment、机器账号（默认只预览）
   multica    配置 Multica：自定义状态、agent、项目、autopilot、部署 webhook（默认只预览）
+  stop       暂停本项目 autopilot 并取消运行（默认只预览）
+  resume     恢复停止前 active 的 autopilot（默认只预览）
+  status     查看本项目是否暂停（--check 在暂停时返回 1）
   doctor     逐项检查本地文件、GitHub、Multica 是否到位（只读）
   runtimes   列出 Multica runtime，帮你填 registry.yaml 的 runtime 字段
   diff       对比已安装文件和当前模板
@@ -66,6 +69,9 @@ autoteam_main() {
     init)     cmd_init ${args[@]+"${args[@]}"} ;;
     github)   cmd_github ${args[@]+"${args[@]}"} ;;
     multica)  cmd_multica ${args[@]+"${args[@]}"} ;;
+    stop)     cmd_stop ${args[@]+"${args[@]}"} ;;
+    resume)   cmd_resume ${args[@]+"${args[@]}"} ;;
+    status)   cmd_status ${args[@]+"${args[@]}"} ;;
     doctor)   cmd_doctor ${args[@]+"${args[@]}"} ;;
     runtimes) cmd_runtimes ${args[@]+"${args[@]}"} ;;
     upgrade)  cmd_upgrade ${args[@]+"${args[@]}"} ;;
