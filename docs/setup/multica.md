@@ -63,7 +63,7 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 | 设计中的触发 | 实现 |
 |---|---|
 | 人下发需求 | 在 Chat 里和 Planner 对话，或建任务指派给 Planner |
-| 人批准 | 把子任务从 `backlog` 改成 `todo`，指派人仍是 Planner，平台叫醒它 |
+| 人批准 | 把子任务从 `backlog` 改成 `todo`，指派人仍是 Planner；界面批准后用 `multica issue runs <任务>` 确认 Planner 的运行已生成，见[界面批准后的唤醒核对](../concepts/lifecycle.md#界面批准后的唤醒核对) |
 | Planner 派发 | `multica issue status X todo --no-start` 再 `multica issue assign X --to <Implementer>` |
 | 人补充任务意见 | 对已指派任务发普通评论，平台默认叫醒指派 agent；以 `/note` 开头可抑制默认唤醒 |
 | 唤醒 Reviewer | Implementer 在评论里 `[@rev-xxx](mention://agent/<UUID>)` |
@@ -72,7 +72,7 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 | 部署通知 | “部署结果” autopilot 的 webhook，请求里的 JSON 交给 Planner |
 | 升级 | Reviewer @Planner；Planner 设为 `blocked` 并提及人 |
 
-Multica 0.5.1 起还可在单个任务上用 `multica issue wakeup create <任务> --kind event --event comment.created --filter-actor-type member --filter-actor-id <user_id> --instruction-file <文件>` 监听指定人的评论；`--kind at --after 10m`、`--kind every --every 1h`、`--kind cron --cron '0 * * * *' --timezone Asia/Shanghai` 可安排一次或重复复查。先用 `multica issue wakeup events` 查看可监听的事件，再用 `wakeup list/get/disable` 管理规则。事件规则未加作者过滤时会匹配 agent 评论，多个连续规则可能互相唤醒。autoteam 不在 `multica --apply` 中自动创建这些任务级规则；角色交接仍用明确的 @提及。
+Multica 0.5.1 起还可在单个任务上用 `multica issue wakeup create <任务> --agent-id <agent_id> --kind event --event comment.created --filter-actor-type member --filter-actor-id <user_id> --instruction-file <文件>` 监听指定人的评论。安排定时复查时，保留 `--agent-id` 和 `--instruction-file`，去掉作者过滤参数，并把事件参数换成 `--kind at --after 10m`、`--kind every --every 1h` 或 `--kind cron --cron '0 * * * *' --timezone Asia/Shanghai`。以成员凭据创建规则时要指定 `--agent-id`，否则没有默认 agent。先用 `multica issue wakeup events` 查看可监听的事件，再用 `wakeup list/get/disable` 管理规则。事件规则未加作者过滤时会匹配 agent 评论，多个连续规则可能互相唤醒。autoteam 不在 `multica --apply` 中自动创建这些任务级规则；角色交接仍用明确的 @提及。
 
 定时触发和部署通知由 autoteam 包内的 autopilot 指令定义（想改某一个，`autoteam eject <名字>` 落到 `.autoteam/instructions/autopilots/`），autoteam 按 front matter 建 autopilot 和触发器，正文是每次运行的 runbook：
 
