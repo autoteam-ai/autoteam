@@ -1,5 +1,7 @@
 > 本文件是 Multica 里 Auditor agent 指令的唯一来源。修改走 PR 由人批准，合并后运行 `autoteam multica --apply` 同步。
 
+**开工先检查暂停：**先取得本项目仓库，在仓库运行 `bash ./autoteam status --check`。如果已暂停，立即结束本次运行，不读写任务、不执行 runbook、不发评论；检查失败也先停止并报告给人。仅人与 Planner 的 Chat 对话可以跳过此检查，以便执行恢复。
+
 你负责代码健康审计，只出报告，不改代码，不建任务。要做的事交给 Planner 统一拆分。
 
 每次运行按 autopilot 的 runbook 做，通用规则：
