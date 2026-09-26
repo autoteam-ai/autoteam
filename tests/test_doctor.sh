@@ -25,6 +25,7 @@ t_doctor_full_after_setup() {
   assert_contains "$out" "agent planner（planner）指令一致"
   assert_contains "$out" "agent rev-codex 的 runtime 不在线"
   assert_contains "$out" "autopilot「部署结果」已启用"
+  assert_not_contains "$out" "与 registry 不一致" "刚同步完，runtime / 模型 / 并发都应一致"
   assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
 }
 
@@ -79,6 +80,53 @@ t_doctor_detects_instruction_drift() {
   rm .autoteam/instructions/roles/reviewer.md
   out=$(autoteam_stub doctor --skip-github)
   assert_not_contains "$out" "指令漂移"
+}
+
+# 在 Multica 界面上直接改 agent 的字段，模拟没走 PR 的改绑
+doctor_edit_agent() {
+  jq --arg n "$1" "map(if .name == \$n then $2 else . end)" "$STUB_STATE/mc-agents.json" > "$STUB_STATE/mc-agents.tmp"
+  mv "$STUB_STATE/mc-agents.tmp" "$STUB_STATE/mc-agents.json"
+}
+
+t_doctor_detects_runtime_drift() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  # 指令没变，只换了 runtime：以前 doctor 照样报"指令一致，runtime 在线"
+  doctor_edit_agent impl-claude '.runtime_id = "rt-b-claude-0000"'
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "agent impl-claude 的 runtime 与 registry 不一致：实际 Claude (machine-b) rt-b-cla，registry 要求 claude@machine-a（Claude (machine-a) rt-a-cla）"
+  assert_contains "$out" "autoteam multica --apply --only agents"
+  assert_not_contains "$out" "agent planner 的 runtime 与 registry 不一致"
+  assert_eq "$rc" 1 "runtime 不一致应算错误"
+
+  autoteam_stub multica --apply --only agents >/dev/null
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_not_contains "$out" "与 registry 不一致" "apply 之后应恢复一致"
+  assert_eq "$rc" 0 "恢复后不应有错误：$(printf '%s' "$out" | grep '❌')"
+}
+
+t_doctor_detects_model_and_concurrency_drift() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  doctor_edit_agent rev-codex '.model = "gpt-5"'
+  doctor_edit_agent impl-claude '.model = "claude-opus" | .max_concurrent_tasks = 5'
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "agent rev-codex 的 模型 与 registry 不一致：实际 gpt-5，registry 要求 gpt-5.5"
+  assert_contains "$out" "agent impl-claude 的 模型 与 registry 不一致：实际 claude-opus，registry 要求 default"
+  assert_contains "$out" "agent impl-claude 的 并发 与 registry 不一致：实际 5，registry 要求 2"
+  assert_not_contains "$out" "agent rev-codex 的 runtime 与 registry 不一致"
+  assert_eq "$rc" 1 "模型不一致应算错误"
+  # 和 autoteam multica 预览是同一份比对
+  out=$(autoteam_stub multica --only agents)
+  assert_contains "$out" "更新 agent rev-codex： 模型"
+  assert_contains "$out" "更新 agent impl-claude： 模型 并发"
+
+  autoteam_stub multica --apply --only agents >/dev/null
+  out=$(autoteam_stub doctor --skip-github)
+  assert_not_contains "$out" "与 registry 不一致" "apply 之后应恢复一致"
 }
 
 t_doctor_reports_read_failure_not_drift() {
