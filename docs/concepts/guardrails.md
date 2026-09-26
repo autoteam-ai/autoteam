@@ -29,7 +29,7 @@ title: 安全边界和保护等级
 
 | 约束 | 风险 | 怎么发现 |
 |---|---|---|
-| 只有人能把任务从 backlog 改成 todo（批准） | agent 也有改状态的权限 | 每日摘要里的批准核对 |
+| 放行（backlog 改成 todo）分级：`AUTOTEAM_AUTO_APPROVE=on` 时，Planner 只能自主放行不碰受保护路径、不涉及凭据/权限/部署/回滚/删数据/对外发布、改动小、不是新功能或方向调整的任务，每天不超过 `AUTOTEAM_AUTO_APPROVE_MAX_PER_DAY` 个，并留 `【自主放行】` 评论；其余只有人能放行 | agent 也有改状态的权限；Planner 可能把不满足条件的任务判成满足 | 每日摘要里的批准核对：没有 `【自主放行】` 评论却被 agent 放行的、或自主放行了受保护路径的，单独列出 |
 | Planner 不写代码 | 它的机器上有代码 | Planner 用只读 + Actions 的 token（planner 账号） |
 | 验收要看线上真实结果 | Planner 可能偷懒只看代码 | 评论里必须贴证据；人每周抽查 |
 | 打回、验收失败到上限就升级 | agent 可能忘记 | loop-guard.sh 从记录里算，巡检重新计算 |

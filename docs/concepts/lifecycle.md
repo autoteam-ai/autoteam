@@ -10,8 +10,8 @@ Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 1
 
 | 设计中的状态 | key | 类型 | 类别 | 谁设置 | 下一步怎么被叫醒 |
 |---|---|---|---|---|---|
-| 待审核 | `backlog` | 内置 | unstarted | Planner 建子任务时，指派给自己 | 不启动运行，等人批准 |
-| 待办 | `todo` | 内置 | unstarted | **人批准**：把 `backlog` 改成 `todo`，指派人仍是 Planner；Planner 派发时改指派为 Implementer | 离开 backlog 会叫醒指派人 Planner，立即派发；指派给 Implementer 即启动它 |
+| 待审核 | `backlog` | 内置 | unstarted | Planner 建子任务时，指派给自己 | 不启动运行；符合「放行分级」的由 Planner 自主放行，其余等人批准 |
+| 待办 | `todo` | 内置 | unstarted | **放行**：人把 `backlog` 改成 `todo`，或 Planner 按「放行分级」自主放行（带 `【自主放行】` 评论，`AUTOTEAM_AUTO_APPROVE=on` 且未超每日上限），指派人仍是 Planner；Planner 派发时改指派为 Implementer | 人放行会叫醒指派人 Planner，立即派发；自主放行用 `--no-start`，`urgent` / `high` 当次派发，`medium` / `low` 等下次巡检；指派给 Implementer 即启动它 |
 | 实现中 | `in_progress` | 内置 | started | Implementer 开工时，被打回或验收不通过后重新开工时 | 运行失败时平台回滚到 `todo`，巡检兜底 |
 | 审核中 | `in_review` | 内置 | started | Implementer 提交 PR 后 | 评论里 @Reviewer |
 | 待上线 | `shipping` | 自定义 | started | Reviewer | 部署 webhook 叫醒 Planner；巡检补查超过 1 小时没验收的 |
@@ -21,12 +21,12 @@ Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 1
 
 几点注意：
 
-1. **人批准就是把 `backlog` 改成 `todo`**。不需要单独的“已批准”状态：任务离开 backlog 本来就会叫醒指派人，指派人仍是 Planner，所以 Planner 醒来看到 `todo` 就知道已经批准。
+1. **放行就是把 `backlog` 改成 `todo`**，由人批准，或由 Planner 按「放行分级」自主放行（开关见[配置文件](../reference/config.md#autoteamconf)的 `AUTOTEAM_AUTO_APPROVE`）。不需要单独的“已批准”状态：任务离开 backlog 本来就会叫醒指派人，指派人仍是 Planner，所以 Planner 醒来看到 `todo` 就知道已经批准。
 2. **打回和返工不占状态**。Reviewer 在 PR 上要求修改，并在评论里 @Implementer；Implementer 被 @ 后第一步把任务改回 `in_progress`。Planner 验收不通过时同样把任务改回 `in_progress` 并 @Implementer。打回次数由 `loop-guard.sh` 从 GitHub 评审记录和评论里统计，不依赖任何状态。
 3. **为什么保留 `shipping`**：它表示“已合并、等线上验收”。部署通知和巡检补查都靠它找任务；如果和 `in_review` 合并，就只能逐个查 PR，看板上也看不出哪些已经合进 main。
 4. **类别创建后不能改**。建错了只能在界面里归档，再重新运行 `autoteam multica --apply`。
 5. **平台自己改状态时只写内置状态**：运行失败回滚到 `todo`；PR 带关闭关键字合并会直接设为 `done`。所以 PR 标题只写任务编号（建立关联），不写 `Closes XXX-123`。
-6. **“批准”agent 也能做**。平台拦不住 agent 把任务从 `backlog` 改成 `todo`，靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
+6. **“批准”agent 也能做**。平台拦不住 agent 把任务从 `backlog` 改成 `todo`；除了按「放行分级」留下 `【自主放行】` 评论的，其余靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
 
 ## 唤醒规则（Multica 0.5）
 
