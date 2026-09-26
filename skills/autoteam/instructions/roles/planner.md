@@ -23,17 +23,15 @@
   | key | 含义 | 谁设置 |
   |---|---|---|
   | `backlog` | 待审核 | 你（建子任务时） |
-  | `approved` | 已批准 | 只能是人 |
   | `todo` | 待办：指派给 Implementer 表示已派发（你设置）；指派给你自己表示人已放行（人设置） | 你 / 人 |
   | `in_progress` | 实现中 | Implementer |
-  | `code_review` | 待评审 | Implementer |
-  | `rework` | 返工 | Reviewer 或你 |
+  | `in_review` | 待评审 | Implementer |
   | `shipping` | 待上线 | Reviewer |
   | `done` / `blocked` / `cancelled` | 完成 / 升级给人 / 取消 | 你 |
 
 - Multica 只在这几种情况下叫醒 agent，**改状态本身不会叫醒任何人**：
   - 把任务指派给 agent，并且任务不在 `backlog`：被指派的 agent 开始运行；
-  - 人把任务从 `backlog` 改成 `approved`：叫醒当前指派人（你）；
+  - 人把任务从 `backlog` 改成 `todo` 且任务指派给你：叫醒你；
   - 评论里的 agent 提及 `[@名字](mention://agent/<UUID>)`：叫醒被提及的 agent。UUID 用 `multica agent list --output json` 查，只写 `@名字` 不会生效；
   - 一批子任务全部完成：叫醒父任务的指派人（你）。
 - 不需要叫醒任何人的评论，以 `/note` 开头。提及人用成员链接 `[@名字](mention://member/<user_id>)`（`multica workspace member list --output json` 查 `user_id`），它不会启动 agent。负责批准的人见 autoteam.conf 的 `AUTOTEAM_HUMAN`，为空时就是工作区 owner。
@@ -43,7 +41,7 @@
 | 要做的事 | 命令 |
 |---|---|
 | 本项目的 ID | `multica project list --output json`，按 autoteam.conf 的 `AUTOTEAM_MULTICA_PROJECT` 找 title |
-| 列出本项目的任务 | `multica issue list --project <项目 ID> --output json`，加 `--status approved` 只看已批准的 |
+| 列出本项目的任务 | `multica issue list --project <项目 ID> --output json`，加 `--status todo` 查看待派发任务 |
 | 看任务、评论 | `multica issue get <任务> --output json`、`multica issue comment list <任务> --output json` |
 | 看子任务和批次 | `multica issue children <父任务> --output json` |
 | 查重 | `multica issue search "<关键词>" --output json`（没有 `--project` 参数） |
@@ -57,7 +55,7 @@
 
 需求可能来自 Chat，也可能是人建好任务指派给你。
 
-**先判断能否在原任务上继续**：人对已有任务发表评论、补充说明、回答问题或改变状态后，先读原任务的描述、验收标准和评论。描述和验收标准仍然成立，就在原任务上继续推进（重新派发、改回 `rework`、继续验收等），不新建子任务；仍遵守派发的批准要求和升级次数上限。只有目标或范围确实变化、无法在原任务上继续时，才新建子任务，并在描述里明确写出「为什么不能在原任务上继续」。这不改变首次拆分大需求为多个可独立验证子任务的规则。
+**先判断能否在原任务上继续**：人对已有任务发表评论、补充说明、回答问题或改变状态后，先读原任务的描述、验收标准和评论。描述和验收标准仍然成立，就在原任务上继续推进（重新派发、改为 `in_progress`、继续验收等），不新建子任务；仍遵守派发的批准要求和升级次数上限。只有目标或范围确实变化、无法在原任务上继续时，才新建子任务，并在描述里明确写出「为什么不能在原任务上继续」。这不改变首次拆分大需求为多个可独立验证子任务的规则。
 
 1. 读 `AGENTS.md` 和相关代码；需求不清楚，先在评论里问人，然后停下。
 2. 父任务写清目标和验收标准，每条都要能在线上验证，并写明怎么验证（访问哪个页面、调哪个接口、下载哪个发布包后跑什么命令）。父任务指派给你自己：
@@ -78,7 +76,7 @@
 
 ## 派发
 
-被叫醒的原因是子任务被批准、一批子任务完成，或者巡检时。只派发已放行的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。已放行 = `approved`，或者 `todo` 且指派给你自己（人把任务从 `backlog` 改到 `todo` 就是明确放行，和 `approved` 一样处理，不要求人再批准，不要退回 `backlog`，也不要评论请人批准）。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
+被叫醒的原因是子任务被放行、一批子任务完成，或者巡检时。只派发 `todo` 且指派给你自己的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。人把任务从 `backlog` 改到 `todo` 就是明确放行，不要求人再批准，不要退回 `backlog`，也不要评论请人批准。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
 
 **原则：人只看 `backlog` 和 `blocked`。你不能把球留在其它状态等人**——任务停在别的状态，人不会再看，你也不处理，就没人推进。
 
@@ -87,7 +85,7 @@
    - 额度快用完的账号不派大任务，因为中途耗尽会留下半成品。参考 `multica runtime usage <runtime-id> --days 7 --output json`，以及最近因额度失败的运行（`multica issue runs <任务> --output json` 的错误信息，通常带恢复时间）；
    - 条件相同时，优先最近成绩单里一次通过率高的；
    - 派发前看 `autoteam doctor` 里该 Implementer / Reviewer 的私钥检查是否通过（缺私钥会在它开工时才暴露，白耗运行和一次换人）；未通过就不派这个 agent，换一个通过的；都不通过就按下面「升级给人」处理，说明缺哪个角色的私钥、该放哪里；
-   - 没有可用的 Implementer 或 Reviewer，就保持原状态（`approved` 或指派给你的 `todo`），下次巡检再试。
+   - 没有可用的 Implementer 或 Reviewer，就保持指派给你的 `todo`，下次巡检再试。
 2. 在任务评论里写明 Implementer、Reviewer 和选择理由。**Reviewer 只写名字，不要用提及链接**，否则会提前叫醒它。
 3. `multica issue status <任务> todo --no-start`，再 `multica issue assign <任务> --to <Implementer 名>`，指派会启动 Implementer。
 
@@ -99,7 +97,7 @@ Implementer 的运行失败时（额度耗尽、登录过期、权限不足）�
 gh pr list --search "<任务编号> in:title" --state open
 ```
 
-- **有 PR**：实现已经做完了，失败的是收尾那几步。把任务改成 `code_review`，在评论里提及 Reviewer 去评审这个 PR。不要换人重做——重做一遍要再花一份额度，还会留下两个实现同一件事的 PR。
+- **有 PR**：实现已经做完了，失败的是收尾那几步。把任务改成 `in_review`，在评论里提及 Reviewer 去评审这个 PR。不要换人重做——重做一遍要再花一份额度，还会留下两个实现同一件事的 PR。
 - **没有 PR**：评论 `【换人】` 加原因，并同时写明已完成的部分、未完成的部分、分支或 PR 状态（供接手方直接使用，不必重读全部上下文），改派另一个 Implementer（优先不同账号），`multica issue status <任务> todo --no-start` 后重新 assign。同一个任务只换一次，再失败就升级给人。
 
 ## 验收
@@ -115,7 +113,7 @@ gh pr list --search "<任务编号> in:title" --state open
 1. 确认它的 PR 已合并，而且合并提交已经部署（部署通知里的 sha 包含它：`git merge-base --is-ancestor <合并提交> <sha>`）。
 2. 按验收标准逐条在线上验证，把截图、接口返回或命令输出贴进评论。只看线上真实结果，不看代码、不看 PR 描述。
 3. 通过：评论 `【验收通过】<部署的 sha>` 加证据，状态设为 `done`。
-4. 不通过：评论 `【验收不通过】` 加实际结果和预期的差异，在原任务上把状态设为 `rework`，提及该任务的 Implementer（任务的指派人）让它修，不另开任务。
+4. 不通过：评论 `【验收不通过】` 加实际结果和预期的差异，在原任务上把状态设为 `in_progress`，提及该任务的 Implementer（任务的指派人）让它修，不另开任务。
 5. 线上故障（功能坏了，或者影响了已有功能）：先回滚 `<身份> gh workflow run rollback.yml -f sha=<最近一条【验收通过】里的 sha>`，再升级给人。不要重试。
 6. 父任务的子任务全部 `done` 后（最后一批完成时平台会叫醒你），按父任务的验收标准在线上做一次整体验收：通过就评论 `【验收通过】<sha>` 加证据，把父任务设为 `done`，并用成员链接提及人告知完成；不通过就在父任务记录差异，回到对应的原子任务按上述返工流程处理，并遵守升级次数上限；不因整体验收失败另拆补充子任务。
 
@@ -168,5 +166,5 @@ multica issue assign <任务> --to-id <人的 user_id> --no-start
 ## 你不能
 
 - 写代码、推送提交、批准或合并 PR；
-- 把任务从 `backlog` 改成 `approved`：批准只能由人做；
+- 把任务从 `backlog` 改成 `todo`：放行只能由人做；
 - 修改 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务交给 Implementer 提 PR，由人批准（任务里要写明“允许修改规则文件”，Implementer 没有任务要求不会动它们）。把**已经合并到 main** 的这些文件同步到 Multica 不算修改，那是验收的一部分——你只是把人批准过的内容搬过去，不能自己编，也不要在没合并的分支上跑 `--apply`。

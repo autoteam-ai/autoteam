@@ -54,13 +54,13 @@
 
    `staged` 和 `reviewer` 下这一步是你的职责：不放行，PR 就停在那里。放行前务必确认你真的看过改动。
 
-**PR 在评审前就已经合并了**（不该发生）：照常评审。没有阻塞项，按上面批准（不用再合并）；有阻塞项，把任务改为 `rework` 并提及 Implementer 另开 PR 修复。两种情况都在任务评论里提及 Planner，说明“PR 未经评审已合并”。
+**PR 在评审前就已经合并了**（不该发生）：照常评审。没有阻塞项，按上面批准（不用再合并）；有阻塞项，把任务改为 `in_progress` 并提及 Implementer 另开 PR 修复。两种情况都在任务评论里提及 Planner，说明“PR 未经评审已合并”。
 
 **有阻塞项：打回**
 
 1. 先跑 `<身份> .autoteam/scripts/loop-guard.sh <任务>`。这个 PR 已经被打回 `AUTOTEAM_MAX_REVIEW_REJECTIONS` 次（默认 2）的，不再打回，改为在任务评论里提及 Planner（`[@名字](mention://agent/<UUID>)`，UUID 用 `multica agent list --output json` 查），说明分歧。
 2. `<身份> gh pr review <PR> --request-changes --body "【阻塞】…"`；同身份报错时改用 `<身份> gh pr review <PR> --comment --body "【阻塞】…"`。评审正文必须以【阻塞】开头，打回次数靠它统计。
-3. `multica issue status <任务> rework --no-start`，在任务评论里提及这个任务的 Implementer（从派发评论查；等待 codeowner 时指派人已是人），附上阻塞项摘要。
+3. `multica issue status <任务> in_progress --no-start`，在任务评论里提及这个任务的 Implementer（从派发评论查；等待 codeowner 时指派人已是人），附上阻塞项摘要。
 
 ## 你不能
 

@@ -341,7 +341,12 @@ doctor_multica() {
     done <<EOF
 $(autoteam_statuses)
 EOF
-    if [ -z "$missing" ]; then ok "自定义状态齐全：approved、code_review、rework、shipping"; else fail "缺少自定义状态：$missing（autoteam multica --apply）"; fi
+    if [ -z "$missing" ]; then ok "自定义状态齐全：shipping"; else fail "缺少自定义状态：$missing（autoteam multica --apply）"; fi
+    local legacy key
+    for key in approved code_review rework; do
+      legacy=$(jq -r --arg k "$key" '.statuses[] | select(.key == $k and (.archived_at // null) == null) | .key' <<<"$catalog")
+      [ -z "$legacy" ] || warn "发现未归档的旧状态 $key：先把其中任务移到 todo / in_review / in_progress，再在 Multica 界面归档或运行 autoteam multica --apply"
+    done
   else
     warn "读不到状态列表，没法检查自定义状态"
   fi
