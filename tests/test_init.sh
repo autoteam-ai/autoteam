@@ -23,7 +23,7 @@ t_init_fresh_repo_creates_everything() {
     assert_file "$f"
   done
   # 角色指令、autopilot、planner-mcp.json 默认不落盘
-  for f in .autoteam/planner.md .autoteam/autopilots .autoteam/planner-mcp.json .autoteam/instructions; do
+  for f in .autoteam/{auditor,implementer,planner,reviewer}.md .autoteam/autopilots .autoteam/planner-mcp.json .autoteam/instructions; do
     assert_no_file "$f"
   done
   [ -x .autoteam/scripts/loop-guard.sh ] || tfail "loop-guard.sh 应可执行"

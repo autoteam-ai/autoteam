@@ -360,7 +360,7 @@ t_multica_autopilot_cron_comes_from_conf() {
 t_multica_uses_ejected_autopilot() {
   setup_ready_repo
   autoteam_stub eject patrol >/dev/null
-  sed -i.bak 's|^按 .autoteam/planner.md 做一次推进巡检|自定义巡检 runbook|' .autoteam/instructions/autopilots/patrol.md && rm -f .autoteam/instructions/autopilots/patrol.md.bak
+  sed -i.bak 's|^按 Planner 角色指令做一次推进巡检|自定义巡检 runbook|' .autoteam/instructions/autopilots/patrol.md && rm -f .autoteam/instructions/autopilots/patrol.md.bak
   : > "$STUB_LOG"
   autoteam_stub multica --apply >/dev/null
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10 "同名以 eject 的为准，不重复建"
