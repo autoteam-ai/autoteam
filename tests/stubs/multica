@@ -84,7 +84,8 @@ case "$1 $2" in
   "issue list")
     status=$(flag --status "$@" || true)
     issues=$state/mc-issues-$status.json
-    [ -f "$issues" ] && cat "$issues" || echo '[]' ;;
+    [ -f "$issues" ] || echo '[]' > "$issues"
+    jq '{issues: ., has_more: false}' "$issues" ;;
   "agent create")
     name=$(flag --name "$@")
     id="agent-$name"

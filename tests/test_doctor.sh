@@ -33,9 +33,10 @@ t_doctor_warns_about_legacy_statuses() {
   autoteam_stub multica --apply >/dev/null
   printf '%s\n' '[{"id":"status-shipping","key":"shipping","name":"待上线","category":"in_progress","archived_at":null},{"id":"status-approved","key":"approved","name":"已批准","category":"todo","archived_at":null}]' > "$STUB_STATE/mc-statuses.json"
   out=$(autoteam_stub doctor --skip-github)
+  rc=$?
   assert_contains "$out" "自定义状态齐全：shipping"
   assert_contains "$out" "发现未归档的旧状态 approved"
-  assert_eq "$?" 0 "遗留状态只应警告，不应失败"
+  assert_eq "$rc" 0 "遗留状态只应警告，不应失败"
 }
 
 t_doctor_warns_when_codeowners_gate_off() {

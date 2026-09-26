@@ -351,7 +351,7 @@ EOF
 multica_archive_legacy_statuses() {
   local catalog=$1 key entry id issues issue_titles
   for key in approved code_review rework; do
-    entry=$(jq -c --arg k "$key" '.statuses[] | select(.key == $k)' <<<"$catalog")
+    entry=$(jq -c --arg k "$key" '.statuses[] | select(.key == $k and (.archived_at // null) == null)' <<<"$catalog")
     [ -n "$entry" ] || continue
     id=$(jq -r '.id // empty' <<<"$entry")
     if [ -z "$id" ]; then
@@ -364,8 +364,8 @@ multica_archive_legacy_statuses() {
       fail "读取使用旧状态 $key 的任务失败；为安全起见未归档"
       continue
     fi
-    if [ "$(jq 'length' <<<"$issues")" -gt 0 ]; then
-      issue_titles=$(jq -r '.[] | "\(.identifier // .id) \(.title)"' <<<"$issues" | paste -sd '；' -)
+    if [ "$(jq '.issues | length' <<<"$issues")" -gt 0 ]; then
+      issue_titles=$(jq -r '.issues[] | "\(.identifier // .id) \(.title)"' <<<"$issues" | paste -sd '；' -)
       warn "旧状态 $key 仍有任务：$issue_titles。先移到 todo / in_review / in_progress，未归档"
       continue
     fi
