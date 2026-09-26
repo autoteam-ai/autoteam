@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 文档：补充 Multica 0.5.1 任务级事件与定时 wakeup rule 的触发边界，并明确 autoteam 仅让人对已指派任务的普通评论使用默认唤醒；角色交接继续显式指派或 @提及。
+
 ### 行为变更：自定义状态只保留 `shipping`
 
 - **去掉 `approved`、`code_review`、`rework` 三个自定义状态**：人批准 = 把任务从 `backlog` 改成 `todo`（指派人仍是 Planner），提交 PR 后改 `in_review`，打回后 Implementer 把任务改回 `in_progress`。Multica 0.5 起自定义状态不再负责唤醒，这三个状态在看板上只是重复了内置状态的意思；`shipping` 保留，部署通知和巡检补查靠它找「已合并、等线上验收」的任务。
