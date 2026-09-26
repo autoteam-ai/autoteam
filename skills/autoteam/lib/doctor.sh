@@ -290,33 +290,35 @@ doctor_mc_read() {
   return 1
 }
 
-# registry 里每个 agent 的 runtime 上要有它角色的 App 私钥（auditor 没有 App，不查）。
+# registry 里每个 agent 的 runtime 上要有它所用身份的 App 私钥（auditor 用 planner 身份）。
 # 只有 runtime 就是本机（本机 daemon 管着它）时缺私钥才算错误：远端的 runtime 从这里
 # 看不到它的磁盘，只能提示。私钥的查找规则只有 gh-app-token.sh 一份，这里调它的 --find-key。
 doctor_app_keys() {
-  local rows=$1 runtimes=$2 local_ids name role runtime rid err seen=" " upper id_var
+  local rows=$1 runtimes=$2 local_ids name role key_role runtime rid err upper id_var
   local_ids=$(mc daemon status --output json 2>/dev/null | jq -r '[.workspaces[]?.runtimes[]?] | .[]' 2>/dev/null) || local_ids=""
   while IFS=$'\t' read -r name role _ runtime _; do
-    case $role in implementer|reviewer|planner) ;; *) continue ;; esac
-    upper=$(printf '%s' "$role" | tr '[:lower:]' '[:upper:]')
+    case $role in
+      implementer|reviewer|planner) key_role=$role ;;
+      auditor) key_role=planner ;;
+      *) continue ;;
+    esac
+    upper=$(printf '%s' "$key_role" | tr '[:lower:]' '[:upper:]')
     id_var=AUTOTEAM_${upper}_APP_ID
     [ -n "${!id_var}" ] || continue   # 没配这个角色的 App，就用不着私钥（缺 App ID 别处已经报了）
     rid=$(mc_runtime_id "$runtimes" "$runtime" || true)
     [ -n "$rid" ] || continue   # 找不到 runtime 是 autoteam multica 的事
     if ! grep -qxF "$rid" <<<"$local_ids"; then
-      info "agent $name 的 runtime $runtime 不在本机：$role 的私钥要到那台机器上检查（放 AUTOTEAM_KEYS_DIR，在那里跑 autoteam doctor）"
+      info "agent $name 的 runtime $runtime 不在本机：$role 使用 $key_role 身份，$key_role 的私钥要到那台机器上检查（放 AUTOTEAM_KEYS_DIR，在那里跑 autoteam doctor）"
       continue
     fi
-    case $seen in *" $role "*) continue ;; esac   # 同一台机器同一个角色只报一次
-    seen="$seen$role "
-    if err=$("$AUTOTEAM_DIR/scripts/gh-app-token.sh" --find-key "$role" 2>&1 >/dev/null); then
-      ok "本机有 $role 的私钥（agent $name 的 runtime 在本机）"
+    if err=$("$AUTOTEAM_DIR/scripts/gh-app-token.sh" --find-key "$key_role" 2>&1 >/dev/null); then
+      ok "本机有 $key_role 的私钥（agent $name 的 runtime 在本机；$role 使用 $key_role 身份）"
     else
       case $err in
-        *"找不到 $role 的私钥"*)
-          fail "本机没有 $role 的私钥，但 agent $name 的 runtime $runtime 在这台机器上：派给它的任务会在开工时铸不出 token"
-          hint "把 App 的 .pem 放进 AUTOTEAM_KEYS_DIR（当前 $AUTOTEAM_KEYS_DIR；agent 每次 checkout 都是新目录，别只放仓库里），文件名要带角色名，例如 $role.pem；也可以用 AUTOTEAM_${upper}_APP_KEY 指路径" ;;
-        *) fail "$role 的私钥有问题：${err:-跑 $AUTOTEAM_DIR/scripts/gh-app-token.sh --find-key $role 看报错}" ;;
+        *"找不到 $key_role 的私钥"*)
+          fail "本机没有 $key_role 的私钥，但 agent $name 的 runtime $runtime 在这台机器上（$role 使用 $key_role 身份）：派给它的任务会在开工时铸不出 token"
+          hint "把 App 的 .pem 放进 AUTOTEAM_KEYS_DIR（当前 $AUTOTEAM_KEYS_DIR；agent 每次 checkout 都是新目录，别只放仓库里），文件名要带角色名，例如 $key_role.pem；也可以用 AUTOTEAM_${upper}_APP_KEY 指路径" ;;
+        *) fail "$role 使用的 $key_role 私钥有问题：${err:-跑 $AUTOTEAM_DIR/scripts/gh-app-token.sh --find-key $key_role 看报错}" ;;
       esac
     fi
   done <<EOF
