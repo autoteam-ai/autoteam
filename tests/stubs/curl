@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# curl 桩：模拟 Multica 的状态接口 /api/issue-statuses，以及 GitHub App 铸 token 的三个接口。
+# curl 桩：模拟 Multica 的状态接口 /api/issue-statuses（含归档），以及 GitHub App 铸 token 的三个接口。
 set -o pipefail
 state=${STUB_STATE:?}
 method=GET out="" data="" url="" cfg="" bearer=""
@@ -53,17 +53,24 @@ statuses=$state/mc-statuses.json
 [ -f "$statuses" ] || echo '[]' > "$statuses"
 case "$method ${url#https://api.multica.test}" in
   "GET /api/issue-statuses")
-    jq '{statuses: ([{key: "backlog", category: "backlog"}, {key: "todo", category: "todo"},
+    jq '{statuses: ([{id: "builtin-backlog", key: "backlog", category: "backlog"}, {id: "builtin-todo", key: "todo", category: "todo"},
           {key: "in_progress", category: "in_progress"}, {key: "in_review", category: "in_review"},
           {key: "blocked", category: "blocked"}, {key: "done", category: "done"},
-          {key: "cancelled", category: "cancelled"}] + .)}' "$statuses" > "$out"
+          {id: "builtin-cancelled", key: "cancelled", category: "cancelled"}] + [.[] | select(.archived_at == null)])}' "$statuses" > "$out"
     printf 200 ;;
   "POST /api/issue-statuses")
     printf 'BODY POST /api/issue-statuses %s\n' "$(jq -c . <<<"$data")" >> "$STUB_LOG"
     wire=$(jq -r '.category | if . == "unstarted" then "todo" else "in_progress" end' <<<"$data")
-    jq --argjson s "$data" --arg c "$wire" '. + [{key: $s.key, name: $s.name, category: $c}]' "$statuses" > "$statuses.tmp"
+    jq --argjson s "$data" --arg c "$wire" '. + [{id: ("status-" + $s.key), key: $s.key, name: $s.name, category: $c, archived_at: null}]' "$statuses" > "$statuses.tmp"
     mv "$statuses.tmp" "$statuses"
     jq '. + {id: "st-1"}' <<<"$data" > "$out"
     printf 201 ;;
+  "DELETE /api/issue-statuses/"*)
+    id=${url##*/}
+    printf 'DELETE /api/issue-statuses/%s\n' "$id" >> "$STUB_LOG"
+    jq --arg id "$id" 'map(if .id == $id then .archived_at = "2099-01-01T00:00:00Z" else . end)' "$statuses" > "$statuses.tmp"
+    mv "$statuses.tmp" "$statuses"
+    printf '{"id":"%s","archived_at":"2099-01-01T00:00:00Z"}' "$id" > "$out"
+    printf 200 ;;
   *) echo '{"error":"not found"}' > "$out"; printf 404 ;;
 esac

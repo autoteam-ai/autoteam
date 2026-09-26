@@ -6,7 +6,7 @@ t_multica_preview_makes_no_writes() {
   : > "$STUB_LOG"
   out=$(autoteam_stub multica)
   assert_contains "$out" "profile：test"
-  assert_contains "$out" "[预览] 新建状态 approved（已批准，类别 unstarted）"
+  assert_contains "$out" "[预览] 新建状态 shipping（待上线，类别 started）"
   assert_contains "$out" "[预览] 新建 agent planner（planner，runtime rt-c-cla，模型 default，并发 1）"
   assert_contains "$out" "[预览] 新建 agent rev-codex（reviewer，runtime rt-b-cod，模型 gpt-5.5，并发 2）"
   assert_contains "$out" "runtime codex@machine-b 现在不在线"
@@ -22,7 +22,7 @@ t_multica_apply_creates_everything() {
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply)
   assert_contains "$out" "已新建状态 shipping"
-  assert_log 'BODY POST /api/issue-statuses {"key":"approved","name":"已批准","category":"unstarted","color":"#3b82f6"'
+  assert_log 'BODY POST /api/issue-statuses {"key":"shipping","name":"待上线","category":"started","color":"#14b8a6"'
   assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
   assert_eq "$(jq length "$STUB_STATE/mc-agents.json")" 4
   assert_eq "$(jq -r '.[] | select(.name == "impl-claude") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-a-claude-0000
@@ -48,7 +48,7 @@ t_multica_second_apply_is_noop() {
   autoteam_stub multica --apply >/dev/null
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply)
-  assert_contains "$out" "状态 approved（已批准）已存在"
+  assert_contains "$out" "状态 shipping（待上线）已存在"
   assert_contains "$out" "agent planner 已是最新"
   assert_contains "$out" "autopilot「推进巡检」已是最新"
   assert_contains "$out" "定时触发已是 0 */2 * * *（Asia/Shanghai）"
@@ -278,9 +278,26 @@ t_multica_env_only_needs_no_profile() {
   rm -rf "$WORK/.home/.multica"
   : > "$STUB_LOG"
   out=$(TEST_MULTICA_SERVER_URL=https://api.multica.test TEST_MULTICA_TOKEN=mul_test_token autoteam_stub multica --apply --only statuses)
-  assert_contains "$out" "已新建状态 approved"
+  assert_contains "$out" "已新建状态 shipping"
   assert_no_log "--profile"
   assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
+}
+
+t_multica_archives_empty_legacy_statuses_and_skips_used_ones() {
+  setup_ready_repo
+  printf '%s\n' '[{"id":"status-approved","key":"approved","name":"已批准","category":"todo","archived_at":null},{"id":"status-code-review","key":"code_review","name":"待评审","category":"in_progress","archived_at":null},{"id":"status-rework","key":"rework","name":"返工","category":"in_progress","archived_at":null}]' > "$STUB_STATE/mc-statuses.json"
+  printf '%s\n' '[{"id":"issue-1","identifier":"TST-1","title":"仍在返工"}]' > "$STUB_STATE/mc-issues-rework.json"
+  out=$(autoteam_stub multica --only statuses)
+  assert_contains "$out" "[预览] 归档旧状态 approved"
+  assert_no_log "curl DELETE"
+  out=$(autoteam_stub multica --apply --only statuses)
+  assert_contains "$out" "已归档旧状态 approved"
+  assert_contains "$out" "已归档旧状态 code_review"
+  assert_contains "$out" "旧状态 rework 仍有任务：TST-1 仍在返工"
+  assert_contains "$out" "未归档"
+  assert_eq "$(jq -r '.[] | select(.key == "approved") | .archived_at' "$STUB_STATE/mc-statuses.json")" "2099-01-01T00:00:00Z"
+  assert_eq "$(jq -r '.[] | select(.key == "rework") | .archived_at' "$STUB_STATE/mc-statuses.json")" "null"
+  assert_log "curl DELETE https://api.multica.test/api/issue-statuses/status-approved auth=ok"
 }
 
 t_multica_env_needs_both_vars() {
@@ -349,4 +366,3 @@ t_multica_uses_ejected_autopilot() {
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10 "同名以 eject 的为准，不重复建"
   assert_contains "$(jq -r '.[] | select(.autopilot.title == "推进巡检") | .autopilot.description' "$STUB_STATE/mc-autopilots.json")" "自定义巡检 runbook"
 }
-

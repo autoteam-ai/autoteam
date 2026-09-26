@@ -21,11 +21,22 @@ t_doctor_full_after_setup() {
   assert_contains "$out" "Makefile 有 check / dev / deploy"
   assert_contains "$out" "规则集生效：必须走 PR、1 个审批、必需检查 check"
   assert_contains "$out" "secret MULTICA_DEPLOY_HOOK 已设置"
-  assert_contains "$out" "自定义状态齐全"
+  assert_contains "$out" "自定义状态齐全：shipping"
   assert_contains "$out" "agent planner（planner）指令一致"
   assert_contains "$out" "agent rev-codex 的 runtime 不在线"
   assert_contains "$out" "autopilot「部署结果」已启用"
   assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
+}
+
+t_doctor_warns_about_legacy_statuses() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  printf '%s\n' '[{"id":"status-shipping","key":"shipping","name":"待上线","category":"in_progress","archived_at":null},{"id":"status-approved","key":"approved","name":"已批准","category":"todo","archived_at":null}]' > "$STUB_STATE/mc-statuses.json"
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "自定义状态齐全：shipping"
+  assert_contains "$out" "发现未归档的旧状态 approved"
+  assert_eq "$rc" 0 "遗留状态只应警告，不应失败"
 }
 
 t_doctor_warns_when_codeowners_gate_off() {

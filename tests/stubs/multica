@@ -81,6 +81,11 @@ case "$1 $2" in
     else
       echo '[{"id":"t0","status":"completed","error":null}]'
     fi ;;
+  "issue list")
+    status=$(flag --status "$@" || true)
+    issues=$state/mc-issues-$status.json
+    [ -f "$issues" ] || echo '[]' > "$issues"
+    jq '{issues: ., has_more: false}' "$issues" ;;
   "agent create")
     name=$(flag --name "$@")
     id="agent-$name"
