@@ -191,7 +191,7 @@ JSON
 EOF
   cat > bin/multica <<'EOF'
 #!/usr/bin/env bash
-echo '[{"content":"【验收不通过】导出为空"},{"content":"普通评论"},{"content":"【换人】额度用完"}]'
+echo '[{"content":"【验收不通过】导出为空"},{"content":"普通评论"},{"content":"【换人】额度用完"},{"content":"【换人-Reviewer】评审前路由失败"}]'
 EOF
   chmod +x bin/gh bin/multica
   out=$(PATH="$WORK/bin:$PATH" bash .autoteam/scripts/loop-guard.sh MUL-7)
@@ -199,8 +199,18 @@ EOF
   assert_eq "$(jq -r '.pull_requests | length' <<<"$out")" 1 "MUL-70 不应算进 MUL-7"
   assert_eq "$(jq -r '.acceptance_failures' <<<"$out")" 1
   assert_eq "$(jq -r '.implementer_switches' <<<"$out")" 1
+  assert_eq "$(jq -r '.reviewer_switches' <<<"$out")" 1
+  assert_eq "$(jq -r '.limits.reviewer_switches' <<<"$out")" 1
+  assert_contains "$(jq -r '.notes[]' <<<"$out")" "已经换过 1 次 Reviewer"
   assert_eq "$(jq -r '.escalate' <<<"$out")" true
   assert_contains "$(jq -r '.reasons[0]' <<<"$out")" "打回 2 次"
+  cat > bin/multica <<'EOF'
+#!/usr/bin/env bash
+echo '[{"content":"【换人-Reviewer】评审前路由失败"}]'
+EOF
+  out=$(PATH="$WORK/bin:$PATH" bash .autoteam/scripts/loop-guard.sh MUL-7)
+  assert_eq "$(jq -r '.implementer_switches' <<<"$out")" 0 "Reviewer 换人不应计入 Implementer"
+  assert_eq "$(jq -r '.reviewer_switches' <<<"$out")" 1
 }
 
 t_merge_mode_script() {
