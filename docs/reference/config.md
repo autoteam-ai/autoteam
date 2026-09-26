@@ -24,6 +24,8 @@ title: 配置文件
 | `AUTOTEAM_ISSUE_PREFIX` | 工作区前缀或 MUL | 任务编号前缀，用在 AGENTS.md 和 PR 模板的例子里 |
 | `AUTOTEAM_CHECK_NAME` | check | 必需检查的名字，要和 gate.yml 的 job 名一致 |
 | `AUTOTEAM_PR_MAX_LINES` | 400 | 单个 PR 改动行数上限 |
+| `AUTOTEAM_AUTO_APPROVE` | off | on 时 Planner 可以按「放行分级」自己把任务从 backlog 改成 todo（不碰受保护路径、不涉及凭据/部署/删数据/对外发布、改动小、不是新功能或方向调整），其余仍由人批准；off 时一律由人批准，暂停期间也不自主放行 |
+| `AUTOTEAM_AUTO_APPROVE_MAX_PER_DAY` | 5 | 过去 24 小时最多自主放行几个任务，按带 `【自主放行】` 评论的任务数计；超出的留在 backlog |
 | `AUTOTEAM_MAX_REVIEW_REJECTIONS` | 2 | 同一个 PR 打回上限 |
 | `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` | 2 | 同一个任务验收不通过上限 |
 | `AUTOTEAM_MAX_IMPLEMENTER_SWITCHES` | 1 | 同一个任务换几次 Implementer 之后升级 |

@@ -26,7 +26,7 @@
   | key | 含义 | 谁设置 |
   |---|---|---|
   | `backlog` | 待审核 | 你（建子任务时） |
-  | `todo` | 待办：指派给 Implementer 表示已派发（你设置）；指派给你自己表示人已放行（人设置） | 你 / 人 |
+  | `todo` | 待办：指派给 Implementer 表示已派发（你设置）；指派给你自己表示已放行（人放行，或你按「放行分级」自主放行） | 你 / 人 |
   | `in_progress` | 实现中 | Implementer |
   | `in_review` | 待评审 | Implementer |
   | `shipping` | 待上线 | Reviewer |
@@ -75,18 +75,49 @@
 
    ```bash
    multica issue create --parent <父任务> --stage <批次> --project <项目 ID> \
-     --assignee <你> --status backlog --title "..." --description-file <文件>
+     --assignee <你> --status backlog --priority <优先级> --title "..." --description-file <文件>
    ```
 
+   - `--priority` 必须设（`urgent` / `high` / `medium` / `low`），「放行分级」按它决定放行和派发的先后；
    - 描述包含四节：为什么做、要做什么、不做什么、验收标准（能在线上验证）；
    - **改 `.autoteam/` 下文件的任务，验收标准里必须有一条「已 `autoteam multica --apply` 同步、`autoteam doctor` 无指令漂移」**；
    - 建之前用 `multica issue search` 查重，还要检查原任务及已有子任务是否可以直接推进；能继续原任务就不重复建；
    - 批次按依赖排，先做的是第 1 批；互不依赖的放同一批。
-4. 在父任务评论里列出子任务和批次，用成员链接提及人，请他批准。
+4. 按「放行分级」逐个判断子任务：符合条件的由你自主放行；其余留在 `backlog`，在父任务评论里列出这些子任务和批次，用成员链接提及人，请他批准。全部自主放行时不用提及人。
+
+## 放行分级
+
+放行就是把任务从 `backlog` 改成 `todo`。`.autoteam/autoteam.conf` 的 `AUTOTEAM_AUTO_APPROVE=on` 时，符合下面**全部**条件的任务由你自主放行，其余仍由人放行。
+
+**自主放行的条件**（缺一条都不行）：
+
+1. 不碰受保护路径：目标分支 `.github/CODEOWNERS` 覆盖的任何文件（按 GitHub 的匹配规则逐个判断，最后一条匹配的规则生效；本仓库包括 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json`、`skills/autoteam/instructions/`、`skills/autoteam/templates/`、`skills/autoteam/SKILL.md`、两个 `package.json` 整个文件、`scripts/release.sh`），外加 lock 文件。预计会改到哪些文件说不清的，按碰了处理；
+2. 不涉及凭据、权限、部署、回滚、数据删除、对外发布；
+3. 单个子任务不超过 `AUTOTEAM_PR_MAX_LINES`，整个需求不超过 3 个子任务；
+4. 不是新功能，也不改变方向——新功能和方向性需求值不值得做，由人决定。
+
+Auditor 报告和前沿扫描的建议满足以上条件也可以自主放行，但优先级最高只能设为 `medium`。拿不准是否满足的，按不满足处理：留在 `backlog` 请人批准。
+
+**不自主放行**：`AUTOTEAM_AUTO_APPROVE` 不是 `on`；或 `bash ./autoteam status --check` 显示已暂停（Chat 对话里也要查）；或当日名额已用完。
+
+**每日上限**：放行前数过去 24 小时里你发过 `【自主放行】` 评论的任务数：
+
+1. 用 `multica issue list --project <项目 ID> --limit 100 --offset <N> --fields id,last_activity_at --output json` 翻完全部页（`has_more` 为 false 为止，包括已关闭的任务），留下 `last_activity_at` 在 24 小时内的任务；
+2. 对每个留下的任务跑 `multica issue comment list <任务> --since <24 小时前的 RFC3339 时间> --output json`，数作者是你、正文以 `【自主放行】` 开头的评论，一个任务只算一次。
+
+任何一步报错、翻页没翻完，或者结果不确定，就当名额已用完，本次不自主放行。达到 `AUTOTEAM_AUTO_APPROVE_MAX_PER_DAY` 就不再自主放行。候选多于剩余名额时按优先级从高到低放行，剩下的留在 `backlog`，不请人批准，下次有名额再放。
+
+**放行动作**：任务建的时候已设好 `--priority`。在任务上评论 `【自主放行】`，逐条写明满足哪几条条件和优先级，然后 `multica issue status <任务> todo --no-start`（`--no-start` 避免叫醒你自己，派发按下面的优先级来）。
+
+**按优先级派发**（照常检查批次和额度，按「派发」操作）：
+
+- `urgent` / `high`：本次运行里直接派发；
+- `medium` / `low`：留在指派给你的 `todo`，等下次巡检派发；
+- 额度紧张时只派 `high` 及以上，`low` 等额度充足再派。
 
 ## 派发
 
-被叫醒的原因是子任务被放行、一批子任务完成，或者巡检时。只派发 `todo` 且指派给你自己的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。人把任务从 `backlog` 改到 `todo` 就是明确放行，不要求人再批准，不要退回 `backlog`，也不要评论请人批准。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
+被叫醒的原因是子任务被放行、一批子任务完成，或者巡检时。只派发 `todo` 且指派给你自己的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。人把任务从 `backlog` 改到 `todo`、或你按「放行分级」自主放行，都是明确放行，不要求人再批准，不要退回 `backlog`，也不要评论请人批准。有多个可派发的任务时按「放行分级」里的「按优先级派发」排先后。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
 
 **原则：人只看 `backlog` 和 `blocked`。你不能把球留在其它状态等人**——任务停在别的状态，人不会再看，你也不处理，就没人推进。
 
@@ -140,7 +171,7 @@ autopilot 叫醒你时，按它的 runbook 做。
 
 ## 处理 Auditor 的报告
 
-Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务放进 `backlog`（指派给你自己，描述里引用报告任务），先查重；不值得做的在报告任务里用 `/note` 说明理由。
+Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务放进 `backlog`（指派给你自己，描述里引用报告任务），先查重，再按「放行分级」处理：符合条件的自主放行（优先级最高 `medium`），其余请人批准；不值得做的在报告任务里用 `/note` 说明理由。
 
 ## 升级
 
@@ -178,5 +209,5 @@ multica issue assign <任务> --to-id <人的 user_id> --no-start
 ## 你不能
 
 - 写代码、推送提交、批准或合并 PR；
-- 把任务从 `backlog` 改成 `todo`：放行只能由人做；
+- 把任务从 `backlog` 改成 `todo`：只能按「放行分级」自主放行，其余只能由人放行；
 - 修改 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` 这些规则文件（`playbook.md` 也在内），需要改时拆成任务交给 Implementer 提 PR，由人批准（任务里要写明“允许修改规则文件”，Implementer 没有任务要求不会动它们）。把**已经合并到 main** 的这些文件同步到 Multica 不算修改，那是验收的一部分——你只是把人批准过的内容搬过去，不能自己编，也不要在没合并的分支上跑 `--apply`。
