@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 统计一个任务来回打转的次数，判断是否该升级给人。Reviewer 打回前、Planner 巡检时使用。
 # 用法：.autoteam/scripts/loop-guard.sh <任务编号>
-# 输出 JSON：每个 PR 的打回次数、验收不通过次数、换人次数、上限，以及 escalate（是否该升级）和原因。
+# 输出 JSON：每个 PR 的打回次数、验收不通过次数、两类换人次数、上限，以及 escalate（是否该升级）和原因。
 # 次数只从 GitHub 评审记录和任务评论里算，不依赖 agent 自己上报。依赖 gh、jq、multica。
 set -eo pipefail
 
@@ -26,7 +26,7 @@ mc=${MULTICA_BIN:-multica}
 prs=$(gh pr list ${repo_args[@]+"${repo_args[@]}"} --state all --search "$key in:title" --limit 50 \
         --json number,title,state,url,reviews 2>/dev/null || echo '[]')
 
-# 任务评论里的标记（Planner 写的【验收不通过】【换人】）
+# 任务评论里的标记（Planner 写的【验收不通过】【换人】【换人-Reviewer】）
 comments=$("$mc" issue comment list "$key" --full --output json 2>/dev/null || echo '[]')
 
 jq -n --arg key "$key" --argjson prs "$prs" --argjson comments "$comments" \
@@ -40,19 +40,22 @@ jq -n --arg key "$key" --argjson prs "$prs" --argjson comments "$comments" \
   | ([$mine[].rejections] | max // 0) as $rej
   | marker("【验收不通过】") as $acc
   | marker("【换人】") as $sw
+  | marker("【换人-Reviewer】") as $reviewer_sw
   | {
       issue: $key,
       pull_requests: $mine,
       review_rejections: $rej,
       acceptance_failures: $acc,
       implementer_switches: $sw,
-      limits: {review_rejections: $max_rej, acceptance_failures: $max_acc, implementer_switches: $max_sw},
+      reviewer_switches: $reviewer_sw,
+      limits: {review_rejections: $max_rej, acceptance_failures: $max_acc, implementer_switches: $max_sw, reviewer_switches: 1},
       reasons: [
         (if $rej >= $max_rej then "同一个 PR 已被打回 \($rej) 次" else empty end),
         (if $acc >= $max_acc then "验收已不通过 \($acc) 次" else empty end)
       ],
       notes: [
-        (if $sw >= $max_sw then "已经换过 \($sw) 次 Implementer，再因额度或权限失败就升级" else empty end)
+        (if $sw >= $max_sw then "已经换过 \($sw) 次 Implementer，再因额度或权限失败就升级" else empty end),
+        (if $reviewer_sw >= 1 then "已经换过 \($reviewer_sw) 次 Reviewer，再次评审前失败就升级" else empty end)
       ]
     }
   | .escalate = (.reasons | length > 0)'

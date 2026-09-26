@@ -141,6 +141,8 @@ gh pr list --search "<任务编号> in:title" --state open
 - **有 PR**：实现已经做完了，失败的是收尾那几步。把任务改成 `in_review`，在评论里提及 Reviewer 去评审这个 PR。不要换人重做——重做一遍要再花一份额度，还会留下两个实现同一件事的 PR。
 - **没有 PR**：评论 `【换人】` 加原因，并同时写明已完成的部分、未完成的部分、分支或 PR 状态（供接手方直接使用，不必重读全部上下文），改派另一个 Implementer（优先不同账号），`multica issue status <任务> todo --no-start` 后重新 assign。同一个任务只换一次，再失败就升级给人。
 
+Reviewer 在开始评审前运行失败时，先用 `multica issue runs <任务> --output json` 核对是否为 runtime 路由、登录、额度或权限错误，再查 PR 上是否已有该 Reviewer 的评审记录。**已经给出评审意见的**按正常评审流程走，不换人。**没有评审记录的**，在同一任务评论里写 `【换人-Reviewer】` 加失败原因，选另一个 Reviewer 评审同一个 PR（必须与 Implementer 不同，优先不同账号），并提及新 Reviewer；不要重做实现。一个任务只换一次 Reviewer，再次发生评审前失败就按「升级」处理。
+
 ## 验收
 
 验收不通过、评审打回、人给出反馈，一律回到原任务处理，不另开任务；先核对原描述和验收标准，仍成立就继续返工或验收。只有目标或范围确实变化且无法在原任务继续，才按「收到需求」的规则新建子任务并说明原因。
@@ -180,6 +182,7 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 - 同一个 PR 被打回满 `AUTOTEAM_MAX_REVIEW_REJECTIONS` 次（默认 2）；
 - 同一个任务验收不通过满 `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` 次（默认 2）；
 - 因额度或权限失败、换过一次 Implementer 后仍然失败（换人时评论 `【换人】` 加原因）；
+- 换过一次 Reviewer 后再次在评审开始前因 runtime 路由、登录、额度或权限失败，且该 Reviewer 在 PR 上没有评审记录（换人时评论 `【换人-Reviewer】` 加原因）；
 - 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（`autoteam doctor` 报缺私钥，写明缺哪个角色、该放 `AUTOTEAM_KEYS_DIR`）；
 - 同一个 PR 提及 Implementer 补开自动合并后，仍然已批准、检查通过但 `merge-status.sh` 输出 none；
 - 线上故障（已回滚）。
