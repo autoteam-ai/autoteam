@@ -107,6 +107,19 @@ t_doctor_detects_runtime_drift() {
   assert_eq "$rc" 0 "恢复后不应有错误：$(printf '%s' "$out" | grep '❌')"
 }
 
+t_doctor_reports_unbound_runtime() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  # 实际值为空时比对输出里有相邻的 tab，不能把要求值错读成实际值
+  for v in '""' null; do
+    doctor_edit_agent impl-claude ".runtime_id = $v"
+    out=$(autoteam_stub doctor --skip-github)
+    rc=$?
+    assert_contains "$out" "agent impl-claude 的 runtime 与 registry 不一致：实际 未绑定，registry 要求 claude@machine-a（Claude (machine-a) rt-a-cla）" "$v"
+    assert_eq "$rc" 1 "未绑定 runtime 应算错误（$v）"
+  done
+}
+
 t_doctor_detects_model_and_concurrency_drift() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null

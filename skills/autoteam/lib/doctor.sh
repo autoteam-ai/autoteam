@@ -327,7 +327,7 @@ EOF
 # agent 实际绑定的 runtime / 模型 / 并发要和 registry 一致。有人在界面上直接改绑时指令不变，
 # 只比指令会报"一致"，运行却因为换了 runtime 或模型失败。比对用 autoteam multica 那一份。
 doctor_agent_config() {
-  local name=$1 cur=$2 runtimes=$3 runtime=$4 model=$5 max=$6 rid field have want diff
+  local name=$1 cur=$2 runtimes=$3 runtime=$4 model=$5 max=$6 rid field have want diff line
   rid=$(mc_runtime_id "$runtimes" "$runtime" || true)
   if [ -z "$rid" ]; then
     fail "agent $name：registry 里的 runtime $runtime 在工作区找不到（autoteam runtimes 列出可选值）"
@@ -335,7 +335,12 @@ doctor_agent_config() {
   fi
   diff=$(mc_agent_config_diff "$cur" "$rid" "$model" "$max")
   [ -n "$diff" ] || return 0
-  while IFS=$'\t' read -r field have want; do
+  # 不能用 IFS=$'\t' read 拆：tab 是空白分隔符，相邻的 tab 会被合并，实际值为空（未绑定）时
+  # 要求值会被读进实际值里。按 tab 逐段切，空字段才保得住。
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    field=${line%%$'\t'*} line=${line#*$'\t'}
+    have=${line%%$'\t'*} want=${line#*$'\t'}
     if [ "$field" = runtime ]; then
       have="$(doctor_runtime_label "$runtimes" "$have")"
       want="$runtime（$(doctor_runtime_label "$runtimes" "$rid")）"
@@ -350,7 +355,7 @@ EOF
 # runtime ID 显示成「名字 ID 前 8 位」，列表里没有就原样显示 ID
 doctor_runtime_label() {
   local runtimes=$1 id=$2 rt_name
-  [ -n "$id" ] || { printf '（未绑定）'; return 0; }
+  [ -n "$id" ] || { printf '未绑定'; return 0; }
   rt_name=$(jq -r --arg id "$id" '[.[] | select(.id == $id)][0].name // empty' <<<"$runtimes")
   printf '%s' "${rt_name:+$rt_name }${id:0:8}"
 }
