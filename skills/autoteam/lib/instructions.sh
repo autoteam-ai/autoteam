@@ -19,11 +19,18 @@ instructions_path() {
 }
 
 # 所有角色指令和 autopilot 正文共用的前言（开工先检查暂停）只在包内 instructions/_preamble.md
-# 维护一份，不 eject：同步到 Multica 时加在最前面，eject 出的文件里没有这段。
+# 维护一份，不 eject：同步到 Multica 时加在最前面；旧版 eject 文件若已带前言则去重。
 instructions_with_preamble() {
-  local pre
+  local pre body=$1
   pre=$(cat "$AUTOTEAM_HOME/instructions/_preamble.md") || return 1
-  printf '%s\n\n%s' "$pre" "$1"
+  while [[ $body =~ ^[[:blank:]]*$'\n' ]]; do body=${body#*$'\n'}; done
+  if [[ $body == "$pre" || $body == "$pre"$'\n'* ]]; then
+    body=${body#"$pre"}
+    while [[ $body =~ ^[[:blank:]]*$'\n' ]]; do body=${body#*$'\n'}; done
+  else
+    body=$1
+  fi
+  printf '%s\n\n%s' "$pre" "$body"
 }
 
 # 角色在 Multica 上应有的指令全文：前言 + 角色文件。agent 同步和 doctor 漂移对比共用

@@ -137,6 +137,21 @@ t_multica_prepends_preamble() {
   assert_contains "$out" "新增一条规则"
 }
 
+t_instructions_with_preamble_deduplicates_ejected_text() {
+  local pre body plain prefixed
+  AUTOTEAM_HOME=$ROOT/skills/autoteam AUTOTEAM_DIR=.autoteam
+  # shellcheck source=skills/autoteam/lib/instructions.sh
+  . "$ROOT/skills/autoteam/lib/instructions.sh"
+  pre=$(cat "$AUTOTEAM_HOME/instructions/_preamble.md")
+  body=$'# 角色指令\n\n正文'
+  plain=$(instructions_with_preamble "$body")
+  prefixed=$(instructions_with_preamble "$pre"$'\n\n'"$body")
+  assert_eq "$plain" "$pre"$'\n\n'"$body" "未带前言时加一次"
+  assert_eq "$prefixed" "$plain" "已带前言时同步文本相同"
+  assert_eq "$(grep -c '开工先检查暂停' <<<"$prefixed")" 1 "前言只出现一次"
+  assert_eq "$(instructions_with_preamble $'\n \t\n'"$pre"$'\n\n'"$body")" "$plain" "忽略前导空行"
+}
+
 t_multica_reports_missing_runtime() {
   setup_ready_repo
   sed -i.bak 's/claude@machine-a/claude@nowhere/' .autoteam/registry.yaml && rm -f .autoteam/registry.yaml.bak
