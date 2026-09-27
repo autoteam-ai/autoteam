@@ -21,12 +21,15 @@ instructions_path() {
 # 所有角色指令和 autopilot 正文共用的前言（开工先检查暂停）只在包内 instructions/_preamble.md
 # 维护一份，不 eject：同步到 Multica 时加在最前面；旧版 eject 文件若已带前言则去重。
 instructions_with_preamble() {
-  local pre body=$1
+  local pre body=$1 wrapped
   pre=$(cat "$AUTOTEAM_HOME/instructions/_preamble.md") || return 1
   while [[ $body =~ ^[[:blank:]]*$'\n' ]]; do body=${body#*$'\n'}; done
-  if [[ $body == "$pre" || $body == "$pre"$'\n'* ]]; then
-    body=${body#"$pre"}
-    while [[ $body =~ ^[[:blank:]]*$'\n' ]]; do body=${body#*$'\n'}; done
+  # 空行包住正文后，只移除作为完整段落出现的包内前言；旧版角色文件的来源引用在它前面。
+  wrapped=$'\n\n'"$body"$'\n\n'
+  wrapped=${wrapped//$'\n\n'"$pre"$'\n\n'/$'\n\n'}
+  if [[ $wrapped != $'\n\n'"$body"$'\n\n' ]]; then
+    body=${wrapped#$'\n\n'}
+    body=${body%$'\n\n'}
   else
     body=$1
   fi
