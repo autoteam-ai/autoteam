@@ -467,8 +467,8 @@ EOF
 
 multica_agent_args() {
   local role=$1 rid=$2 model=$3 max=$4 mcp=$5 instr
-  instr=$(instructions_path roles "$role.md") || die "找不到角色指令 $role.md"
-  MC_AGENT_ARGS=(--runtime-id "$rid" --instructions "$(read_file "$instr")"
+  instr=$(instructions_role_text "$role") || die "找不到角色指令 $role.md"
+  MC_AGENT_ARGS=(--runtime-id "$rid" --instructions "$instr"
     --description "autoteam 的 $role（由 autoteam 管理，指令源文件 $(instructions_source roles "$role.md")）")
   [ "$max" = "-" ] || MC_AGENT_ARGS+=(--max-concurrent-tasks "$max")
   if [ "$model" != "-" ] && [ "$model" != default ]; then MC_AGENT_ARGS+=(--model "$model"); fi
@@ -518,7 +518,7 @@ mc_agent_config_diff() {
 multica_agent_update() {
   local id=$1 name=$2 role=$3 rid=$4 model=$5 max=$6 mcp=$7 envf=$8 cur changes="" want_instr want_model out field
   cur=$(mc agent get "$id" --output json) || { fail "读取 agent $name 失败"; return 0; }
-  want_instr=$(read_file "$(instructions_path roles "$role.md")") || { fail "找不到角色指令 $role.md"; return 0; }
+  want_instr=$(instructions_role_text "$role") || { fail "找不到角色指令 $role.md"; return 0; }
   [ "$(jq -r '.instructions' <<<"$cur")" = "${want_instr%$'\n'}" ] || [ "$(jq -r '.instructions' <<<"$cur")" = "$want_instr" ] || changes="$changes 指令"
   while IFS=$'\t' read -r field _; do
     [ -z "$field" ] || changes="$changes $field"
@@ -653,7 +653,7 @@ multica_autopilot() {
   [ -n "$trigger" ] || trigger=schedule
   agent=$(registry_agent_by_role "$rows" "$role")
   [ -n "$agent" ] || { fail "$f 要求角色 $role，但 registry.yaml 里没有"; return 0; }
-  body=$(fm_body "$f")
+  body=$(instructions_with_preamble "$(fm_body "$f")")
 
   # 传 ID 不传名字：Multica 按名字解析是模糊匹配，工作区里只要有另一个 agent 的名字
   # 包含这个名字（比如 ex-planner 之于 planner），就会报 ambiguous agent

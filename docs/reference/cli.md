@@ -154,4 +154,6 @@ autoteam eject --diff reviewer      # 只看差异，不写文件
 
 角色指令、autopilot、`planner-mcp.json` 默认不落盘在你的仓库里：`autoteam multica` 直接读 autoteam 包内的版本。`eject` 把包内的文件复制到 `.autoteam/instructions/`（`roles/<角色>.md`、`autopilots/<名字>.md`、`planner-mcp.json`），此后由你维护，升级不会覆盖；读取时优先用落盘的那份，删掉它就回到包内版本。已存在的文件不会被覆盖。
 
+「开工先检查暂停」这段前言只在包内 `instructions/_preamble.md` 维护一份，不 eject；`autoteam multica` 同步时把它加在每份角色指令和 autopilot 正文的最前面，eject 出的文件里没有这段，也不要自己加。之前 eject 的文件如果还带着这段，删掉它，否则同步后会出现两遍。
+
 `--diff` 打印包内文本和已 eject 文本的差异，没 eject 过的目标提示“未 eject”。升级 autoteam 之后，用它看包内的新版本改了什么，再手动合并进你的那份。

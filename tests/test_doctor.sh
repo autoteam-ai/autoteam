@@ -82,6 +82,21 @@ t_doctor_detects_instruction_drift() {
   assert_not_contains "$out" "指令漂移"
 }
 
+# doctor 按「前言 + 角色文件」比对：刚同步完不报漂移；Multica 上是不带前言的旧文本则报漂移
+t_doctor_compares_instructions_with_preamble() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  out=$(autoteam_stub doctor --skip-github)
+  assert_not_contains "$out" "指令漂移" "同步后的指令带前言，不算漂移"
+  assert_contains "$out" "agent impl-claude（implementer）指令一致"
+  doctor_edit_agent impl-claude ".instructions = $(jq -Rs . < "$ROOT/skills/autoteam/instructions/roles/implementer.md")"
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" "agent impl-claude 的指令和生效文本（autoteam 包内 instructions/roles/implementer.md）不一致（指令漂移）"
+  autoteam_stub multica --apply --only agents >/dev/null
+  out=$(autoteam_stub doctor --skip-github)
+  assert_not_contains "$out" "指令漂移" "重新同步后漂移消失"
+}
+
 # 在 Multica 界面上直接改 agent 的字段，模拟没走 PR 的改绑
 doctor_edit_agent() {
   jq --arg n "$1" "map(if .name == \$n then $2 else . end)" "$STUB_STATE/mc-agents.json" > "$STUB_STATE/mc-agents.tmp"

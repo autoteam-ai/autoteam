@@ -363,7 +363,7 @@ doctor_runtime_label() {
 }
 
 doctor_multica() {
-  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want instr catalog list f title id project last
+  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want catalog list f title id project last
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "$ws"
@@ -400,8 +400,7 @@ EOF
       doctor_mc_read "agent $name 的配置" agent get "$id" || continue
       cur=$MC_READ_OUT
       rid=$(jq -r '.runtime_id' <<<"$cur")
-      instr=$(instructions_path roles "$role.md") || { fail "找不到角色 $role 的指令文件"; continue; }
-      want=$(read_file "$instr")
+      want=$(instructions_role_text "$role") || { fail "找不到角色 $role 的指令文件"; continue; }
       if [ "$(jq -r '.instructions' <<<"$cur")" != "${want%$'\n'}" ] && [ "$(jq -r '.instructions' <<<"$cur")" != "$want" ]; then
         fail "agent $name 的指令和生效文本（$(instructions_source roles "$role.md")）不一致（指令漂移）：autoteam multica --apply"
       elif [ -z "$runtimes" ]; then
