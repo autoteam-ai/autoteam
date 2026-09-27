@@ -57,6 +57,7 @@ autoteam/scripts/gh-app-token.sh      $AUTOTEAM_DIR/scripts/gh-app-token.sh     
 autoteam/scripts/loop-guard.sh        $AUTOTEAM_DIR/scripts/loop-guard.sh        exec
 autoteam/scripts/merge-mode.sh        $AUTOTEAM_DIR/scripts/merge-mode.sh        exec
 autoteam/scripts/merge-status.sh      $AUTOTEAM_DIR/scripts/merge-status.sh      exec
+autoteam/scripts/open-pr.sh           $AUTOTEAM_DIR/scripts/open-pr.sh           exec
 autoteam/scripts/health-metrics.sh    $AUTOTEAM_DIR/scripts/health-metrics.sh    exec
 EOF
 }

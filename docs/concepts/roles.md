@@ -58,7 +58,7 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 
 可以配多个，分别用不同厂商、不同计费模式的 agent。
 
-开工先 `make dev` 起环境、做一次端到端验证，确认项目当前是好的；交付时贴 `make check` 结果，开 PR（标题以任务编号开头、不写关闭关键字），平台闸门生效时打开自动合并（`merge-mode.sh` 判断），未命中人工 CODEOWNERS 时把任务改为 `in_review`，并提及 Planner 指定的 Reviewer。范围外的问题写进评论的“范围外发现”，不顺手做。
+开工先 `make dev` 起环境、做一次端到端验证，确认项目当前是好的；交付时贴 `make check` 结果，用 `open-pr.sh` 开 PR（标题以任务编号开头、不写关闭关键字；脚本按 `merge-mode.sh` 决定开不开自动合并，并核对确实开了），未命中人工 CODEOWNERS 时把任务改为 `in_review`，并提及 Planner 指定的 Reviewer。范围外的问题写进评论的“范围外发现”，不顺手做。
 
 不要：新写已有的组件和函数（同一个 bug 会要修好几处）；加 fallback、双写、兼容层（错误会被吞掉）；大范围重构（没法评审）。
 

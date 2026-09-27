@@ -77,3 +77,5 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 30 秒，支持正秒数或 Go duration（如 `45`、`45s`、`2m`、`1m30s`）；无效或非正值会在同步前报错。格式依据 [Multica CLI 官方说明](https://github.com/multica-ai/multica/blob/main/CLI_AND_DAEMON.md)。
 
 人工 CODEOWNERS 路径的 PR：Implementer 提交后立即将任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN` 并提及人及 Reviewer；Reviewer 批准后保持 `blocked`，等待 codeowner 批准。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收；未命中人工路径的 PR 按原流程流转。
+
+开 PR 和自动合并：Implementer 交付和返工都跑 `.autoteam/scripts/open-pr.sh`，它按 `merge-mode.sh` 开 PR（staged 开 draft、reviewer 不碰 `gh pr merge`），platform 时开自动合并并用 `merge-status.sh` 核对，none 重试一次仍不行就返回非 0。漏开的兜底只在巡检一处：已批准、检查通过但 `merge-status.sh` 输出 none，提及 Implementer 重跑脚本。
