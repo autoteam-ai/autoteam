@@ -8,11 +8,11 @@ issue_title: agent 成绩单 {{date}}
 
 **开工先检查暂停：**先取得本项目仓库，在仓库运行 `bash ./autoteam status --check`。如果已暂停，立即结束本次运行，不读写任务、不执行 runbook、不发评论；检查失败也先停止并报告给人。仅人与 Planner 的 Chat 对话可以跳过此检查，以便执行恢复。
 
-出过去 7 天的 agent 成绩单，写在本任务的评论里。
+出上一份同类报告以来的 agent 成绩单；找不到上一份时取过去 30 天。写在本任务的评论里。
 
 对 registry.yaml 里每个 role 为 implementer 的 agent 统计：
 
-- 完成任务数：过去 7 天变成 done、指派人是它的任务；
+- 完成任务数：统计窗口内变成 done、指派人是它的任务；
 - 一次通过率：这些任务里 PR 从没被打回的比例（`.autoteam/scripts/gh-app-token.sh --run planner .autoteam/scripts/loop-guard.sh <任务>` 的 review_rejections 为 0）；
 - 平均返工轮次；
 - 验收不通过次数；
