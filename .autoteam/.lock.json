@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "generated_at": "2026-09-27T14:43:45Z",
+  "generated_at": "2026-09-27T14:57:19Z",
   "files": {
     ".autoteam/README.md": { "kind": "file", "sha256": "c7cb9825fc1ee7ffb535a98567dd86d94bf066584b2b3f9d324028cb219f2726" },
     ".autoteam/playbook.md": { "kind": "file", "sha256": "5bb7df26327ec06f9f2e8982c50ebf2470fc0eb470ba5c9a50bd0cff140600dc" },
@@ -9,7 +9,7 @@
     ".autoteam/scripts/loop-guard.sh": { "kind": "file", "sha256": "a4141976fceddc578b3c414f52216df46e4de1d4fd30f7bbe7497a374823a26c" },
     ".autoteam/scripts/merge-mode.sh": { "kind": "file", "sha256": "8add493689d2a51bea1803138ea70707d860ecc646a10f28ab41f5e1694da847" },
     ".autoteam/scripts/merge-status.sh": { "kind": "file", "sha256": "630c037a6f983260842f7fec794ca964990f89ce613ac03f5689fb172c78f30a" },
-    ".autoteam/scripts/open-pr.sh": { "kind": "file", "sha256": "cc2e311aac9818260a5086fc7709288b4930df2c87ad2275262801bc20508015" },
+    ".autoteam/scripts/open-pr.sh": { "kind": "file", "sha256": "4cdf0b3b5f52d6ce701cd789756d9f5905f3ba407fca9071e825b4259d778649" },
     ".github/CODEOWNERS": { "kind": "block", "sha256": "2edd24b01f313a3f0dcd03d2924930ffd247a735d6bbff2a587a593a418348c8" },
     ".github/pull_request_template.md": { "kind": "file", "sha256": "5efa19d7693e5cc1481928497f00dfffa9698ce9444f14578d8cbe33be2c4557" },
     ".github/workflows/deploy.yml": { "kind": "file", "sha256": "5f6ac6e7d09b6197431fe1bee6b52ae4cdadf59b0c34b951e3b07342ca6d1627" },

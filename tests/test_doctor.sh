@@ -314,7 +314,7 @@ t_open_pr_platform_enables_and_verifies_auto_merge() {
   assert_contains "$out" "PR：https://github.com/acme/shop/pull/12"
   assert_contains "$out" "合并模式：platform"
   assert_contains "$out" "自动合并：auto"
-  assert_log "gh pr create --repo acme/shop --head hdgcs-1-demo --title HDGCS-1 演示 --body-file body.md"
+  assert_log "gh pr create --repo acme/shop --base main --head hdgcs-1-demo --title HDGCS-1 演示 --body-file body.md"
   assert_no_log "--draft"
   assert_eq "$(cat "$STUB_STATE/merge-count")" 1 "只开一次自动合并"
   assert_log "gh pr merge 12 --repo acme/shop --auto --squash"
@@ -344,6 +344,24 @@ t_open_pr_platform_retries_once_when_none() {
   assert_contains "$out" "Auto merge is not allowed for this repository"
 }
 
+t_open_pr_rejects_non_default_base_or_closed() {
+  open_pr_repo true "[$OPEN_PR_CHECKS,$OPEN_PR_APPROVAL]"
+  # 合并模式按默认分支 main 判断；目标分支不是 main 的 PR 一律不处理，更不能开自动合并
+  jq -n '{number: 12, url: "https://github.com/acme/shop/pull/12", state: "OPEN", baseRefName: "release", isDraft: false}' \
+    > "$STUB_STATE/pr.json"
+  out=$(open_pr 12 2>&1) && tfail "目标分支不是默认分支应返回非 0"
+  assert_contains "$out" "目标分支是 release"
+  out=$(open_pr 2>&1) && tfail "当前分支已有指向 release 的 PR 应返回非 0"
+  assert_contains "$out" "目标分支是 release"
+  assert_no_log "gh pr merge"
+  # 已关闭的 PR 同样不处理
+  jq -n '{number: 12, url: "https://github.com/acme/shop/pull/12", state: "CLOSED", baseRefName: "main", isDraft: false}' \
+    > "$STUB_STATE/pr.json"
+  out=$(open_pr 12 2>&1) && tfail "已关闭的 PR 应返回非 0"
+  assert_contains "$out" "已关闭"
+  assert_no_log "gh pr merge"
+}
+
 t_open_pr_staged_opens_draft_without_merge() {
   open_pr_repo true "[$OPEN_PR_CHECKS]"
   out=$(open_pr --title "HDGCS-1 演示" --body-file body.md) || tfail "staged 应返回 0"
@@ -371,6 +389,14 @@ t_open_pr_help_and_bad_args() {
   open_pr_repo true '[]'
   assert_contains "$(open_pr --help)" "open-pr.sh <PR 编号>"
   open_pr abc >/dev/null 2>&1; assert_eq "$?" 2 "参数不对应返回 2"
+  # 选项缺值：不能卡住，返回 2（timeout 兜住死循环）
+  for args in "--title" "--body-file" "--title HDGCS-1 --body-file"; do
+    # shellcheck disable=SC2086  # 故意按空格拆成多个参数
+    out=$(timeout 10 env PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" STUB_LOG="$STUB_LOG" \
+      STUB_STATE="$STUB_STATE" bash .autoteam/scripts/open-pr.sh $args 2>&1)
+    assert_eq "$?" 2 "[$args] 缺值应立即返回 2"
+    assert_contains "$out" "缺少值"
+  done
   open_pr --title "HDGCS-1 演示" >/dev/null 2>&1 && tfail "新开 PR 缺 --body-file 应返回非 0"
   assert_no_log "gh pr create"
 }

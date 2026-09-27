@@ -70,9 +70,11 @@ case $1 in
   pr)
     case $2 in
       create)
-        draft=false
+        draft=false base=main
         case " $* " in *" --draft "*) draft=true ;; esac
-        jq -n --argjson d "$draft" '{number: 12, url: "https://github.com/acme/shop/pull/12", isDraft: $d}' > "$state/pr.json"
+        for ((i = 1; i < $#; i++)); do [ "${!i}" = --base ] && { j=$((i + 1)); base=${!j}; }; done
+        jq -n --argjson d "$draft" --arg b "$base" '{number: 12, url: "https://github.com/acme/shop/pull/12",
+          state: "OPEN", baseRefName: $b, isDraft: $d}' > "$state/pr.json"
         echo "https://github.com/acme/shop/pull/12" ;;
       view) cat "$state/pr.json" | out ;;
       merge)
