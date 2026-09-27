@@ -48,6 +48,9 @@ RUN arch=$(dpkg --print-architecture); \
 
 # 容器里以宿主的 uid 执行，仓库目录的所有者可能对不上：让 git 信任任何目录
 RUN git config --system --add safe.directory '*'
+# docker cp 方式（远端 daemon）把仓库拷到这里；预先建好，否则 docker cp 以 root 建出来，
+# 以宿主 uid 执行的命令没法在仓库根下新建 build/ 等目录
+RUN mkdir -m 1777 /w
 
 # 标记：已经在开发镜像里，make 直接执行，不再嵌套起容器
 ENV AUTOTEAM_DEV_IMAGE=1
