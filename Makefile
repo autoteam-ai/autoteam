@@ -9,7 +9,7 @@ SCRIPTS := skills/autoteam/bin/autoteam scripts/release.sh scripts/in-container.
   $(wildcard skills/autoteam/lib/*.sh) $(wildcard skills/autoteam/templates/autoteam/scripts/*.sh) \
   tests/run.sh tests/lib.sh tests/render-workflows.sh $(wildcard tests/test_*.sh) $(wildcard tests/stubs/*)
 
-.PHONY: check test lint shellcheck actionlint duplication dev deploy publish
+.PHONY: check test lint shellcheck actionlint duplication instruction-budget dev deploy publish
 
 ifneq ($(AUTOTEAM_DEV_IMAGE),1)
 
@@ -21,7 +21,10 @@ publish: ## 宿主机的 npm 配置只读挂进容器；远端 docker daemon 上
 
 else
 
-check: lint duplication test ## 全部检查
+check: instruction-budget lint duplication test ## 全部检查
+
+instruction-budget:
+	@bash .autoteam/scripts/check-instruction-budget.sh
 
 test: ## 单元测试
 	bash tests/run.sh

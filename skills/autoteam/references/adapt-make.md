@@ -5,6 +5,7 @@
 ## 原则
 
 - **一条命令跑完全部检查**，本地和 CI 跑的是同一条。能用类型系统、lint、依赖检查表达的约束，放进 `make check`，而不是写进 AGENTS.md 指望模型记住。
+- 保留模板中的 `bash .autoteam/scripts/check-instruction-budget.sh`；`.autoteam/instruction-budget` 限制 eject 后的角色指令和 autopilot 行数，超限先删或合并旧规则。
 - **失败就退出非 0**，不要 `|| true`，不要吞错误。
 - **`make dev` 可以重复执行**：已经起来了就跳过或重启，不要报错；需要的依赖、数据库、迁移都在里面做完。项目有 docker compose 就优先用容器。
 - **`make deploy` 在 GitHub Actions 里执行**，凭据从 secrets 来（deploy.yml 里给 `env:`），不要依赖本机状态。

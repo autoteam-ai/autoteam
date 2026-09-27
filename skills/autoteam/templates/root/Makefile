@@ -3,6 +3,7 @@
 .PHONY: check dev deploy
 
 check: ## 全部检查：lint、类型检查、测试，一条命令跑完
+	@bash .autoteam/scripts/check-instruction-budget.sh
 	@echo "AUTOTEAM-TODO: 在 Makefile 的 check 目标里串起本项目的全部检查" >&2; exit 1
 
 dev: ## 一条命令起环境，可以重复执行

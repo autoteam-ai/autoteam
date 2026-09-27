@@ -17,8 +17,8 @@ title: 生成的文件
 │  ├─ pull_request_template.md
 │  └─ workflows/{gate,deploy,rollback}.yml
 └─ .autoteam/                       全部由 autoteam 管理，整个目录受 CODEOWNERS 保护
-   ├─ autoteam.conf   registry.yaml   playbook.md   README.md
-   ├─ scripts/{gh-app-token,loop-guard,merge-mode,merge-status,open-pr,protected-paths,health-metrics}.sh
+   ├─ autoteam.conf   registry.yaml   playbook.md   README.md   instruction-budget
+   ├─ scripts/{gh-app-token,loop-guard,merge-mode,merge-status,open-pr,protected-paths,health-metrics,check-instruction-budget}.sh
    ├─ .lock.json                    装机版本 + 每个文件的 sha256
    ├─ local/                        私钥、env（gitignore，不入库）
    └─ instructions/                 只有 autoteam eject 之后才存在
@@ -40,6 +40,7 @@ title: 生成的文件
 | `.autoteam/registry.yaml` | 计费注册表和团队清单（[说明](config.md#registryyaml)） | 人 | ✅ |
 | `.autoteam/.lock.json` | 装机版本和每个文件的 sha256，`autoteam upgrade` 靠它判断哪些文件改过；要入库 | 工具 | ✅ |
 | `.autoteam/playbook.md` | 本项目的经验库，Planner 每次开工必读；由 Planner 提议、人批准 | 人 | ✅ |
+| `.autoteam/instruction-budget` | 本地角色指令和 autopilot 的行数上限；超限时 `make check` 失败 | 人 | ✅ |
 | `.autoteam/instructions/**` | 可选，`autoteam eject` 落盘的角色指令、autopilot、`planner-mcp.json`；有这份就优先用，没有则用 autoteam 包内的 | 人 | ✅ |
 | `.autoteam/local/` | 本机私钥、按量计费的 key；受管块把它加进 `.gitignore`，不入库 | 人 | |
 | `.autoteam/scripts/gh-app-token.sh` | 用 App 私钥铸 token，给 agent 提供 GitHub 身份 | 模板 | ✅ |
@@ -49,6 +50,7 @@ title: 生成的文件
 | `.autoteam/scripts/open-pr.sh` | Implementer 交付用：开 PR、按合并模式开自动合并并核对，返工时只核对、补开 | 模板 | ✅ |
 | `.autoteam/scripts/protected-paths.sh` | 用目标分支 CODEOWNERS 与 lock 文件判断路径；`--files <路径...>` 或 `--pr <编号>`，命中输出路径并返回 0，未命中返回 1，错误返回 2 | 模板 | ✅ |
 | `.autoteam/scripts/health-metrics.sh` | 代码健康指标 | 模板 | ✅ |
+| `.autoteam/scripts/check-instruction-budget.sh` | 对预算表中已 eject 的指令检查行数 | 模板 | ✅ |
 
 “模板”表示一般不需要手改，升级 autoteam 时用 `autoteam upgrade` 更新（改过的文件它不会动）；“人”表示装完后按项目情况修改。
 
