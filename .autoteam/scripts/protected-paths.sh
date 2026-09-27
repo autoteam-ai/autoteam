@@ -42,10 +42,17 @@ fi
 [ -r "$source_file" ] || die "cannot read CODEOWNERS: $source_file"
 
 # GitHub CODEOWNERS uses gitignore-style path patterns, but does not support
-# negation, character ranges, or escaped leading #. Keep only valid owner rules.
-awk 'NF >= 2 && $1 !~ /^#/ && $1 !~ /^!/ && $1 !~ /[\[\]]/ {print $1}' "$source_file" > "$tmp/rules" || die 'cannot parse CODEOWNERS'
-git -C "$tmp" init -q || die 'cannot initialize matcher'
-cp "$tmp/rules" "$tmp/.gitignore" || die 'cannot prepare matcher'
+# negation, character ranges, or escaped leading #. An ownerless later rule
+# clears ownership, so retain it and record whether each rule has an owner.
+: > "$tmp/rules"
+: > "$tmp/owners"
+awk -v rules="$tmp/rules" -v owners="$tmp/owners" '
+  NF >= 1 && $1 !~ /^#/ && $1 !~ /^!/ && $1 !~ /[\[\]]/ {
+    print $1 > rules
+    print (NF >= 2 ? 1 : 0) > owners
+  }
+' "$source_file" || die 'cannot parse CODEOWNERS'
+git -C "$tmp" init -q --template= || die 'cannot initialize matcher'
 hit=1
 while IFS= read -r path || [ -n "$path" ]; do
   path=${path#./}
@@ -55,7 +62,21 @@ while IFS= read -r path || [ -n "$path" ]; do
   case $name in *.lock|*.lockb|*-lock.json|*-lock.yaml|*-lock.yml|.lock.json)
     printf '%s\n' "$path"; hit=0; continue ;;
   esac
-  if git -C "$tmp" check-ignore --no-index -q -- "$path"; then
+  # Check each rule separately. Git skips later rules beneath an ignored parent
+  # directory; CODEOWNERS still applies its final matching rule there.
+  protected=0
+  exec 3< "$tmp/rules" 4< "$tmp/owners"
+  while IFS= read -r rule <&3 && IFS= read -r owner <&4; do
+    printf '%s\n' "$rule" > "$tmp/.gitignore"
+    if git -c core.excludesFile=/dev/null -C "$tmp" check-ignore --no-index -q -- "$path"; then
+      protected=$owner
+    else
+      rc=$?
+      [ "$rc" -eq 1 ] || die "matcher failed for: $path"
+    fi
+  done
+  exec 3<&- 4<&-
+  if [ "$protected" = 1 ]; then
     printf '%s\n' "$path"
     hit=0
   fi
