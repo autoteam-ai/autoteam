@@ -53,9 +53,11 @@ title: 安全边界和保护等级
 
 | 输出 | 触发条件 | Implementer | Reviewer | 检查能绕过吗 |
 |---|---|---|---|---|
-| `platform` | 有必需检查，且规则集要求至少 1 个审批 | 正常开 PR + `gh pr merge --auto --squash` | `gh pr review --approve`，然后什么都不用做 | 不能 |
+| `platform` | 有必需检查，且规则集要求至少 1 个审批 | 正常开 PR + `gh pr merge --auto --squash`，并用 `merge-status.sh` 核对确实开了 | `gh pr review --approve`，然后什么都不用做 | 不能 |
 | `staged` | 有必需检查，但不要求审批（单身份只能这样） | 开 **draft** PR，不开自动合并 | 批准后 `gh pr ready` 再 `gh pr merge --auto --squash` | 不能 |
 | `reviewer` | 没有必需检查，或仓库没开自动合并 | 不执行任何 `gh pr merge` | 等检查全绿后 `gh pr merge --squash --delete-branch` | 能（只剩指令约束） |
+
+Implementer 这一列不用手工照着做：交付时跑 `.autoteam/scripts/open-pr.sh`，它先跑 `merge-mode.sh`，按上表开 PR；`platform` 下开自动合并后用 `merge-status.sh` 核对，none 就重试一次，仍不行返回非 0 并打印原因。返工时 `open-pr.sh <PR>` 只核对、补开。漏开的兜底只有一处：巡检发现已批准、检查通过但 `merge-status.sh` 输出 none，提及 Implementer 重跑这个脚本。
 
 两个容易踩的坑：
 

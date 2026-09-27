@@ -5,6 +5,9 @@
 #   org-no-mq      组织仓库，但接口拒绝合并队列
 #   free-private   GitHub Free 的私有仓库（没有规则集、自动合并、environment）
 #   has-ruleset    已经有一个过期的 autoteam 规则集
+# PR 相关（open-pr.sh 用）：pr create 把 PR 记进 $STUB_STATE/pr.json；pr merge 第
+# STUB_AUTO_MERGE_AFTER 次（默认 1）调用才真的开上自动合并，STUB_AUTO_MERGE_FAIL=1 时报错；
+# 分支上生效的规则读 $STUB_STATE/branch-rules.json（没有就是 []）。
 set -o pipefail
 scenario=${STUB_SCENARIO:-user-public}
 state=${STUB_STATE:?}
@@ -64,7 +67,29 @@ case $1 in
     esac
     exit 0 ;;
   run) echo '[]' | out; exit 0 ;;
-  pr) echo '[]' | out; exit 0 ;;
+  pr)
+    case $2 in
+      create)
+        draft=false base=main
+        case " $* " in *" --draft "*) draft=true ;; esac
+        for ((i = 1; i < $#; i++)); do [ "${!i}" = --base ] && { j=$((i + 1)); base=${!j}; }; done
+        jq -n --argjson d "$draft" --arg b "$base" '{number: 12, url: "https://github.com/acme/shop/pull/12",
+          state: "OPEN", baseRefName: $b, isDraft: $d}' > "$state/pr.json"
+        echo "https://github.com/acme/shop/pull/12" ;;
+      view) cat "$state/pr.json" | out ;;
+      merge)
+        n=$(( $(cat "$state/merge-count" 2>/dev/null || echo 0) + 1 ))
+        echo "$n" > "$state/merge-count"
+        [ "${STUB_AUTO_MERGE_FAIL:-0}" = 1 ] && { echo "GraphQL: Auto merge is not allowed for this repository" >&2; exit 1; }
+        [ "$n" -ge "${STUB_AUTO_MERGE_AFTER:-1}" ] && touch "$state/auto-merge" ;;
+      list)
+        case " $* " in
+          *" --head "*) if [ -f "$state/pr.json" ]; then jq '[.]' "$state/pr.json"; else echo '[]'; fi | out ;;
+          *) echo '[]' | out ;;
+        esac ;;
+      *) echo '[]' | out ;;
+    esac
+    exit 0 ;;
   api) ;;
   *) echo "gh 桩不支持：$*" >&2; exit 2 ;;
 esac
@@ -95,6 +120,11 @@ case "$method $path" in
     if [ "$scenario" = free-private ]; then patch=$(jq -c 'del(.allow_auto_merge)' <<<"$body"); fi
     printf '%s' "$patch" > "$state/repo-patch.json"
     repo_json | out ;;
+  "GET repos/acme/shop/rules/branches/main")
+    if [ -f "$state/branch-rules.json" ]; then cat "$state/branch-rules.json"; else echo '[]'; fi | out ;;
+  "GET graphql")
+    jq -n --argjson auto "$([ -f "$state/auto-merge" ] && echo true || echo false)" '{data: {repository: {pullRequest:
+      {state: "OPEN", isInMergeQueue: false, autoMergeRequest: (if $auto then {enabledAt: "2026-09-27T00:00:00Z"} else null end)}}}}' | out ;;
   "GET repos/acme/shop/rulesets")
     case $scenario in
       free-private) http_error 403 "Upgrade to GitHub Pro or make this repository public to enable this feature." ;;

@@ -291,14 +291,127 @@ EOF
   true
 }
 
-t_instructions_check_merge_status() {
-  dir=$ROOT/skills/autoteam/instructions
-  for f in roles/implementer.md roles/reviewer.md roles/planner.md autopilots/patrol.md; do
-    assert_file_contains "$dir/$f" "merge-status.sh <PR>"
+# open-pr.sh 用 tests/stubs/gh：准备一个在功能分支上的仓库，$1 是 allow_auto_merge，$2 是分支上生效的规则
+open_pr_repo() {
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  echo 'AUTOTEAM_REPO=acme/shop' >> .autoteam/autoteam.conf
+  git checkout -q -b hdgcs-1-demo
+  echo '正文' > body.md
+  printf '{"allow_auto_merge": %s}' "$1" > "$STUB_STATE/repo-patch.json"
+  printf '%s' "$2" > "$STUB_STATE/branch-rules.json"
+}
+open_pr() {
+  env PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" \
+    bash .autoteam/scripts/open-pr.sh "$@"
+}
+OPEN_PR_CHECKS='{"type":"required_status_checks","parameters":{"required_status_checks":[{"context":"check"}]}}'
+OPEN_PR_APPROVAL='{"type":"pull_request","parameters":{"required_approving_review_count":1}}'
+
+t_open_pr_platform_enables_and_verifies_auto_merge() {
+  open_pr_repo true "[$OPEN_PR_CHECKS,$OPEN_PR_APPROVAL]"
+  out=$(open_pr --title "HDGCS-1 演示" --body-file body.md) || tfail "platform 开成自动合并应返回 0"
+  assert_contains "$out" "PR：https://github.com/acme/shop/pull/12"
+  assert_contains "$out" "合并模式：platform"
+  assert_contains "$out" "自动合并：auto"
+  assert_log "gh pr create --repo acme/shop --base main --head hdgcs-1-demo --title HDGCS-1 演示 --body-file body.md"
+  assert_no_log "--draft"
+  assert_eq "$(cat "$STUB_STATE/merge-count")" 1 "只开一次自动合并"
+  assert_log "gh pr merge 12 --repo acme/shop --auto --squash"
+  # 同一分支再跑：不再新开 PR，只核对；已是 auto 就不再 gh pr merge
+  out=$(open_pr) || tfail "已有 PR 时核对应返回 0"
+  assert_contains "$out" "已有 PR #12"
+  assert_contains "$out" "自动合并：auto"
+  assert_eq "$(grep -c 'gh pr create' "$STUB_LOG")" 1 "已有 PR 不应再开"
+  assert_eq "$(cat "$STUB_STATE/merge-count")" 1
+}
+
+t_open_pr_platform_retries_once_when_none() {
+  open_pr_repo true "[$OPEN_PR_CHECKS,$OPEN_PR_APPROVAL]"
+  # 第一次 gh pr merge 没生效，重试一次开上
+  out=$(STUB_AUTO_MERGE_AFTER=2 open_pr --title "HDGCS-1 演示" --body-file body.md) || tfail "重试后开成应返回 0"
+  assert_contains "$out" "自动合并：auto"
+  assert_eq "$(cat "$STUB_STATE/merge-count")" 2 "none 时重试一次"
+  # 重试后仍是 none：返回非 0，只试两次
+  rm -f "$STUB_STATE/auto-merge" "$STUB_STATE/merge-count"
+  out=$(STUB_AUTO_MERGE_AFTER=9 open_pr 12 2>&1) && tfail "重试后仍是 none 应返回非 0"
+  assert_contains "$out" "自动合并：none"
+  assert_contains "$out" "仍是 none"
+  assert_eq "$(cat "$STUB_STATE/merge-count")" 2 "只重试一次"
+  # gh pr merge 报错：原文打印出来
+  rm -f "$STUB_STATE/merge-count"
+  out=$(STUB_AUTO_MERGE_FAIL=1 open_pr 12 2>&1) && tfail "开不了自动合并应返回非 0"
+  assert_contains "$out" "Auto merge is not allowed for this repository"
+}
+
+t_open_pr_rejects_non_default_base_or_closed() {
+  open_pr_repo true "[$OPEN_PR_CHECKS,$OPEN_PR_APPROVAL]"
+  # 合并模式按默认分支 main 判断；目标分支不是 main 的 PR 一律不处理，更不能开自动合并
+  jq -n '{number: 12, url: "https://github.com/acme/shop/pull/12", state: "OPEN", baseRefName: "release", isDraft: false}' \
+    > "$STUB_STATE/pr.json"
+  out=$(open_pr 12 2>&1) && tfail "目标分支不是默认分支应返回非 0"
+  assert_contains "$out" "目标分支是 release"
+  out=$(open_pr 2>&1) && tfail "当前分支已有指向 release 的 PR 应返回非 0"
+  assert_contains "$out" "目标分支是 release"
+  assert_no_log "gh pr merge"
+  # 已关闭的 PR 同样不处理
+  jq -n '{number: 12, url: "https://github.com/acme/shop/pull/12", state: "CLOSED", baseRefName: "main", isDraft: false}' \
+    > "$STUB_STATE/pr.json"
+  out=$(open_pr 12 2>&1) && tfail "已关闭的 PR 应返回非 0"
+  assert_contains "$out" "已关闭"
+  assert_no_log "gh pr merge"
+}
+
+t_open_pr_staged_opens_draft_without_merge() {
+  open_pr_repo true "[$OPEN_PR_CHECKS]"
+  out=$(open_pr --title "HDGCS-1 演示" --body-file body.md) || tfail "staged 应返回 0"
+  assert_contains "$out" "合并模式：staged"
+  assert_contains "$out" "由 Reviewer 批准后放行"
+  assert_log "--draft"
+  assert_no_log "gh pr merge"
+  assert_no_log "graphql"
+}
+
+t_open_pr_reviewer_never_merges() {
+  open_pr_repo false "[$OPEN_PR_CHECKS,$OPEN_PR_APPROVAL]"
+  out=$(open_pr --title "HDGCS-1 演示" --body-file body.md) || tfail "reviewer 应返回 0"
+  assert_contains "$out" "合并模式：reviewer"
+  assert_log "gh pr create"
+  assert_no_log "--draft"
+  assert_no_log "gh pr merge"
+  # 返工时按编号核对，同样不碰 gh pr merge
+  out=$(open_pr 12) || tfail "reviewer 核对应返回 0"
+  assert_contains "$out" "合并模式：reviewer"
+  assert_no_log "gh pr merge"
+}
+
+t_open_pr_help_and_bad_args() {
+  open_pr_repo true '[]'
+  assert_contains "$(open_pr --help)" "open-pr.sh <PR 编号>"
+  open_pr abc >/dev/null 2>&1; assert_eq "$?" 2 "参数不对应返回 2"
+  # 选项缺值：不能卡住，返回 2（timeout 兜住死循环）
+  for args in "--title" "--body-file" "--title HDGCS-1 --body-file"; do
+    # shellcheck disable=SC2086  # 故意按空格拆成多个参数
+    out=$(timeout 10 env PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" STUB_LOG="$STUB_LOG" \
+      STUB_STATE="$STUB_STATE" bash .autoteam/scripts/open-pr.sh $args 2>&1)
+    assert_eq "$?" 2 "[$args] 缺值应立即返回 2"
+    assert_contains "$out" "缺少值"
   done
-  assert_file_contains "$dir/roles/reviewer.md" "Implementer 漏开自动合并，已补开"
-  assert_file_contains "$dir/roles/planner.md" "【补开自动合并】"
+  open_pr --title "HDGCS-1 演示" >/dev/null 2>&1 && tfail "新开 PR 缺 --body-file 应返回非 0"
+  assert_no_log "gh pr create"
+}
+
+t_instructions_single_auto_merge_fallback() {
+  dir=$ROOT/skills/autoteam/instructions
+  # 核对自动合并只出现在交付（implementer）和巡检兜底（patrol）两处
+  assert_eq "$(grep -rl "merge-status.sh" "$dir" | sed "s|$dir/||" | sort | tr '\n' ' ')" \
+    "autopilots/patrol.md roles/implementer.md " "merge-status.sh 只应出现在 implementer.md 和 patrol.md"
+  assert_file_contains "$dir/roles/implementer.md" "open-pr.sh --title"
+  assert_file_contains "$dir/roles/implementer.md" "open-pr.sh <PR>"
+  assert_file_contains "$dir/autopilots/patrol.md" "【补开自动合并】"
+  assert_file_contains "$dir/autopilots/patrol.md" "open-pr.sh <PR>"
   assert_file_contains "$dir/roles/planner.md" "不要用你的身份跑 \`merge-mode.sh\`"
+  ! grep -q "gh pr merge <PR> --auto" "$dir/roles/implementer.md" || tfail "implementer.md 不应再手写 gh pr merge --auto"
 }
 
 t_health_metrics_outputs_json_and_markdown() {
