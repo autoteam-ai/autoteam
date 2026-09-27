@@ -119,7 +119,7 @@ Makefile                       check / dev / deploy（已有就不动，只检�
 ## 开发
 
 ```bash
-make check   # shellcheck + actionlint + 单元测试；本机没装 linter 时用 docker 镜像
+make check   # shellcheck + actionlint + 重复代码 + 单元测试；在开发镜像 dev/Dockerfile 里执行，只需要 docker
 ```
 
 文档站使用 Starlight，本地开发要求 Node.js 22.12 以上：

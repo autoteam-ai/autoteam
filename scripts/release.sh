@@ -81,6 +81,9 @@ info "打包检查通过：build/pkg/$tarball（版本 $version，装到干净�
 
 [ "$mode" = publish ] || exit 0
 
+# make publish 在开发镜像里执行，npm 配置是宿主机只读挂进来的（scripts/in-container.sh --npmrc）
+info "npm 配置：$(npm config get userconfig)"
+
 dirty=$(git status --porcelain 2>/dev/null) || dirty=""
 if [ -n "$dirty" ] && [ -z "${DRY_RUN:-}" ]; then
   die "工作区有未提交的改动，不要从这种状态发布"
