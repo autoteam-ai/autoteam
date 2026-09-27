@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 「开工先检查暂停」前言改为单一来源 `instructions/_preamble.md`，从 4 份角色指令和 10 份 autopilot 里删掉；`autoteam multica` 同步时自动加在最前面，`autoteam doctor` 按加上前言后的文本判断指令漂移。之前 eject 的文件如果还带着这段，请删掉，否则同步后会出现两遍。
 - 文档：补充 Multica 0.5.1 任务级事件与定时 wakeup rule 的触发边界，并明确 autoteam 仅让人对已指派任务的普通评论使用默认唤醒；角色交接继续显式指派或 @提及。
 
 ### 行为变更：自定义状态只保留 `shipping`

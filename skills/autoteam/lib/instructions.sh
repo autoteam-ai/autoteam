@@ -18,6 +18,21 @@ instructions_path() {
   fi
 }
 
+# 所有角色指令和 autopilot 正文共用的前言（开工先检查暂停）只在包内 instructions/_preamble.md
+# 维护一份，不 eject：同步到 Multica 时加在最前面，eject 出的文件里没有这段。
+instructions_with_preamble() {
+  local pre
+  pre=$(cat "$AUTOTEAM_HOME/instructions/_preamble.md") || return 1
+  printf '%s\n\n%s' "$pre" "$1"
+}
+
+# 角色在 Multica 上应有的指令全文：前言 + 角色文件。agent 同步和 doctor 漂移对比共用
+instructions_role_text() {
+  local f
+  f=$(instructions_path roles "$1.md") || return 1
+  instructions_with_preamble "$(read_file "$f")"
+}
+
 # 指令来自哪里，写进 Multica agent 的描述：不能写包内的绝对路径，那是机器相关的
 instructions_source() {
   local rel=${1:+$1/}$2

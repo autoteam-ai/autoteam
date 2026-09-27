@@ -27,7 +27,7 @@ t_multica_apply_creates_everything() {
   assert_eq "$(jq length "$STUB_STATE/mc-agents.json")" 4
   assert_eq "$(jq -r '.[] | select(.name == "impl-claude") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-a-claude-0000
   assert_eq "$(jq -r '.[] | select(.name == "auditor") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-c-claude-0000
-  assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$(head -n 1 "$ROOT/skills/autoteam/instructions/roles/reviewer.md")" "没 eject 时取包内指令"
+  assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | sed -n 3p)" "$(head -n 1 "$ROOT/skills/autoteam/instructions/roles/reviewer.md")" "没 eject 时取包内指令（前言之后）"
   assert_log "agent create --name rev-codex --runtime-id rt-b-codex-00000"
   assert_log "--model gpt-5.5"
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10
@@ -106,6 +106,35 @@ t_multica_updates_changed_instructions() {
   out=$(autoteam_stub multica --apply --only agents)
   assert_contains "$out" "更新 agent planner： 指令"
   assert_not_contains "$(jq -r '.[] | select(.name == "planner") | .instructions' "$STUB_STATE/mc-agents.json")" "新增一条规则"
+}
+
+# 暂停检查前言只在包内 _preamble.md 维护一份，同步时加到每份角色指令和 autopilot 正文最前面
+t_multica_prepends_preamble() {
+  local pre name
+  pre=$(cat "$ROOT/skills/autoteam/instructions/_preamble.md")
+  assert_contains "$pre" "开工先检查暂停"
+  assert_eq "$(grep -rl "开工先检查暂停" "$ROOT/skills/autoteam/instructions")" "$ROOT/skills/autoteam/instructions/_preamble.md" "前言只能有一份来源"
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  for name in planner impl-claude rev-codex auditor; do
+    assert_eq "$(jq -r --arg n "$name" '.[] | select(.name == $n) | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$pre" "agent $name 的指令开头是前言"
+  done
+  assert_eq "$(jq -r '.[] | select(.name == "planner") | .instructions' "$STUB_STATE/mc-agents.json")" \
+    "$(printf '%s\n\n' "$pre"; cat "$ROOT/skills/autoteam/instructions/roles/planner.md")" "前言、空行、角色文件原文"
+  assert_eq "$(jq '[.[] | select((.autopilot.description | split("\n")[0]) != $p)] | length' --arg p "$pre" "$STUB_STATE/mc-autopilots.json")" 0 "每个 autopilot 正文开头是前言"
+  assert_contains "$(jq -r '.[] | select(.autopilot.title == "推进巡检") | .autopilot.description' "$STUB_STATE/mc-autopilots.json")" "$pre
+
+按 Planner 角色指令做一次推进巡检"
+
+  # eject 出的文件不含前言，同步时仍自动加上，不会重复
+  autoteam_stub eject reviewer >/dev/null
+  assert_not_contains "$(cat .autoteam/instructions/roles/reviewer.md)" "开工先检查暂停"
+  echo "新增一条规则" >> .autoteam/instructions/roles/reviewer.md
+  autoteam_stub multica --apply --only agents >/dev/null
+  out=$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json")
+  assert_eq "$(printf '%s' "$out" | head -n 1)" "$pre" "eject 后同步仍以前言开头"
+  assert_eq "$(printf '%s' "$out" | grep -c "开工先检查暂停")" 1 "前言不重复"
+  assert_contains "$out" "新增一条规则"
 }
 
 t_multica_reports_missing_runtime() {
