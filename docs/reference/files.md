@@ -18,7 +18,7 @@ title: 生成的文件
 │  └─ workflows/{gate,deploy,rollback}.yml
 └─ .autoteam/                       全部由 autoteam 管理，整个目录受 CODEOWNERS 保护
    ├─ autoteam.conf   registry.yaml   playbook.md   README.md
-   ├─ scripts/{gh-app-token,loop-guard,merge-mode,merge-status,open-pr,health-metrics}.sh
+   ├─ scripts/{gh-app-token,loop-guard,merge-mode,merge-status,open-pr,protected-paths,health-metrics}.sh
    ├─ .lock.json                    装机版本 + 每个文件的 sha256
    ├─ local/                        私钥、env（gitignore，不入库）
    └─ instructions/                 只有 autoteam eject 之后才存在
@@ -47,6 +47,7 @@ title: 生成的文件
 | `.autoteam/scripts/merge-mode.sh` | 判断这个 PR 由谁放行、由谁合并（platform / staged / reviewer） | 模板 | ✅ |
 | `.autoteam/scripts/merge-status.sh` | 核对 PR 的自动合并是否真的开了（merged / queued / auto / none） | 模板 | ✅ |
 | `.autoteam/scripts/open-pr.sh` | Implementer 交付用：开 PR、按合并模式开自动合并并核对，返工时只核对、补开 | 模板 | ✅ |
+| `.autoteam/scripts/protected-paths.sh` | 用目标分支 CODEOWNERS 与 lock 文件判断路径；`--files <路径...>` 或 `--pr <编号>`，命中输出路径并返回 0，未命中返回 1，错误返回 2 | 模板 | ✅ |
 | `.autoteam/scripts/health-metrics.sh` | 代码健康指标 | 模板 | ✅ |
 
 “模板”表示一般不需要手改，升级 autoteam 时用 `autoteam upgrade` 更新（改过的文件它不会动）；“人”表示装完后按项目情况修改。

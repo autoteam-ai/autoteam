@@ -89,7 +89,7 @@
 
 **自主放行的条件**（缺一条都不行）：
 
-1. 不碰受保护路径：目标分支 `.github/CODEOWNERS` 覆盖的任何文件（按 GitHub 的匹配规则逐个判断，最后一条匹配的规则生效；本仓库包括 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json`、`skills/autoteam/instructions/`、`skills/autoteam/templates/`、`skills/autoteam/SKILL.md`、两个 `package.json` 整个文件、`scripts/release.sh`），外加 lock 文件。预计会改到哪些文件说不清的，按碰了处理；
+1. 不碰受保护路径：把预计改动文件传给 `.autoteam/scripts/protected-paths.sh --files <文件...>`，输出命中路径且退出码为 0 就不能自主放行；退出码 2 是判断出错，也不能自主放行。预计会改到哪些文件说不清的，按碰了处理；
 2. 不涉及凭据、权限、部署、回滚、数据删除、对外发布；
 3. 单个子任务不超过 `AUTOTEAM_PR_MAX_LINES`，整个需求不超过 3 个子任务；
 4. 不是新功能，也不改变方向——新功能和方向性需求值不值得做，由人决定。

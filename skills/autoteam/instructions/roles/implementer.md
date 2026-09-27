@@ -37,7 +37,7 @@
    把脚本输出原样贴进任务评论。脚本返回非 0 时，把它打印的原因写进评论并提及 Planner，不要自己改用 `gh pr merge` 绕过；`staged` 和 `reviewer` 时评论里写明由 Reviewer 放行。
 4. 提 PR 后，读取 `.autoteam/autoteam.conf` 的 `AUTOTEAM_CODEOWNERS_GATE`（未设置按 `on`）：
    - `off`：跳过所有 CODEOWNERS 判断，直接 `multica issue status <任务> in_review --no-start`。
-   - `on`：用 `<身份> gh pr view <PR> --json files` 取得完整改动文件列表，对照 PR 目标分支的 `.github/CODEOWNERS`，按 GitHub 的匹配规则逐文件判断（最后一条匹配规则生效，不能只看文件扩展名或受管块）。命中人工负责的路径时：
+   - `on`：跑 `<身份> .autoteam/scripts/protected-paths.sh --pr <PR>`；退出码 0 时按输出的命中文件升级给人，退出码 2 时先修复判断错误，退出码 1 时视为未命中。命中时：
      - `multica issue status <任务> blocked --no-start`；
      - 从 `.autoteam/autoteam.conf` 读取 `AUTOTEAM_HUMAN`（为空时找工作区 owner），用 `multica workspace member list --output json` 查出其 `user_id`，执行 `multica issue assign <任务> --to-id <user_id> --no-start`；
      - 在任务评论里列出命中的文件，写明「需要 codeowner 批准」，用 `[@名字](mention://member/<user_id>)` 提及人。
