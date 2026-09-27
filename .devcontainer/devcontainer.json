@@ -1,0 +1,5 @@
+{
+  "name": "autoteam",
+  "build": { "dockerfile": "../dev/Dockerfile" },
+  "remoteUser": "node"
+}

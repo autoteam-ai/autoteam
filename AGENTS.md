@@ -27,9 +27,16 @@
 ## 检查
 
 ```bash
-make check   # shellcheck + actionlint + tests/run.sh；本机没装 linter 时用 docker 镜像
-bash tests/run.sh multica   # 只跑名字里带 multica 的测试
+make check   # shellcheck + actionlint + 重复代码（jscpd）+ tests/run.sh
+scripts/in-container.sh bash tests/run.sh multica   # 只跑名字里带 multica 的测试
 ```
+
+`make check/dev/deploy/publish` 在本机、cloud runtime、CI 都进同一个开发镜像（`dev/Dockerfile`）执行，只需要 docker，不用在机器上装 shellcheck、actionlint、jscpd、node：
+
+- 工具版本只写在 `dev/Dockerfile` 里（两种架构各自校验 sha256）；镜像 tag 是它的内容 hash，改了自动重建，不推到任何镜像仓库；
+- 入口 `scripts/in-container.sh`：能挂载仓库目录就挂载执行；docker 连的是远端 daemon（cloud runtime，挂进去是空目录）就用 `docker cp` 拷进去执行，再把 `build/pkg/` 拷回来；已经在镜像里（`AUTOTEAM_DEV_IMAGE=1`，含 `.devcontainer/`）就直接执行；
+- `make publish` 把宿主机的 npm 配置（`~/.npmrc` 或 `NPM_CONFIG_USERCONFIG`）只读挂进容器，所以只能在能挂载目录的机器上执行；
+- 没有 docker 就报错，没有"不进容器直接跑"的路。脚本仍按 macOS bash 3.2 的约定写（见上），但测试在镜像里的 bash 5 上跑。
 
 不要声称检查通过，除非你真的跑了。
 
