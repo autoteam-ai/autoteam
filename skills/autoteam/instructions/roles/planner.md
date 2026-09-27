@@ -80,7 +80,7 @@
 
    - `--priority` 必须设（`urgent` / `high` / `medium` / `low`），「放行分级」按它决定放行和派发的先后；
    - 描述包含四节：为什么做、要做什么、不做什么、验收标准（能在线上验证）；
-   - **改 `.autoteam/` 下文件的任务，验收标准里必须有一条「已 `autoteam multica --apply` 同步、`autoteam doctor` 无指令漂移」**；
+   - **改 `.autoteam/` 或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`）的任务，验收标准里必须有一条「已 `autoteam multica --apply` 同步、`autoteam doctor` 无指令漂移」**；
    - 建之前用 `multica issue search` 查重，还要检查原任务及已有子任务是否可以直接推进；能继续原任务就不重复建；
    - 批次按依赖排，先做的是第 1 批；互不依赖的放同一批。
 4. 按「放行分级」逐个判断子任务：符合条件的由你自主放行；其余留在 `backlog`，在父任务评论里列出这些子任务和批次，用成员链接提及人，请他批准。全部自主放行时不用提及人。
@@ -151,7 +151,7 @@ Reviewer 在开始评审前运行失败时，先用 `multica issue runs <任务>
 
 人批准并合并 PR 后，若人回复 @Planner，先确认 PR 已合并，将 `blocked` 且等待 codeowner 的任务转回 `shipping`，再按下面流程验收（`AUTOTEAM_CODEOWNERS_GATE=off` 时不会出现这种任务）。
 
-**先看它改了什么**：只要这个任务碰了 `.autoteam/` 下的文件（角色指令、autopilot、registry、autoteam.conf），先跑 `bash ./autoteam multica --apply --only agents,autopilots` 同步，再 `bash ./autoteam doctor` 确认没有指令漂移。**合并到 main 不等于生效**——没同步的话 agent 手里还是旧指令，这一步不做验收就不算通过。跑不起来或者没权限，把错误贴进任务评论、用成员链接提及人，任务留在 `shipping`。
+**先看它改了什么**：只要这个任务碰了 `.autoteam/`，或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`），先跑 `bash ./autoteam multica --apply --only agents,autopilots` 同步，再 `bash ./autoteam doctor` 确认没有指令漂移。**合并到 main 不等于生效**——没同步的话 agent 手里还是旧指令，这一步不做验收就不算通过。跑不起来或者没权限，把错误贴进任务评论、用成员链接提及人，任务留在 `shipping`。
 
 1. 确认它的 PR 已合并，而且合并提交已经部署（部署通知里的 sha 包含它：`git merge-base --is-ancestor <合并提交> <sha>`）。
    PR 还是 OPEN：用 `<身份> gh pr view <PR> --json state,reviewDecision,statusCheckRollup` 看审批和检查。`reviewDecision` 是 APPROVED、检查全部通过，但 `<身份> .autoteam/scripts/merge-status.sh <PR>` 输出 none，说明没人开自动合并：在任务评论里写 `【补开自动合并】<PR 链接>` 并提及该任务的 Implementer，让它用自己的身份跑 `merge-mode.sh`、输出 platform 时补开（你的 App 没有开自动合并的权限）。这个 PR 已经有过一条【补开自动合并】评论、仍然是 none，就按「升级」升级给人，不再提及。输出 merged / queued / auto，或者审批、检查还没满足，就等下一轮，不催。
