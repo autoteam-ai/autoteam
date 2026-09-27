@@ -58,6 +58,7 @@ autoteam/scripts/loop-guard.sh        $AUTOTEAM_DIR/scripts/loop-guard.sh       
 autoteam/scripts/merge-mode.sh        $AUTOTEAM_DIR/scripts/merge-mode.sh        exec
 autoteam/scripts/merge-status.sh      $AUTOTEAM_DIR/scripts/merge-status.sh      exec
 autoteam/scripts/open-pr.sh           $AUTOTEAM_DIR/scripts/open-pr.sh           exec
+autoteam/scripts/protected-paths.sh    $AUTOTEAM_DIR/scripts/protected-paths.sh    exec
 autoteam/scripts/health-metrics.sh    $AUTOTEAM_DIR/scripts/health-metrics.sh    exec
 EOF
 }
