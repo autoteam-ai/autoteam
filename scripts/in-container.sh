@@ -5,6 +5,7 @@
 #   scripts/in-container.sh <命令...>           例：scripts/in-container.sh bash tests/run.sh multica
 #   scripts/in-container.sh --npmrc <命令...>   另把宿主机的 npm 配置只读挂进去（make publish 用）
 #   scripts/in-container.sh --image             只构建镜像，打印 tag
+#   scripts/in-container.sh --tag               只打印 tag，不启动 docker（给 CI 预构建用）
 #
 # - 已经在开发镜像里（AUTOTEAM_DEV_IMAGE=1）就直接执行，不嵌套；
 # - 镜像 tag 是 dev/Dockerfile 内容的 hash，本机已有就复用，改了 Dockerfile 自动重建；
@@ -18,13 +19,25 @@ ROOT=$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 die() { printf 'in-container 中止：%s\n' "$*" >&2; exit 1; }
 info() { printf '==> %s\n' "$*" >&2; }
 
-npmrc_wanted="" image_only=""
+npmrc_wanted="" image_only="" tag_only=""
 case ${1:-} in
   --npmrc) npmrc_wanted=1; shift ;;
   --image) image_only=1; shift ;;
+  --tag) tag_only=1; shift ;;
   -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 esac
-[ $# -gt 0 ] || [ -n "$image_only" ] || die "没有要执行的命令（用法见 --help）"
+[ $# -gt 0 ] || [ -n "$image_only" ] || [ -n "$tag_only" ] || die "没有要执行的命令（用法见 --help）"
+
+if command -v sha256sum >/dev/null 2>&1; then
+  hash=$(sha256sum < "$ROOT/dev/Dockerfile")
+else
+  hash=$(shasum -a 256 < "$ROOT/dev/Dockerfile")
+fi
+image=autoteam-dev:${hash:0:12}
+if [ -n "$tag_only" ]; then
+  echo "$image"
+  exit 0
+fi
 
 if [ "${AUTOTEAM_DEV_IMAGE:-}" = 1 ]; then
   [ -z "$image_only" ] || die "已经在开发镜像里了"
@@ -35,12 +48,6 @@ command -v docker >/dev/null 2>&1 ||
   die "没有 docker：make check/dev/deploy/publish 都在开发镜像里执行，先装 docker（https://docs.docker.com/get-docker/）"
 docker info >/dev/null 2>&1 || die "连不上 docker daemon：先启动 docker，或检查 DOCKER_HOST"
 
-if command -v sha256sum >/dev/null 2>&1; then
-  hash=$(sha256sum < "$ROOT/dev/Dockerfile")
-else
-  hash=$(shasum -a 256 < "$ROOT/dev/Dockerfile")
-fi
-image=autoteam-dev:${hash:0:12}
 if ! docker image inspect "$image" >/dev/null 2>&1; then
   info "构建开发镜像 $image（本机还没有，或 dev/Dockerfile 改过）"
   docker build -t "$image" "$ROOT/dev" >&2 || die "构建开发镜像失败"
