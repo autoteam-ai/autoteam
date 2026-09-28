@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 前沿扫描扩展为 A 类流程前提、B 类 AI 工程实践、C 类项目技术栈方向；B、C 类结论需写明「时机」。
 - 新增交付脚本 `.autoteam/scripts/open-pr.sh`：按 `merge-mode.sh` 开 PR（staged 开 draft、reviewer 绝不 `gh pr merge`），platform 时开自动合并并用 `merge-status.sh` 核对，none 重试一次仍失败返回非 0；已有 PR 时只核对、补开。Implementer 交付和返工改为调用它；自动合并漏开的兜底只保留巡检一处，Reviewer 的 platform 补开段和 Planner「验收」里的重复描述删掉。已装机的项目跑 `autoteam upgrade` 拿到新脚本。
 - 「开工先检查暂停」前言改为单一来源 `instructions/_preamble.md`，从 4 份角色指令和 10 份 autopilot 里删掉；`autoteam multica` 同步时自动加在最前面，`autoteam doctor` 按加上前言后的文本判断指令漂移。之前 eject 的文件如果还带着这段，请删掉，否则同步后会出现两遍。
 - 文档：补充 Multica 0.5.1 任务级事件与定时 wakeup rule 的触发边界，并明确 autoteam 仅让人对已指派任务的普通评论使用默认唤醒；角色交接继续显式指派或 @提及。
