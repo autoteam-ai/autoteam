@@ -2,7 +2,7 @@
 # （入口是 scripts/in-container.sh）。所有工具的版本只写在这个文件里；改了它，镜像 tag
 # （按本文件内容算的 hash）跟着变，每台机器下次执行时自动重建。
 # 要同时能在 amd64（GitHub runner）和 arm64（cloud runtime 的远端 daemon）上构建。
-FROM node:22.23.3-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c
+FROM node:24.21.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 
 # 测试要用 openssl（造 App 私钥）、python3（查文档链接）、shasum（perl 自带）。
 # jq 不用 apt 的：bookworm 的 jq 1.6 会把 50.0 输出成 50，下面装固定版本

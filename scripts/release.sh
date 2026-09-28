@@ -26,9 +26,10 @@ case ${1:-} in
   *) die "未知参数：$1" ;;
 esac
 
-for release_cmd in npm jq tar; do
+for release_cmd in node npm jq tar; do
   command -v "$release_cmd" >/dev/null 2>&1 || die "没有 $release_cmd"
 done
+info "Node $(node --version)"
 
 pkg=skills/autoteam/package.json
 name=$(jq -r '.name // empty' "$pkg")
