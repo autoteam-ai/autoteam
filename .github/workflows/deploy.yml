@@ -25,26 +25,38 @@ jobs:
         id: dev-image
         run: echo "tag=$(bash scripts/in-container.sh --tag)" >> "$GITHUB_OUTPUT"
 
-      - name: set up buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
+      - name: restore development image
+        id: image-cache
+        uses: actions/cache/restore@v4
         continue-on-error: true
-
-      - name: build development image
-        if: steps.buildx.outcome == 'success'
-        uses: docker/build-push-action@v6
-        continue-on-error: true # make deploy falls back to the local docker build
         with:
-          context: ./dev
-          load: true
-          tags: ${{ steps.dev-image.outputs.tag }}
-          cache-from: type=gha,scope=autoteam-dev
-          cache-to: type=gha,scope=autoteam-dev,mode=max
+          path: ${{ runner.temp }}/autoteam-dev.tar
+          key: autoteam-dev-${{ runner.os }}-${{ runner.arch }}-${{ steps.dev-image.outputs.tag }}
+
+      - name: load development image
+        id: load-image
+        if: steps.image-cache.outputs.cache-hit == 'true'
+        run: docker load -i "${{ runner.temp }}/autoteam-dev.tar"
+        continue-on-error: true # make deploy builds locally if the archive cannot load
 
       - name: deploy
         run: make deploy
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: save development image
+        id: save-image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: docker save -o "${{ runner.temp }}/autoteam-dev.tar" "${{ steps.dev-image.outputs.tag }}"
+        continue-on-error: true
+
+      - name: publish development image cache
+        if: steps.image-cache.outputs.cache-hit != 'true' && steps.save-image.outcome == 'success'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/autoteam-dev.tar
+          key: autoteam-dev-${{ runner.os }}-${{ runner.arch }}-${{ steps.dev-image.outputs.tag }}
 
       # 本仓库的"线上"就是这个包：Planner 下载它、装进干净目录、按验收标准跑。
       # npm publish 是对外的、撤不回的动作，由人执行 make publish，不在这里做
