@@ -60,10 +60,6 @@ title: 生成的文件
 
 要按本项目改某一份：`autoteam eject <名字>` 把它复制到 `.autoteam/instructions/`（受 CODEOWNERS 保护），此后读取优先用这一份，升级不会覆盖。用 `autoteam eject --diff <名字>` 对比包内的新版本。
 
-## 从旧版布局迁移
-
-旧版把这些文件放在 `ops/` 下的 `agents/` 子目录里，并且把指令也落盘。用 `autoteam migrate` 一次迁完（先加 `--dry-run` 看计划），见 [autoteam migrate](cli.md#autoteam-migrate)。
-
 ## 卸载
 
-日常运行中 autoteam 只新建和更新，不删除任何文件（`autoteam migrate` 是一次性的例外：它删除与包内一致的旧指令文件），也不删除 GitHub 或 Multica 上的任何东西。卸载时手动删掉这些文件和受管块，在 Multica 里删掉对应的 agent 和 autopilot，在 GitHub 上删掉规则集 `autoteam` 和 secret `MULTICA_DEPLOY_HOOK`。
+日常运行中 autoteam 只新建和更新，不删除任何文件，也不删除 GitHub 或 Multica 上的任何东西。卸载时手动删掉这些文件和受管块，在 Multica 里删掉对应的 agent 和 autopilot，在 GitHub 上删掉规则集 `autoteam` 和 secret `MULTICA_DEPLOY_HOOK`。
