@@ -21,6 +21,26 @@ jobs:
       - uses: actions/checkout@v7
 
       # 本仓库特有：make deploy 进开发镜像 dev/Dockerfile 执行（npm pack 用镜像里的 node）
+      - name: development image tag
+        id: dev-image
+        run: echo "tag=$(bash scripts/in-container.sh --tag)" >> "$GITHUB_OUTPUT"
+
+      - name: set up buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+        continue-on-error: true
+
+      - name: build development image
+        if: steps.buildx.outcome == 'success'
+        uses: docker/build-push-action@v6
+        continue-on-error: true # make deploy falls back to the local docker build
+        with:
+          context: ./dev
+          load: true
+          tags: ${{ steps.dev-image.outputs.tag }}
+          cache-from: type=gha,scope=autoteam-dev
+          cache-to: type=gha,scope=autoteam-dev,mode=max
+
       - name: deploy
         run: make deploy
         env:

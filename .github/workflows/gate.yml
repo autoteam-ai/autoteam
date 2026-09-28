@@ -46,5 +46,25 @@ jobs:
 
       # 本仓库特有：make check（shellcheck、actionlint、重复代码、单元测试）进开发镜像
       # dev/Dockerfile 执行，工具版本只写在 Dockerfile 里，本地和 CI 用的是同一套
+      - name: development image tag
+        id: dev-image
+        run: echo "tag=$(bash scripts/in-container.sh --tag)" >> "$GITHUB_OUTPUT"
+
+      - name: set up buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+        continue-on-error: true
+
+      - name: build development image
+        if: steps.buildx.outcome == 'success'
+        uses: docker/build-push-action@v6
+        continue-on-error: true # make check falls back to the local docker build
+        with:
+          context: ./dev
+          load: true
+          tags: ${{ steps.dev-image.outputs.tag }}
+          cache-from: type=gha,scope=autoteam-dev
+          cache-to: type=gha,scope=autoteam-dev,mode=max
+
       - name: check
         run: make check
