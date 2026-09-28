@@ -52,7 +52,7 @@ Auditor 每周跑，你也可以随时在仓库里跑：
 四份报告都会建成任务（create_issue），并 @Planner 把值得做的拆进 backlog：
 
 - **agent 成绩单**（`AUTOTEAM_CRON_SCORECARD`）：哪个 Implementer 该多派、哪个该少派，Planner 选人时会参考；
-- **前沿扫描**（周一 11:00）：模型、CLI、平台、计费规则变了之后，哪条指令或参数不再适配；
+- **前沿扫描**（`AUTOTEAM_CRON_FRONTIER`）：扫描 A 类流程前提、B 类 AI 工程实践和 C 类项目技术栈方向，指出需调整的文件或参数及 B、C 类结论的时机；
 - **整合审计**（`AUTOTEAM_CRON_CONSOLIDATION`）：新增的重复实现、该复用却重写的地方；
 - **规格对账**（`AUTOTEAM_CRON_SPEC_RECONCILE`）：任务的验收标准和实际代码不一致的地方；
 - **老代码巡检**（每月 1 号）：一年没动、可能已经没用的模块。
