@@ -121,7 +121,7 @@ autoteam upgrade .github/workflows/gate.yml
 - 不一致（本地改过）：不写，打印当前文件和新模板的差异，由你决定——保留改动就手工合并需要的部分，放弃改动就 `autoteam init --force <文件>`。包里不带历史模板，所以只有两方对比
 - `autoteam.conf`、`registry.yaml`、`Makefile` 不动；缺的文件补上
 
-结束后更新 lock 的版本号。`.lock.json` 要提交入库：它是全团队升级的依据。旧版 autoteam 装的项目没有 lock，第一次 `upgrade` 会生成，和模板不一致的文件一律当作改过。
+结束后更新 lock 的版本号。`.lock.json` 要提交入库：它是全团队升级的依据。如果 lock 丢失，`upgrade` 会重新生成，和模板不一致的文件一律当作改过。
 
 升级 autoteam 的步骤：更新 autoteam（`npx skills update autoteam` 或 `git pull`）→ `autoteam upgrade` → 处理它列出的本地改过的文件 → 提交、合并 → `autoteam multica --apply`。角色指令和 autopilot 不在 `autoteam diff` 的范围内：没 eject 的直接跟着包走，eject 过的用 `autoteam eject --diff` 看差异。
 
@@ -137,6 +137,6 @@ autoteam eject --diff reviewer      # 只看差异，不写文件
 
 角色指令、autopilot、`planner-mcp.json` 默认不落盘在你的仓库里：`autoteam multica` 直接读 autoteam 包内的版本。`eject` 把包内的文件复制到 `.autoteam/instructions/`（`roles/<角色>.md`、`autopilots/<名字>.md`、`planner-mcp.json`），此后由你维护，升级不会覆盖；读取时优先用落盘的那份，删掉它就回到包内版本。已存在的文件不会被覆盖。
 
-「开工先检查暂停」这段前言只在包内 `instructions/_preamble.md` 维护一份，不 eject；`autoteam multica` 同步时把它加在每份角色指令和 autopilot 正文的最前面，eject 出的文件里没有这段，也不要自己加。之前 eject 的文件如果还带着这段，同步时会自动去重；仍建议从 eject 文件里删掉，避免重复维护。
+「开工先检查暂停」这段前言只在包内 `instructions/_preamble.md` 维护一份，不 eject；`autoteam multica` 同步时把它加在每份角色指令和 autopilot 正文的最前面，eject 出的文件里没有这段，也不要自己加。
 
 `--diff` 打印包内文本和已 eject 文本的差异，没 eject 过的目标提示“未 eject”。升级 autoteam 之后，用它看包内的新版本改了什么，再手动合并进你的那份。

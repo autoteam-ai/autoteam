@@ -86,7 +86,7 @@ doctor_lock() {
   local v current
   current=$(autoteam_version)
   if [ ! -f "$AUTOTEAM_LOCK_REL" ]; then
-    warn "没有 $AUTOTEAM_LOCK_REL（旧版 autoteam 装的项目）：运行 autoteam upgrade 生成，升级靠它判断哪些文件改过"
+    warn "没有 $AUTOTEAM_LOCK_REL：运行 autoteam upgrade 生成，升级靠它判断哪些文件改过"
   elif ! v=$(jq -er '.version' "$AUTOTEAM_LOCK_REL" 2>/dev/null); then
     fail "$AUTOTEAM_LOCK_REL 读不出 version：不是合法的 lock，运行 autoteam upgrade 重新生成"
   elif [ "$v" != "$current" ]; then
@@ -375,11 +375,6 @@ doctor_multica() {
 $(autoteam_statuses)
 EOF
     if [ -z "$missing" ]; then ok "自定义状态齐全：shipping"; else fail "缺少自定义状态：$missing（autoteam multica --apply）"; fi
-    local legacy key
-    for key in approved code_review rework; do
-      legacy=$(jq -r --arg k "$key" '.statuses[] | select(.key == $k and (.archived_at // null) == null) | .key' <<<"$catalog")
-      [ -z "$legacy" ] || warn "发现未归档的旧状态 $key：先把其中任务移到 todo / in_review / in_progress，再在 Multica 界面归档或运行 autoteam multica --apply"
-    done
   else
     warn "读不到状态列表，没法检查自定义状态"
   fi

@@ -29,8 +29,10 @@ for md in files:
             bad += 1
             continue
         if anchor and target.suffix == ".md":
-            heads = [slug(h) for h in re.findall(r"^#+\s+(.*)$", target.read_text(encoding="utf-8"), re.M)]
-            if anchor not in heads:
+            target_text = target.read_text(encoding="utf-8")
+            heads = [slug(h) for h in re.findall(r"^#+\s+(.*)$", target_text, re.M)]
+            explicit = re.findall(r'<a\s+id="([^"]+)"\s*></a>', target_text)
+            if anchor not in heads and anchor not in explicit:
                 print(f"{md}: 锚点不存在 {link}")
                 bad += 1
 sys.exit(1 if bad else 0)

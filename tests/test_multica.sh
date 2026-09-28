@@ -137,29 +137,6 @@ t_multica_prepends_preamble() {
   assert_contains "$out" "新增一条规则"
 }
 
-t_instructions_with_preamble_deduplicates_ejected_text() {
-  local pre body plain prefixed source old_role clean_role
-  AUTOTEAM_HOME=$ROOT/skills/autoteam AUTOTEAM_DIR=.autoteam
-  # shellcheck source=skills/autoteam/lib/instructions.sh
-  . "$ROOT/skills/autoteam/lib/instructions.sh"
-  pre=$(cat "$AUTOTEAM_HOME/instructions/_preamble.md")
-  body=$'# 角色指令\n\n正文'
-  plain=$(instructions_with_preamble "$body")
-  prefixed=$(instructions_with_preamble "$pre"$'\n\n'"$body")
-  assert_eq "$plain" "$pre"$'\n\n'"$body" "未带前言时加一次"
-  assert_eq "$prefixed" "$plain" "已带前言时同步文本相同"
-  assert_eq "$(grep -c '开工先检查暂停' <<<"$prefixed")" 1 "前言只出现一次"
-  assert_eq "$(instructions_with_preamble $'\n \t\n'"$pre"$'\n\n'"$body")" "$plain" "忽略前导空行"
-
-  # HDGCS-101 之前的角色文件：来源引用在第 1 行，前言在第 3 行。
-  source='> 本文件是 Multica 里 Reviewer agent 指令的唯一来源。修改走 PR 由人批准，合并后运行 `autoteam multica --apply` 同步。'
-  clean_role="$source"$'\n\n'"$body"
-  old_role="$source"$'\n\n'"$pre"$'\n\n'"$body"
-  prefixed=$(instructions_with_preamble "$old_role")
-  assert_eq "$prefixed" "$(instructions_with_preamble "$clean_role")" "旧版角色文件去重后与无前言正文相同"
-  assert_eq "$(grep -c '开工先检查暂停' <<<"$prefixed")" 1 "旧版角色文件前言只出现一次"
-}
-
 t_multica_reports_missing_runtime() {
   setup_ready_repo
   sed -i.bak 's/claude@machine-a/claude@nowhere/' .autoteam/registry.yaml && rm -f .autoteam/registry.yaml.bak
@@ -333,23 +310,6 @@ t_multica_env_only_needs_no_profile() {
   assert_contains "$out" "已新建状态 shipping"
   assert_no_log "--profile"
   assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
-}
-
-t_multica_archives_empty_legacy_statuses_and_skips_used_ones() {
-  setup_ready_repo
-  printf '%s\n' '[{"id":"status-approved","key":"approved","name":"已批准","category":"todo","archived_at":null},{"id":"status-code-review","key":"code_review","name":"待评审","category":"in_progress","archived_at":null},{"id":"status-rework","key":"rework","name":"返工","category":"in_progress","archived_at":null}]' > "$STUB_STATE/mc-statuses.json"
-  printf '%s\n' '[{"id":"issue-1","identifier":"TST-1","title":"仍在返工"}]' > "$STUB_STATE/mc-issues-rework.json"
-  out=$(autoteam_stub multica --only statuses)
-  assert_contains "$out" "[预览] 归档旧状态 approved"
-  assert_no_log "curl DELETE"
-  out=$(autoteam_stub multica --apply --only statuses)
-  assert_contains "$out" "已归档旧状态 approved"
-  assert_contains "$out" "已归档旧状态 code_review"
-  assert_contains "$out" "旧状态 rework 仍有任务：TST-1 仍在返工"
-  assert_contains "$out" "未归档"
-  assert_eq "$(jq -r '.[] | select(.key == "approved") | .archived_at' "$STUB_STATE/mc-statuses.json")" "2099-01-01T00:00:00Z"
-  assert_eq "$(jq -r '.[] | select(.key == "rework") | .archived_at' "$STUB_STATE/mc-statuses.json")" "null"
-  assert_log "curl DELETE https://api.multica.test/api/issue-statuses/status-approved auth=ok"
 }
 
 t_multica_env_needs_both_vars() {

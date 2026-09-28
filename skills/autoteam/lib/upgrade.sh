@@ -38,7 +38,7 @@ cmd_upgrade() {
 
   section "升级文件（${LOCK_VERSION:-没有 lock} → $(autoteam_version)）"
   if [ -z "$LOCK_VERSION" ]; then
-    warn "没有 $AUTOTEAM_LOCK_REL（旧版 autoteam 装的项目）：和模板不一致的文件无法判断是否改过，一律不覆盖；结束后生成 lock"
+    warn "没有 $AUTOTEAM_LOCK_REL：和模板不一致的文件无法判断是否改过，一律不覆盖；结束后生成 lock"
   fi
   while read -r tpl target mode; do
     [ -n "$tpl" ] || continue
