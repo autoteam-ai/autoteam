@@ -12,8 +12,6 @@ autoteam multica --apply --only agents   # 只同步 agent（改了角色指令�
 
 autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_MULTICA_PROFILE`；默认 profile 没配置服务器时，自动用 `~/.multica/profiles` 下唯一的那个（比如桌面端的 `desktop-api.multica.ai`）。工作区取 autoteam.conf 的 `AUTOTEAM_MULTICA_WORKSPACE`。
 
-<a id="从旧版本升级"></a>
-
 ## 状态
 
 建 1 个自定义状态（需要工作区 owner 或 admin）。其余流程用到的状态都是 Multica 内置的（`backlog`、`todo`、`in_progress`、`in_review`、`blocked`、`done`、`cancelled`），不用建。Multica CLI 没有建状态的命令，autoteam 直接调 Multica 的 `/api/issue-statuses` 接口，token 从 profile 的配置文件里读，通过 stdin 交给 curl，不会出现在进程参数里。
