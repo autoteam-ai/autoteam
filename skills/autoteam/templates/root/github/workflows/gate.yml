@@ -19,7 +19,7 @@ jobs:
       # 在这里加上 make check 需要的运行时，例如：
       # - uses: actions/setup-node@v7
       #   with:
-      #     node-version: 22
+      #     node-version: 24
 
       # 上限和不计入的路径都在 .autoteam/autoteam.conf：AUTOTEAM_PR_MAX_LINES（默认 400，
       # 参考 AI PR 的 75 分位 408 行）、AUTOTEAM_PR_SIZE_EXCLUDE（lock 文件、Markdown，

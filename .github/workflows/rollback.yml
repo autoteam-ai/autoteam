@@ -26,11 +26,6 @@ jobs:
         with:
           ref: ${{ inputs.sha }}
 
-      # 和 deploy.yml 保持一致
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-
       - name: deploy
         run: make deploy
         env:
