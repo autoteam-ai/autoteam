@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# curl 桩：模拟 Multica 的状态接口 /api/issue-statuses（含归档），以及 GitHub App 铸 token 的三个接口。
+# curl 桩：模拟 Multica 的状态接口 /api/issue-statuses，以及 GitHub App 铸 token 的三个接口。
 set -o pipefail
 state=${STUB_STATE:?}
 method=GET out="" data="" url="" cfg="" bearer=""
@@ -65,12 +65,5 @@ case "$method ${url#https://api.multica.test}" in
     mv "$statuses.tmp" "$statuses"
     jq '. + {id: "st-1"}' <<<"$data" > "$out"
     printf 201 ;;
-  "DELETE /api/issue-statuses/"*)
-    id=${url##*/}
-    printf 'DELETE /api/issue-statuses/%s\n' "$id" >> "$STUB_LOG"
-    jq --arg id "$id" 'map(if .id == $id then .archived_at = "2099-01-01T00:00:00Z" else . end)' "$statuses" > "$statuses.tmp"
-    mv "$statuses.tmp" "$statuses"
-    printf '{"id":"%s","archived_at":"2099-01-01T00:00:00Z"}' "$id" > "$out"
-    printf 200 ;;
   *) echo '{"error":"not found"}' > "$out"; printf 404 ;;
 esac

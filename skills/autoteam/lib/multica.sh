@@ -16,7 +16,7 @@ multica_usage() {
   --rotate-webhook        重新生成部署 webhook 地址并写入 GitHub secret
 
 会做的事：
-  1. 自定义状态 shipping，并归档空的旧状态 approved / code_review / rework（调 Multica API，需要工作区 owner 或 admin）
+  1. 自定义状态 shipping（调 Multica API，需要工作区 owner 或 admin）
   2. 按 registry.yaml 创建或更新 agent，指令优先取 .autoteam/instructions/roles/<角色>.md
      （autoteam eject 落盘的那份），没有就用 autoteam 包内的
   3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源
@@ -293,7 +293,7 @@ cmd_multica() {
 
   section "需要你在 Multica 界面里做的事"
   info "GitHub 集成（可选）：Settings → GitHub 连接仓库后，任务卡片上能看到关联 PR 和 CI 状态"
-  info "看板上确认自定义状态：待上线；旧状态 approved / code_review / rework 已归档或已迁移"
+  info "看板上确认自定义状态：待上线"
   preview_footer
 }
 
@@ -345,36 +345,6 @@ multica_statuses() {
   done <<EOF
 $(autoteam_statuses)
 EOF
-  multica_archive_legacy_statuses "$catalog"
-}
-
-multica_archive_legacy_statuses() {
-  local catalog=$1 key entry id issues issue_titles
-  for key in approved code_review rework; do
-    entry=$(jq -c --arg k "$key" '.statuses[] | select(.key == $k and (.archived_at // null) == null)' <<<"$catalog")
-    [ -n "$entry" ] || continue
-    id=$(jq -r '.id // empty' <<<"$entry")
-    if [ -z "$id" ]; then
-      warn "旧状态 $key 没有 API id，无法归档；请在 Multica 界面归档"
-      continue
-    fi
-    planned "归档旧状态 $key"
-    [ "$AUTOTEAM_APPLY" = 1 ] || continue
-    if ! issues=$(mc issue list --status "$key" --output json); then
-      fail "读取使用旧状态 $key 的任务失败；为安全起见未归档"
-      continue
-    fi
-    if [ "$(jq '.issues | length' <<<"$issues")" -gt 0 ]; then
-      issue_titles=$(jq -r '.issues[] | "\(.identifier // .id) \(.title)"' <<<"$issues" | paste -sd '；' -)
-      warn "旧状态 $key 仍有任务：$issue_titles。先移到 todo / in_review / in_progress，未归档"
-      continue
-    fi
-    if mc_api DELETE "/api/issue-statuses/$id"; then
-      ok "已归档旧状态 $key"
-    else
-      fail "归档旧状态 $key 失败：$MC_API_OUT"
-    fi
-  done
 }
 
 multica_status_manual() {
