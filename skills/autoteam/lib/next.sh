@@ -27,8 +27,8 @@ next_collect_page() {
   done
 }
 
-next_collect() {
-  local profile=$1 root projects agents rows planner_name issue id identifier status assignee parent stage runs failure children ready reason
+next_resolve() {
+  local profile=$1 root projects agents rows planner_name
   root=$(repo_root)
   conf_exists "$root" || { next_read_error "配置 $AUTOTEAM_CONF_REL"; return 2; }
   conf_load "$root"
@@ -46,6 +46,11 @@ next_collect() {
   [ -n "$planner_name" ] || { next_read_error 'Planner 配置'; return 2; }
   agents=$(mc agent list --output json) || { next_read_error 'agent 列表'; return 2; }
   NEXT_PLANNER_ID=$(jq -er --arg name "$planner_name" 'if type == "array" then [.[] | select(.name == $name)][0].id // empty else empty end' <<<"$agents") || { next_read_error 'Planner agent'; return 2; }
+}
+
+next_collect() {
+  local profile=$1 issue id identifier status assignee parent stage runs failure children ready reason
+  next_resolve "$profile" || return 2
   NEXT_ISSUES="$(autoteam_tmpdir)/next-issues.jsonl"
   NEXT_ITEMS="$(autoteam_tmpdir)/next-items.jsonl"
   : > "$NEXT_ISSUES"; : > "$NEXT_ITEMS"
