@@ -276,6 +276,35 @@ t_multica_autopilot_read_failure_does_not_update() {
   assert_eq "$(grep -c 'autopilot get ap-1 ' "$STUB_LOG")" 3
 }
 
+# 同一工作区接第二个项目：别的项目的同名 autopilot 预览和 --apply 都不动，本项目另建一套
+t_multica_leaves_other_project_autopilots() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  jq 'map(.autopilot.project_id = "proj-other" | .autopilot.description = "别的项目的 runbook")' \
+    "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
+  mv "$STUB_STATE/mc-autopilots.tmp" "$STUB_STATE/mc-autopilots.json"
+  cp "$STUB_STATE/mc-autopilots.json" "$WORK/other.json"
+  : > "$STUB_LOG"
+
+  out=$(autoteam_stub multica --only autopilots)
+  assert_contains "$out" "工作区里另有同名 autopilot「推进巡检」不属于本项目，不改动它"
+  assert_contains "$out" "[预览] 新建 autopilot「推进巡检」"
+  assert_not_contains "$out" "更新 autopilot"
+  assert_no_log "autopilot update"
+
+  out=$(autoteam_stub multica --apply --only autopilots)
+  assert_not_contains "$out" "更新 autopilot"
+  assert_no_log "autopilot update"
+  assert_no_log "trigger-update"
+  assert_eq "$(jq -c '[.[] | select(.autopilot.project_id == "proj-other")]' "$STUB_STATE/mc-autopilots.json")" \
+    "$(jq -c . "$WORK/other.json")" "别的项目的 autopilot 和触发器原样保留"
+  assert_eq "$(jq '[.[] | select(.autopilot.project_id == "proj-1")] | length' "$STUB_STATE/mc-autopilots.json")" 10
+
+  out=$(autoteam_stub multica --apply --only autopilots)
+  assert_contains "$out" "autopilot「推进巡检」已是最新"
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 20 "再跑不重复建"
+}
+
 t_multica_api_failure_keeps_independent_steps() {
   setup_ready_repo
   touch "$STUB_STATE/curl-timeout"
