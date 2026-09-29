@@ -32,6 +32,14 @@ t_init_fresh_repo_creates_everything() {
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_REPO=acme/shop"
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_ISSUE_PREFIX=SHOP"
   assert_file_contains AGENTS.md "SHOP-123"
+  assert_file_contains AGENTS.md "SHOP-123 修复登录页空白"
+  assert_file_contains .github/pull_request_template.md "SHOP-123 修复登录页空白"
+  assert_file_contains .gitignore "/.claude/skills/"
+  assert_file_contains .gitignore "/.agents/skills/"
+  mkdir -p .claude/skills/x .agents/skills/x
+  touch .claude/skills/x/a.sh .agents/skills/x/a.sh
+  git check-ignore -q .claude/skills/x/a.sh || tfail ".claude/skills/ 应被忽略"
+  git check-ignore -q .agents/skills/x/a.sh || tfail ".agents/skills/ 应被忽略"
   assert_file_contains .github/workflows/deploy.yml "branches: [main]"
   assert_file_contains .github/workflows/deploy.yml "    environment: production"
   assert_file_contains .github/workflows/deploy.yml '${{ secrets.MULTICA_DEPLOY_HOOK }}'

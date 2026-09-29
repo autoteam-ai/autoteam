@@ -31,7 +31,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 1. 生成文件
 
-`autoteam init --workspace <slug>`。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。
+`autoteam init --workspace <slug>`。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。生成的 `.gitignore` 受管块会忽略 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/`。
 
 ### 2. 适配（需要判断的部分）
 
