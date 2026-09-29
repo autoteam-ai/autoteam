@@ -134,8 +134,9 @@ t_multica_updates_changed_instructions() {
 # 暂停检查前言只在包内 _preamble.md 维护一份，同步时加到每份角色指令和 autopilot 正文最前面
 t_multica_prepends_preamble() {
   local pre name
-  pre=$(cat "$ROOT/skills/autoteam/instructions/_preamble.md")
+  pre=$(sed 's/{{AUTOTEAM_LANGUAGE}}/zh-CN/' "$ROOT/skills/autoteam/instructions/_preamble.md")
   assert_contains "$pre" "开工先检查暂停"
+  assert_contains "$pre" '使用 `zh-CN` 对应的语言'
   assert_eq "$(grep -rl "开工先检查暂停" "$ROOT/skills/autoteam/instructions")" "$ROOT/skills/autoteam/instructions/_preamble.md" "前言只能有一份来源"
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
@@ -424,9 +425,11 @@ t_instructions_list_merges_and_dedupes() {
 }
 
 t_instructions_have_no_placeholders() {
-  if grep -rq '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions"; then
-    tfail "instructions/ 里不该再有占位符：$(grep -rl '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions")"
-  fi
+  # 只有 _preamble.md 的 {{AUTOTEAM_LANGUAGE}} 会在同步时渲染，其余文件不渲染
+  local found
+  found=$(grep -rl '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions" | grep -v '/_preamble\.md$' || true)
+  [ -z "$found" ] || tfail "instructions/ 里不该再有占位符：$found"
+  assert_eq "$(grep -o '{{AUTOTEAM_[A-Z_]*}}' "$ROOT/skills/autoteam/instructions/_preamble.md")" '{{AUTOTEAM_LANGUAGE}}' "前言只有语言一个占位符"
 }
 
 t_multica_autopilot_cron_comes_from_conf() {
@@ -445,4 +448,21 @@ t_multica_uses_ejected_autopilot() {
   autoteam_stub multica --apply >/dev/null
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10 "同名以 eject 的为准，不重复建"
   assert_contains "$(jq -r '.[] | select(.autopilot.title == "推进巡检") | .autopilot.description' "$STUB_STATE/mc-autopilots.json")" "自定义巡检 runbook"
+}
+
+# 前言里的输出语言取自 AUTOTEAM_LANGUAGE：缺省 zh-CN，配置后同步到 agent 和 autopilot
+t_multica_preamble_renders_language() {
+  setup_ready_repo
+  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_LANGUAGE=zh-CN"
+  sed -i '/^AUTOTEAM_LANGUAGE=/d' .autoteam/autoteam.conf
+  autoteam_stub multica --apply >/dev/null
+  assert_contains "$(jq -r '.[] | select(.name == "planner") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" '使用 `zh-CN` 对应的语言'
+  echo "AUTOTEAM_LANGUAGE=en" >> .autoteam/autoteam.conf
+  autoteam_stub multica --apply --only agents,autopilots >/dev/null
+  out=$(jq -r '.[] | select(.name == "impl-claude") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)
+  assert_contains "$out" '使用 `en` 对应的语言'
+  assert_not_contains "$out" "{{AUTOTEAM_LANGUAGE}}"
+  assert_contains "$(jq -r '.[0].autopilot.description' "$STUB_STATE/mc-autopilots.json" | head -n 1)" '使用 `en` 对应的语言'
+  out=$(autoteam_stub doctor --skip-github)
+  assert_not_contains "$out" "指令漂移" "渲染后的前言和同步文本一致"
 }

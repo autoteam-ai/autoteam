@@ -71,7 +71,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 ## 升级和排查
 
 - autoteam 更新后：`npx skills update autoteam`（或 `git pull`）→ `autoteam upgrade`（按 `.autoteam/.lock.json` 覆盖没改过的文件，改过的只打印差异）→ 把列出的改过的文件给用户看，由用户决定手工合并还是 `autoteam init --force <文件>` → 连同 `.lock.json` 提交合并 → `autoteam multica --apply` 同步指令。
-- 改了 registry、`autoteam.conf` 的 `AUTOTEAM_CRON_*`，或 eject 出来的指令（`.autoteam/instructions/`）：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和生效文本不一致。角色指令和 autopilot 默认不落盘、跟着 autoteam 包走；要按项目改某一份，`autoteam eject <角色名|autopilot 名|planner-mcp.json>`，升级后用 `autoteam eject --diff` 看包内新版本的差异。「开工先检查暂停」前言只在包内 `instructions/_preamble.md` 一处，同步时自动加在每份角色指令和 autopilot 正文最前面，eject 出的文件不含这段；doctor 按加上前言后的文本比对。
+- 改了 registry、`autoteam.conf` 的 `AUTOTEAM_CRON_*`，或 eject 出来的指令（`.autoteam/instructions/`）：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和生效文本不一致。角色指令和 autopilot 默认不落盘、跟着 autoteam 包走；要按项目改某一份，`autoteam eject <角色名|autopilot 名|planner-mcp.json>`，升级后用 `autoteam eject --diff` 看包内新版本的差异。「开工先检查暂停」前言（含 `AUTOTEAM_LANGUAGE` 指定的输出语言要求，同步时渲染）只在包内 `instructions/_preamble.md` 一处，同步时自动加在每份角色指令和 autopilot 正文最前面，eject 出的文件不含这段；doctor 按加上前言后的文本比对。
 - 其他问题先跑 `autoteam doctor`，再查 autoteam 文档的 `docs/operations/troubleshooting.md`。
 
 同步读取失败最多尝试 3 次；写操作不自动重试。失败时会以非零退出码结束，输出“同步不完整”，按所选部分列出已完成、失败或部分完成、未执行的清单；已写入的改动不回滚，修复后可重新运行。重复挂载同一个仓库视为已是最新。`--only statuses` 不读取 runtime。
