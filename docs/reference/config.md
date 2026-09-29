@@ -35,6 +35,7 @@ title: 配置文件
 | `AUTOTEAM_CRON_*` | 见模板 | 9 个 autopilot 各自的 cron，见下 |
 | `AUTOTEAM_DEPLOY_ENVIRONMENT` | production（Free 私有仓库为空） | 部署用的 GitHub environment |
 | `AUTOTEAM_TIMEZONE` | Asia/Shanghai | autopilot 定时触发的时区 |
+| `AUTOTEAM_LANGUAGE` | zh-CN | agent 评论、PR 标题和描述、提交信息、任务描述的语言（代码标识符、命令、日志原文除外），如 zh-CN、en。渲染进指令前言，改完跑 `autoteam multica --apply` |
 
 ## registry.yaml
 
