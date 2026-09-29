@@ -155,6 +155,10 @@ init_write() {
 
 init_install() {
   local tpl=$AUTOTEAM_TEMPLATES/$1 target=$2 mode=$3 content current start missing t
+  if [ "$target" = autoteam ] && [ -L "$target" ]; then
+    info "保留本仓库的自举软链 $target"
+    return 0
+  fi
   [ -f "$tpl" ] || die "模板缺失：$tpl"
   content=$(render_file "$tpl"; printf x)
   content=${content%x}
@@ -269,6 +273,10 @@ cmd_diff() {
   while read -r tpl target mode; do
     [ -n "$tpl" ] || continue
     [ "$only" = " " ] || case $only in *" $target "*) ;; *) continue ;; esac
+    if [ "$target" = autoteam ] && [ -L "$target" ]; then
+      info "保留本仓库的自举软链 $target"
+      continue
+    fi
     if [ "$check" = 1 ]; then
       # autoteam.conf 和 registry.yaml 装的是用户数据，本来就该和模板不一样
       [ "$mode" != config ] || continue

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# 根目录入口：只定位固定版本的 autoteam CLI，然后交给它执行。
+set -euo pipefail
+
+# 已发布的提交；升级模板时更新此值，不使用会移动的 main 分支。
+AUTOTEAM_REF=4519627303be7b76fe058b4857d1d4a5e058295f
+root=$(cd "$(dirname "$0")" && pwd)
+
+for skill in \
+  "$root/.claude/skills/autoteam" \
+  "$root/.agents/skills/autoteam" \
+  "$root/.codex/skills/autoteam" \
+  "$HOME/.claude/skills/autoteam" \
+  "$HOME/.agents/skills/autoteam" \
+  "$HOME/.codex/skills/autoteam"; do
+  if [ -f "$skill/bin/autoteam" ]; then
+    exec bash "$skill/bin/autoteam" "$@"
+  fi
+done
+
+cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/autoteam/cli
+cache=$cache_root/$AUTOTEAM_REF
+cli=$cache/skills/autoteam/bin/autoteam
+if [ ! -f "$cli" ]; then
+  mkdir -p "$cache_root"
+  tmp=$(mktemp -d "$cache_root/.download.XXXXXX")
+  if ! curl -fsSL "https://codeload.github.com/autoteam-ai/autoteam/tar.gz/$AUTOTEAM_REF" |
+    tar -xz -C "$tmp" --strip-components=1; then
+    rm -rf "$tmp"
+    echo "下载 autoteam $AUTOTEAM_REF 失败；检查网络后重试 bash ./autoteam status --check" >&2
+    exit 1
+  fi
+  if [ ! -f "$tmp/skills/autoteam/bin/autoteam" ]; then
+    rm -rf "$tmp"
+    echo "下载的 autoteam $AUTOTEAM_REF 缺少 CLI" >&2
+    exit 1
+  fi
+  # symlink 的建立是原子的；并发下载者只有一个赢，其他清理自己的完整解压目录。
+  if ! ln -s "$tmp" "$cache" 2>/dev/null; then
+    rm -rf "$tmp"
+  fi
+fi
+exec bash "$cli" "$@"

@@ -9,6 +9,7 @@ title: 生成的文件
 ```
 你的仓库/
 ├─ AGENTS.md                        受管块
+├─ autoteam                         可执行入口，受 CODEOWNERS 保护
 ├─ Makefile
 ├─ .jscpd.json
 ├─ .gitignore                       受管块
@@ -27,6 +28,7 @@ title: 生成的文件
 | 文件 | 作用 | 谁会改 | 受保护 |
 |---|---|---|---|
 | `AGENTS.md`（受管块） | 四条全局规则：怎么跑检查、不谎报验证、PR 标题、规则文件 | 模板 | |
+| `autoteam` | agent 开工和部署后使用的根目录入口；优先调用本机 skill，否则下载固定提交的 CLI | 模板 | ✅ |
 | `Makefile` | `check` / `dev` / `deploy`（只在不存在时创建） | 人 | ✅ |
 | `.jscpd.json` | 重复代码阈值 3%、忽略目录 | 人 | ✅ |
 | `.gitignore`（受管块） | 忽略 jscpd 报告目录和 `.autoteam/local/`（App 私钥、按量计费的 key 都在这里；跑 agent 的机器用 `AUTOTEAM_KEYS_DIR`，见[配置](config.md)） | 模板 | |

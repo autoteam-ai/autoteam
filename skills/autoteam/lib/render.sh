@@ -42,6 +42,7 @@ render_file() {
 autoteam_manifest() {
   cat <<EOF
 root/AGENTS.block.md                  AGENTS.md                               block
+root/autoteam                         autoteam                                exec
 root/Makefile                         Makefile                                makefile
 root/jscpd.json                       .jscpd.json                             file
 root/github/CODEOWNERS.block          .github/CODEOWNERS                      block

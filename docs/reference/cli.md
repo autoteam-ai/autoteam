@@ -35,6 +35,8 @@ autoteam [-C <目录>] <命令> [选项]
 | autoteam.conf、registry.yaml | 保留（用户数据） |
 | 其他 | 相同就跳过，不同就提示用 `autoteam diff` 看差异（`--force` 覆盖） |
 
+根目录 `./autoteam` 会随 `init` 安装，`upgrade` 更新其中固定的提交 ref。本仓库自举使用的 `autoteam` 软链会保留，`diff --check` 不把它报成漂移。
+
 识别顺序：命令行参数 > 已有的 autoteam.conf > 自动识别 > 默认值。识别到 GitHub Free 的私有仓库时，`AUTOTEAM_DEPLOY_ENVIRONMENT` 留空，deploy.yml 不声明 environment。
 
 ## autoteam github
