@@ -11,6 +11,8 @@ t_multica_preview_makes_no_writes() {
   assert_contains "$out" "[预览] 新建 agent rev-codex（reviewer，runtime rt-b-cod，模型 gpt-5.5，并发 2）"
   assert_contains "$out" "runtime codex@machine-b 现在不在线"
   assert_contains "$out" "[预览] 新建项目 shop"
+  assert_contains "$out" "[预览] 新建运营笔记"
+  assert_no_log "issue create"
   assert_contains "$out" "[预览] 新建 autopilot「推进巡检」（planner，run_only，0 */2 * * *）"
   assert_no_log "agent create"
   assert_no_log "curl POST"
@@ -25,6 +27,11 @@ t_multica_apply_creates_everything() {
   assert_log 'BODY POST /api/issue-statuses {"key":"shipping","name":"待上线","category":"started","color":"#14b8a6"'
   assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
   assert_eq "$(jq length "$STUB_STATE/mc-agents.json")" 4
+  assert_eq "$(jq length "$STUB_STATE/mc-issues-project.json")" 1
+  assert_eq "$(jq -r '.[0] | [.title,.project_id,.assignee_id,.status] | join("|")' "$STUB_STATE/mc-issues-project.json")" '运营笔记|proj-1|agent-planner|in_progress'
+  assert_log 'issue create --title 运营笔记 --project proj-1 --status backlog'
+  assert_log 'issue assign note-1 --to-id agent-planner --no-start'
+  assert_log 'issue status note-1 in_progress --no-start'
   assert_eq "$(jq -r '.[] | select(.name == "impl-claude") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-a-claude-0000
   assert_eq "$(jq -r '.[] | select(.name == "auditor") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-c-claude-0000
   assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | sed -n 3p)" "$(head -n 1 "$ROOT/skills/autoteam/instructions/roles/reviewer.md")" "没 eject 时取包内指令（前言之后）"
@@ -50,6 +57,9 @@ t_multica_second_apply_is_noop() {
   out=$(autoteam_stub multica --apply)
   assert_contains "$out" "状态 shipping（待上线）已存在"
   assert_contains "$out" "agent planner 已是最新"
+  assert_contains "$out" "运营笔记已存在（1 条）"
+  assert_eq "$(jq length "$STUB_STATE/mc-issues-project.json")" 1
+  assert_no_log 'issue create'
   assert_contains "$out" "autopilot「推进巡检」已是最新"
   assert_contains "$out" "定时触发已是 0 */2 * * *（Asia/Shanghai）"
   assert_contains "$out" "部署 webhook 已存在，GitHub secret MULTICA_DEPLOY_HOOK 已设置"
@@ -57,6 +67,19 @@ t_multica_second_apply_is_noop() {
   assert_no_log "autopilot create"
   assert_no_log "trigger-add"
   assert_no_log "curl POST"
+}
+
+t_multica_note_lookup_pages_and_keeps_existing_note() {
+  setup_ready_repo
+  autoteam_stub multica --apply --only agents >/dev/null
+  autoteam_stub multica --apply --only project >/dev/null
+  jq -n '[range(0; 100) | {id:("other-" + tostring),title:"other",project_id:"proj-1"}] + [{id:"existing-note",title:"运营笔记",project_id:"proj-1",status:"in_progress",metadata:{"autoteam.paused":"keep"}}]' > "$STUB_STATE/mc-issues-project.json"
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica --apply --only project)
+  assert_contains "$out" '运营笔记已存在（1 条）'
+  assert_log 'issue list --project proj-1 --limit 100 --offset 100'
+  assert_no_log 'issue create'
+  assert_eq "$(jq -r '.[-1].metadata["autoteam.paused"]' "$STUB_STATE/mc-issues-project.json")" keep
 }
 
 t_multica_rewrites_env_file_every_apply() {
@@ -197,6 +220,7 @@ t_multica_resource_read_failure_does_not_attach() {
 
 t_multica_resource_conflict_is_current() {
   setup_ready_repo
+  autoteam_stub multica --apply --only agents >/dev/null
   autoteam_stub multica --apply --only project >/dev/null
   touch "$STUB_STATE/mc-resource-empty" "$STUB_STATE/mc-resource-conflict"
   out=$(autoteam_stub multica --apply --only project)

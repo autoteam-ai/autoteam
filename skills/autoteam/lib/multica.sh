@@ -19,7 +19,7 @@ multica_usage() {
   1. 自定义状态 shipping（调 Multica API，需要工作区 owner 或 admin）
   2. 按 registry.yaml 创建或更新 agent，指令优先取 .autoteam/instructions/roles/<角色>.md
      （autoteam eject 落盘的那份），没有就用 autoteam 包内的
-  3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源
+  3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源并创建运营笔记
   4. 按 autopilot 指令（包内的，加上 .autoteam/instructions/autopilots/ 里 eject 的，同名以后者为准）
      创建或更新 autopilot 和触发器，定时频率取 autoteam.conf 的 AUTOTEAM_CRON_*；
      部署 webhook 地址写进 GitHub secret MULTICA_DEPLOY_HOOK
@@ -543,30 +543,69 @@ multica_project() {
   MC_PROJECT_ID=$(jq -r --arg t "$title" '[.[] | select(.title == $t)][0].id // empty' <<<"$projects")
   if [ -z "$MC_PROJECT_ID" ]; then
     planned "新建项目 $title（挂上仓库 $url）"
-    [ "$AUTOTEAM_APPLY" = 1 ] || return 0
+    [ "$AUTOTEAM_APPLY" = 1 ] || { planned "新建运营笔记（指派 Planner，不触发运行）"; return 0; }
     if out=$(mc project create --title "$title" --repo "$url" --description "autoteam 管理的项目，仓库 $AUTOTEAM_REPO" --output json 2>&1); then
       MC_PROJECT_ID=$(jq -r '.id' <<<"$out")
       ok "已新建项目 $title（${MC_PROJECT_ID:0:8}）"
     else
       die "新建项目失败：$out"
     fi
-    return 0
-  fi
-  res=$(mc project resource list "$MC_PROJECT_ID" --output json) || die "读取项目仓库资源失败"
-  if jq -e --arg u "$url" '.[] | select(.resource_type == "github_repo" and ((.resource_ref.url // "") | sub("\\.git$"; "") | ascii_downcase) == ($u | ascii_downcase))' <<<"$res" >/dev/null; then
-    ok "项目 $title 已存在，已挂仓库"
   else
-    planned "给项目 $title 挂上仓库 $url"
-    [ "$AUTOTEAM_APPLY" = 1 ] || return 0
-    if out=$(mc project resource add "$MC_PROJECT_ID" --type github_repo --url "$url" --output json 2>&1); then
-      ok "已挂上仓库"
+    res=$(mc project resource list "$MC_PROJECT_ID" --output json) || die "读取项目仓库资源失败"
+    if jq -e --arg u "$url" '.[] | select(.resource_type == "github_repo" and ((.resource_ref.url // "") | sub("\\.git$"; "") | ascii_downcase) == ($u | ascii_downcase))' <<<"$res" >/dev/null; then
+      ok "项目 $title 已存在，已挂仓库"
     else
-      case $out in
-        *"Request conflict: this resource is already attached"*) ok "项目 $title 仓库已是最新" ;;
-        *) fail "挂仓库失败：$out" ;;
-      esac
+      planned "给项目 $title 挂上仓库 $url"
+      if [ "$AUTOTEAM_APPLY" = 1 ]; then
+        if out=$(mc project resource add "$MC_PROJECT_ID" --type github_repo --url "$url" --output json 2>&1); then
+          ok "已挂上仓库"
+        else
+          case $out in
+            *"Request conflict: this resource is already attached"*) ok "项目 $title 仓库已是最新" ;;
+            *) fail "挂仓库失败：$out" ;;
+          esac
+        fi
+      fi
     fi
   fi
+  multica_project_note
+}
+
+# issue list 的真实 JSON 是 {issues:[...],has_more:bool}，每页最多 100 条。
+mc_project_note_ids() {
+  local project=$1 offset=0 page size more
+  while :; do
+    page=$(mc issue list --project "$project" --limit 100 --offset "$offset" --fields id,title --output json) || return 1
+    jq -e '.issues | type == "array"' <<<"$page" >/dev/null || return 1
+    jq -r '.issues[] | select(.title == "运营笔记") | .id' <<<"$page"
+    more=$(jq -r '.has_more' <<<"$page")
+    [ "$more" = true ] || break
+    size=$(jq '.issues | length' <<<"$page")
+    [ "$size" -gt 0 ] || return 1
+    offset=$((offset + size))
+  done
+}
+
+multica_project_note() {
+  local ids count planner out id
+  ids=$(mc_project_note_ids "$MC_PROJECT_ID") || die "读取项目运营笔记失败"
+  count=$(grep -c . <<<"$ids" || true)
+  if [ "$count" -gt 0 ]; then
+    ok "运营笔记已存在（$count 条）"
+    return 0
+  fi
+  planned "新建运营笔记（指派 Planner，不触发运行）"
+  [ "$AUTOTEAM_APPLY" = 1 ] || return 0
+  planner=$(registry_agent_by_role "$(registry_agents)" planner)
+  [ -n "$planner" ] || die "registry.yaml 缺少 Planner agent"
+  planner=$(mc_agent_id "$planner") || die "读取 Planner agent 失败"
+  [ -n "$planner" ] || die "Planner agent 尚未创建；先运行 autoteam multica --apply --only agents"
+  out=$(mc issue create --title "运营笔记" --project "$MC_PROJECT_ID" --status backlog --output json) || die "新建运营笔记失败：$out"
+  id=$(jq -r '.id // empty' <<<"$out")
+  [ -n "$id" ] || die "新建运营笔记未返回 ID"
+  mc issue assign "$id" --to-id "$planner" --no-start --output json >/dev/null || die "运营笔记已创建，但指派 Planner 失败：$id"
+  mc issue status "$id" in_progress --no-start --output json >/dev/null || die "运营笔记已指派，但设置 in_progress 失败：$id"
+  ok "已新建运营笔记（${id:0:8}），指派 Planner、状态 in_progress；未触发运行"
 }
 
 # ---------- autopilot ----------

@@ -25,8 +25,22 @@ t_doctor_full_after_setup() {
   assert_contains "$out" "agent planner（planner）指令一致"
   assert_contains "$out" "agent rev-codex 的 runtime 不在线"
   assert_contains "$out" "autopilot「部署结果」已启用"
+  assert_contains "$out" "项目有且只有一条运营笔记"
   assert_not_contains "$out" "与 registry 不一致" "刚同步完，runtime / 模型 / 并发都应一致"
   assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
+}
+
+t_doctor_checks_note_count() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  echo '[]' > "$STUB_STATE/mc-issues-project.json"
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 1
+  assert_contains "$out" '项目缺少运营笔记（autoteam multica --apply --only project）'
+  jq -n '[{id:"note-1",title:"运营笔记"},{id:"note-2",title:"运营笔记"}]' > "$STUB_STATE/mc-issues-project.json"
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 1
+  assert_contains "$out" '项目有 2 条运营笔记，应只有一条'
 }
 
 t_doctor_warns_when_codeowners_gate_off() {
