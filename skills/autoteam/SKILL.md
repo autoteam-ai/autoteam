@@ -9,6 +9,8 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 `autoteam approve <父任务> [--apply]` 一次放行父任务下所有指派给 Planner 的 backlog 子任务（默认只预览）：第一个可派发批次只有一个任务会叫醒 Planner，其余和后续批次都带 `--no-start`，并核对 Planner 的运行已生成。
 
+`autoteam propose [--title <标题>] [--apply]` 把用户本地未提交的改动（或分支上的提交）用 Implementer App 身份推到新分支并开 PR（默认只预览）：用于用户自己改规则文件、又被 `require_last_push_approval` 拦住批准的场景。不改用户的 git 配置和 remote；先预览，把分支名、标题和改动文件讲给用户听，得到同意后才加 `--apply`；标题需要任务编号时让用户给。
+
 `autoteam next [--check] [--output json] [--profile <名字>]` 只读列出本项目指派给 Planner 且前置批次已完成的 `todo`，以及最近一次运行失败的 `todo` / `in_progress`。`--check` 在无事可做时返回 0，有事返回 1，Multica 读取失败返回 2；目前不检查 GitHub 侧事项。
 
 ## 硬约束
