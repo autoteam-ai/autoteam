@@ -35,6 +35,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 1. **Makefile**：按 [references/adapt-make.md](references/adapt-make.md) 识别技术栈，把项目已有的 lint、类型检查、测试串成 `make check`，保留模板中的指令预算检查；`make dev` 一条命令起环境，而且可以重复执行（项目有 docker compose 就优先用）；`make deploy` 用项目现有的部署方式，没有部署就问用户。三个目标都要实际跑一遍，把结果给用户看。
 2. **工作流**：`.github/workflows/gate.yml`、`deploy.yml`、`rollback.yml` 里补上 `make check`、`make deploy` 需要的运行时（setup-node 之类）和 secrets，其他步骤不改。
+   部署通知的 JSON 包含 `issues` 字符串数组：`.autoteam/scripts/deployed-issues.sh` 从上次成功部署到本次提交的 PR 标题计算任务编号；清单为空时不触发 Planner。回滚通知列出被回滚的任务。
 3. **AGENTS.md**：受管块以外，按 [references/write-agents-md.md](references/write-agents-md.md) 补“从代码里看不出来、或者容易搞错”的规则，控制篇幅。
 4. **registry.yaml**：和用户确认订阅账号和机器，用 `autoteam runtimes` 列出 runtime，填 `provider@设备`。Implementer 和 Reviewer 尽量放不同机器、用不同厂商；Planner 用最强的模型；按量计费的 agent 用 `env_file` 指向 `.autoteam/local/` 下的 JSON 文件（让用户自己填 key）。
 5. **autoteam.conf**：`AUTOTEAM_MULTICA_WORKSPACE`、`AUTOTEAM_HUMAN`（负责批准的成员名）、三个 `AUTOTEAM_*_APP_ID`。

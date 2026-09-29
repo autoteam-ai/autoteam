@@ -12,6 +12,9 @@ concurrency:
 
 permissions:
   contents: write   # make deploy 用到什么权限就留什么，用不到就改成 read
+  deployments: read
+  actions: read
+  pull-requests: read
 
 jobs:
   deploy:
@@ -27,7 +30,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # 无论成败都通知 Planner。只在部署工作流里通知，避免每次 PR 检查都唤醒 Planner
+      # 有新上线任务才通知 Planner，避免空部署唤醒 Planner
       - name: notify planner
         if: always()
         env:
@@ -37,13 +40,23 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           KEY: deploy-${{ github.run_id }}-${{ github.run_attempt }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ -z "$HOOK" ]; then
             echo "::warning::没有设置 secret MULTICA_DEPLOY_HOOK，跳过通知 Planner"
             exit 0
           fi
-          jq -n --arg kind deploy --arg sha "$SHA" --arg result "$RESULT" --arg repo "$REPO" --arg run_url "$RUN_URL" \
-            '{kind: $kind, sha: $sha, result: $result, repo: $repo, run_url: $run_url}' \
+          if ! issues=$(bash .autoteam/scripts/deployed-issues.sh deploy "$SHA"); then
+            echo "::warning::计算部署任务清单失败"
+            exit 1
+          fi
+          echo "部署任务清单: $issues"
+          if [ "$issues" = '[]' ]; then
+            echo "没有相关任务，跳过通知 Planner"
+            exit 0
+          fi
+          jq -n --arg kind deploy --arg sha "$SHA" --arg result "$RESULT" --arg repo "$REPO" --arg run_url "$RUN_URL" --argjson issues "$issues" \
+            '{kind: $kind, sha: $sha, result: $result, repo: $repo, run_url: $run_url, issues: $issues}' \
             | curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' \
                 -H "Idempotency-Key: $KEY" --data-binary @- \
             || echo "::warning::通知 Planner 失败，巡检会补查待上线的任务"

@@ -23,7 +23,7 @@ Multica 的状态有内置的 7 个，另外 `autoteam multica --apply` 会建 1
 
 1. **放行就是把 `backlog` 改成 `todo`**，由人批准，或由 Planner 按「放行分级」自主放行（开关见[配置文件](../reference/config.md#autoteamconf)的 `AUTOTEAM_AUTO_APPROVE`）。不需要单独的“已批准”状态。CLI 不带 `--no-start` 离开 backlog 会叫醒指派人；人通过界面批准后，用 `multica issue runs <任务>` 确认 Planner 的运行已生成（见[界面批准后的唤醒核对](#界面批准后的唤醒核对)）。
 2. **打回和返工不占状态**。Reviewer 在 PR 上要求修改，并在评论里 @Implementer；Implementer 被 @ 后第一步把任务改回 `in_progress`。Planner 验收不通过时同样把任务改回 `in_progress` 并 @Implementer。打回次数由 `loop-guard.sh` 从 GitHub 评审记录和评论里统计，不依赖任何状态。
-3. **为什么保留 `shipping`**：它表示“已合并、等线上验收”。部署通知和巡检补查都靠它找任务；如果和 `in_review` 合并，就只能逐个查 PR，看板上也看不出哪些已经合进 main。
+3. **当前保留 `shipping`**：它表示“已合并、等线上验收”。部署通知按上次成功部署到本次提交间的 PR 生成 `issues` 清单，Planner 只验收清单内任务；巡检补查仍按 `shipping` 查找超时任务。后续批次会调整状态流转。
 4. **类别创建后不能改**。建错了只能在界面里归档，再重新运行 `autoteam multica --apply`。
 5. **平台自己改状态时只写内置状态**：运行失败回滚到 `todo`；PR 带关闭关键字合并会直接设为 `done`。所以 PR 标题只写任务编号（建立关联），不写 `Closes XXX-123`。
 6. **“批准”agent 也能做**。平台拦不住 agent 把任务从 `backlog` 改成 `todo`；除了按「放行分级」留下 `【自主放行】` 评论的，其余靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
@@ -76,4 +76,4 @@ Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。第 1 批全�
 2. 人把三个任务从 `backlog` 改为 `todo`（指派人仍是 Planner），逐个用 `multica issue runs <任务>` 确认 Planner 的运行已生成（见[界面批准后的唤醒核对](#界面批准后的唤醒核对)）。Planner 收到第 1 批的运行后立即派发；第 2 批先不动。
 3. Planner 按额度选人，比如查询接口派给 `impl-claude`、评审给 `rev-codex`，生成 CSV 派给 `impl-codex`、评审给 `rev-claude`，在评论里写明理由。
 4. Implementer 提交 PR、打开自动合并、把任务改为 `in_review` 并 @Reviewer；被打回一次后改回 `in_progress` 修改，再回到 `in_review`，第二次批准，检查通过后自动合并并部署。
-5. 部署工作流通过 webhook 叫醒 Planner，它在线上验证通过后设为 `done`；第 1 批全部完成后被叫醒，派发导出页面。
+5. 部署工作流仅在有新上线任务时，通过带 `issues` 字符串数组的 webhook 叫醒 Planner。Planner 只验收清单内任务，在线上验证通过后设为 `done`；第 1 批全部完成后被叫醒，派发导出页面。
