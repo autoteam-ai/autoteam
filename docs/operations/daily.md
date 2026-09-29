@@ -70,7 +70,7 @@ Planner 把任务设为 blocked 时，会在父任务评论里提及你，说明
 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` 受 CODEOWNERS 保护，改动必须由你批准：
 
 - 推荐让 Implementer 改：给 Planner 提需求，走正常流程，最后由你作为 Code Owner 批准 PR；
-- 你自己开 PR 改：没有别的 Code Owner 能批准，需要临时把规则集改成 disabled，合并后恢复（会记在审计日志里）；
+- 你自己改：在本地改好（可以不提交），跑 `autoteam propose` 预览，确认后 `autoteam propose --apply`（标题要带任务编号就加 `--title`）。PR 由 Implementer App 身份开出，你只是批准人，不会撞上「最后推送者不能批准」，也不用临时关规则集；
 - 改了 `.autoteam/`，或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`），合并后要同步到 Multica 才生效；升级 autoteam 版本（角色指令、autopilot 跟着包走）同理——这一步 Planner 在验收时自己做（`autoteam multica --apply` + `autoteam doctor`），你不用管。它跑不起来会在运营笔记里提及你。
 
 ## 每周
