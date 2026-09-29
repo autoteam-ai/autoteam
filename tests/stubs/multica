@@ -112,10 +112,39 @@ EOF
       echo '[{"id":"t0","status":"completed","error":null}]'
     fi ;;
   "issue list")
-    status=$(flag --status "$@" || true)
-    issues=$state/mc-issues-$status.json
+    if project=$(flag --project "$@"); then
+      issues=$state/mc-issues-project.json
+    else
+      status=$(flag --status "$@" || true)
+      issues=$state/mc-issues-$status.json
+    fi
     [ -f "$issues" ] || echo '[]' > "$issues"
-    jq '{issues: ., has_more: false}' "$issues" ;;
+    limit=$(flag --limit "$@" || echo 50)
+    offset=$(flag --offset "$@" || echo 0)
+    jq --argjson limit "$limit" --argjson offset "$offset" \
+      '{issues: .[$offset:($offset + $limit)], has_more: (length > ($offset + $limit)),
+        limit: $limit, offset: $offset, total: length}' "$issues" ;;
+  "issue create")
+    issues=$state/mc-issues-project.json
+    [ -f "$issues" ] || echo '[]' > "$issues"
+    id="note-$(($(jq length "$issues") + 1))"
+    jq --arg id "$id" --arg t "$(flag --title "$@")" --arg p "$(flag --project "$@")" --arg s "$(flag --status "$@")" \
+      '. + [{id:$id,title:$t,project_id:$p,status:$s,assignee_id:null}]' "$issues" > "$issues.tmp"
+    mv "$issues.tmp" "$issues"
+    jq -n --arg id "$id" '{id:$id}' ;;
+  "issue assign")
+    issues=$state/mc-issues-project.json
+    jq --arg id "$3" --arg a "$(flag --to-id "$@")" \
+      'map(if .id == $id then .assignee_id = $a else . end)' "$issues" > "$issues.tmp"
+    mv "$issues.tmp" "$issues"
+    echo '{"ok":true}' ;;
+  "issue status")
+    issues=$state/mc-issues-project.json
+    jq --arg id "$3" --arg s "$4" \
+      'map(if .id == $id then .status = $s else . end)' "$issues" > "$issues.tmp"
+    mv "$issues.tmp" "$issues"
+    echo '{"ok":true}' ;;
+  "issue runs") echo '[]' ;;
   "agent create")
     name=$(flag --name "$@")
     id="agent-$name"

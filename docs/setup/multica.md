@@ -8,6 +8,7 @@ title: 第 4–6 步：Multica
 autoteam multica                   # 预览
 autoteam multica --apply           # 执行；加 --paused 让新建的 autopilot 先暂停
 autoteam multica --apply --only agents   # 只同步 agent（改了角色指令之后）
+autoteam multica --apply --only project  # 补建缺失的运营笔记
 ```
 
 autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_MULTICA_PROFILE`；默认 profile 没配置服务器时，自动用 `~/.multica/profiles` 下唯一的那个（比如桌面端的 `desktop-api.multica.ai`）。工作区取 autoteam.conf 的 `AUTOTEAM_MULTICA_WORKSPACE`。
@@ -37,7 +38,7 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 
 ## 项目
 
-建一个标题为 `AUTOTEAM_MULTICA_PROJECT`（默认仓库名）的项目，挂上 GitHub 仓库资源。agent 运行时 Multica 会给每个任务一个独立的 worktree，同一仓库上的任务可以并发。
+建一个标题为 `AUTOTEAM_MULTICA_PROJECT`（默认仓库名）的项目，挂上 GitHub 仓库资源。项目没有「运营笔记」时，`--apply` 新建一条：先建未指派的 backlog 任务，再用 `assign --no-start` 指派 Planner、`status --no-start` 设为 `in_progress`，不会触发 Planner 运行。再次同步跳过已有笔记，不改其内容或 metadata。`autoteam doctor` 检查本项目恰好有一条运营笔记；缺失时运行 `autoteam multica --apply --only project`。agent 运行时 Multica 会给每个任务一个独立的 worktree，同一仓库上的任务可以并发。
 
 ## 触发配置
 

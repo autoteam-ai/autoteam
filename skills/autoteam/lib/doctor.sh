@@ -358,7 +358,7 @@ doctor_runtime_label() {
 }
 
 doctor_multica() {
-  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want catalog list f title id project last
+  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want catalog list f title id project last notes note_count
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "$ws"
@@ -418,7 +418,21 @@ EOF
   project=""
   if doctor_mc_read "项目列表" project list; then
     project=$(jq -r --arg t "${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}}" '[.[] | select(.title == $t)][0].id // empty' <<<"$MC_READ_OUT")
-    if [ -n "$project" ]; then ok "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 存在"; else fail "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 不存在（autoteam multica --apply）"; fi
+    if [ -n "$project" ]; then
+      ok "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 存在"
+      if notes=$(mc_project_note_ids "$project"); then
+        note_count=$(grep -c . <<<"$notes" || true)
+        case $note_count in
+          0) fail "项目缺少运营笔记（autoteam multica --apply --only project）" ;;
+          1) ok "项目有且只有一条运营笔记" ;;
+          *) fail "项目有 $note_count 条运营笔记，应只有一条；请人工处理重复任务" ;;
+        esac
+      else
+        fail "读取项目运营笔记失败"
+      fi
+    else
+      fail "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 不存在（autoteam multica --apply）"
+    fi
   fi
 
   doctor_mc_read "autopilot 列表" autopilot list || return 0
