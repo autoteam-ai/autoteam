@@ -68,9 +68,12 @@ cmd_approve() {
     fi
   done <<<"$plan"
   [ "$apply" = 1 ] || { info "预览完成；加 --apply 执行"; return; }
+  if [ "$failed" != 0 ]; then
+    printf 'autoteam approve：有任务放行失败，未叫醒 Planner（批次尚未全部获批）。处理失败原因后重跑 autoteam approve --apply；已放行的不会重复处理。\n' >&2
+    return 1
+  fi
   if [ -z "$start_id" ]; then
     info "没有可立即派发的批次，Planner 不会被叫醒；前面批次完成后由批次屏障叫醒"
-    [ "$failed" = 0 ]
     return
   fi
   # 会叫醒 Planner 的那个排在最后放行，Planner 醒来时整个拆分都已是 todo。
@@ -87,5 +90,4 @@ cmd_approve() {
     return 1
   fi
   info "$start_ident：Planner 的运行已生成"
-  [ "$failed" = 0 ]
 }

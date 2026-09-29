@@ -88,6 +88,8 @@ t_approve_reports_failures_and_missing_run() {
   if approve_cmd HDGCS-126 --apply > "$WORK/approve.out" 2>&1; then tfail '有任务放行失败应返回非 0'; fi
   assert_contains "$(cat "$WORK/approve.out")" 'H-2'
   assert_contains "$(cat "$WORK/approve.out")" '失败：boom'
+  assert_not_contains "$(cat "$APPROVE_LOG")" 'issue status a1 todo'
+  assert_contains "$(cat "$WORK/approve.out")" '未叫醒 Planner'
   APPROVE_FAIL=; APPROVE_NO_RUN=1; export APPROVE_FAIL APPROVE_NO_RUN
   if approve_cmd HDGCS-126 --apply > "$WORK/approve.out" 2>&1; then tfail '没有生成运行应返回非 0'; fi
   assert_contains "$(cat "$WORK/approve.out")" '运行没有生成'
