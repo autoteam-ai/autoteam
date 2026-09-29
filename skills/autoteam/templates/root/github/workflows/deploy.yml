@@ -25,6 +25,8 @@ jobs:
 
       # 在这里加上 make deploy 需要的运行时和凭据
 
+      # 约定：make deploy 要等线上版本接口返回本次 GITHUB_SHA 再返回（带超时），
+      # 否则下面通知 Planner 时线上还是旧版本。见 docs/setup/repo.md
       - name: deploy
         run: make deploy
         env:
