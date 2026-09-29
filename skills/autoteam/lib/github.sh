@@ -350,6 +350,7 @@ github_app_table() {
 }
 
 github_extra_checks() {
+  local secrets
   if gh_call GET "repos/$AUTOTEAM_REPO/codeowners/errors"; then
     local n
     n=$(jq '.errors | length' <<<"$GH_OUT")
@@ -362,7 +363,7 @@ github_extra_checks() {
   else
     info "默认分支上还没有 CODEOWNERS（合并 autoteam init 生成的文件后再检查）"
   fi
-  if gh secret list --repo "$AUTOTEAM_REPO" --json name --jq '.[].name' 2>/dev/null | grep -qx MULTICA_DEPLOY_HOOK; then
+  if secrets=$(gh secret list --repo "$AUTOTEAM_REPO" --json name --jq '.[].name' 2>/dev/null) && grep -qx MULTICA_DEPLOY_HOOK <<<"$secrets"; then
     ok "secret MULTICA_DEPLOY_HOOK 已设置"
   else
     info "secret MULTICA_DEPLOY_HOOK 还没设置，autoteam multica --apply 会创建部署 webhook 并写入"

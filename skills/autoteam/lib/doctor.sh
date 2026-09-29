@@ -153,7 +153,7 @@ doctor_github() {
     fail "读不到仓库：$GH_OUT"
     return 0
   fi
-  local repo=$GH_OUT level=standard id approvals n
+  local repo=$GH_OUT level=standard id approvals n secrets
   if [ "$(jq -r '.allow_auto_merge' <<<"$repo")" = true ]; then ok "允许自动合并"; else warn "没有打开自动合并"; fi
   if [ "$(jq -r '.allow_squash_merge and (.allow_merge_commit | not) and (.allow_rebase_merge | not)' <<<"$repo")" = true ]; then
     ok "只保留 squash 合并"
@@ -193,7 +193,7 @@ doctor_github() {
     fi
   fi
 
-  if gh secret list --repo "$AUTOTEAM_REPO" --json name --jq '.[].name' 2>/dev/null | grep -qx MULTICA_DEPLOY_HOOK; then
+  if secrets=$(gh secret list --repo "$AUTOTEAM_REPO" --json name --jq '.[].name' 2>/dev/null) && grep -qx MULTICA_DEPLOY_HOOK <<<"$secrets"; then
     ok "secret MULTICA_DEPLOY_HOOK 已设置"
   else
     fail "没有 secret MULTICA_DEPLOY_HOOK：部署结果通知不到 Planner（autoteam multica --apply）"
