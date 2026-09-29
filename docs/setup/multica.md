@@ -75,6 +75,7 @@ Multica 0.5.1 起还可在单个任务上用 `multica issue wakeup create <任�
 - Auditor 的报告要留档，所以用 create_issue。每日摘要也用 create_issue（研究文档里是 run_only），因为 run_only 的结果只在运行历史里，人收不到通知。
 - 时区取 autoteam.conf 的 `AUTOTEAM_TIMEZONE`（默认 Asia/Shanghai）。
 - webhook 触发器新建时，autoteam 把地址直接写进 GitHub secret `MULTICA_DEPLOY_HOOK`，不在终端显示；已经有触发器时不会重复创建。地址泄露了用 `--rotate-webhook` 重新生成。
+- autopilot 按「标题 + 项目」认领：只创建、更新绑在 `AUTOTEAM_MULTICA_PROJECT` 项目上的，工作区里别的项目的同名 autopilot（Multica 允许重名）预览和 `--apply` 都不动，预览会提示一句；`autoteam doctor` 也只检查本项目的。所以一个工作区可以放多个 autoteam 项目，各自一套 autopilot。项目改名或重建后，旧项目上的 autopilot 不会被改到新项目，`--apply` 会给新项目另建一套，旧的请在 Multica 界面里暂停或删除。
 
 ## GitHub 集成（可选）
 

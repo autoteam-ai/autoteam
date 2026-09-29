@@ -647,6 +647,12 @@ $(instructions_list autopilots)
 EOF
 }
 
+# autopilot 列表 $1 里绑在项目 $3 上、标题为 $2 的 autopilot ID。项目还没建（$3 为空）时没有
+mc_autopilot_id() {
+  jq -r --arg t "$2" --arg p "$3" \
+    '[.autopilots[]? | select($p != "" and .title == $t and .project_id == $p)][0].id // empty' <<<"$1"
+}
+
 # agent 名字 -> ID。精确匹配，避免 Multica 的模糊解析把 planner 匹配到 ex-planner
 mc_agent_id() {
   mc agent list --output json 2>/dev/null | jq -r --arg n "$1" '[.[] | select(.name == $n)][0].id // empty'
@@ -688,8 +694,13 @@ multica_autopilot() {
     [ -n "$subscriber" ] && args+=(--subscriber "$subscriber")
   fi
 
-  id=$(jq -r --arg t "$title" '[.autopilots[]? | select(.title == $t)][0].id // empty' <<<"$list")
+  # 按 (标题, 项目) 找：Multica 允许同一工作区里 autopilot 重名，同一工作区的别的项目
+  # 也会有「推进巡检」等同名 autopilot，只按标题找会把别人的改成本项目的配置
+  id=$(mc_autopilot_id "$list" "$title" "$MC_PROJECT_ID")
   if [ -z "$id" ]; then
+    if jq -e --arg t "$title" '.autopilots[]? | select(.title == $t)' <<<"$list" >/dev/null; then
+      info "工作区里另有同名 autopilot「$title」不属于本项目，不改动它"
+    fi
     planned "新建 autopilot「$title」（$agent，$mode，${cron:-$trigger}）"
     if [ "$AUTOTEAM_APPLY" = 1 ]; then
       if out=$(mc autopilot create --title "$title" "${args[@]}" --output json 2>&1); then
@@ -704,6 +715,9 @@ multica_autopilot() {
     multica_autopilot_same "$id" "$agent" "$mode" "$body" || same_rc=$?
     if [ "$same_rc" = 2 ]; then
       fail "读取 autopilot「$title」失败，未执行更新"
+      return 0
+    elif [ "$same_rc" = 3 ]; then
+      fail "autopilot「$title」（$id）已不属于本项目，未执行该项；重新运行同步"
       return 0
     elif [ "$same_rc" = 0 ]; then
       ok "autopilot「$title」已是最新"
@@ -734,18 +748,17 @@ multica_autopilot() {
   fi
 }
 
-# 已有 autopilot 的指派、模式、runbook 是否和文件一致
+# 已有 autopilot 的指派、模式、runbook 是否和文件一致：0 一致，1 不一致，2 读取失败，
+# 3 已不属于本项目（列表和详情是两次请求，其间可能被改绑，改绑后的不能再动）
 multica_autopilot_same() {
   local id=$1 agent=$2 mode=$3 body=$4 json agent_id
   json=$(mc autopilot get "$id" --output json) || return 2
+  jq -e --arg p "$MC_PROJECT_ID" '((.autopilot // .).project_id // "") == $p' <<<"$json" >/dev/null 2>&1 || return 3
   agent_id=$(mc_agent_id "$agent") || return 2
-  # 项目也要比：项目改名或重建后会有新的 project_id，autopilot 还绑在旧项目上的话，
-  # Planner 会在旧项目里找任务，查不到就报"无待验收任务"，整条链路悄悄断掉。
-  jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" --arg p "$MC_PROJECT_ID" '
+  jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" '
     (.autopilot // .) as $ap
     | ($ap.assignee_id == $a)
       and ($ap.execution_mode == $m)
-      and (($ap.project_id // "") == $p)
       and ((($ap.description // "") | rtrimstr("\n")) == ($b | rtrimstr("\n")))
   ' <<<"$json" >/dev/null 2>&1
 }

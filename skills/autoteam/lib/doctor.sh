@@ -439,20 +439,16 @@ EOF
   list=$MC_READ_OUT
   while IFS= read -r f; do
     title=$(fm_get "$f" title)
-    cur=$(jq -c --arg t "$title" '[.autopilots[]? | select(.title == $t)][0] // empty' <<<"$list")
-    if [ -z "$cur" ]; then fail "autopilot「$title」不存在（autoteam multica --apply）"; continue; fi
-    id=$(jq -r '.id' <<<"$cur")
-    local ntrig status bound triggers
+    # 同一工作区的别的项目也会有同名 autopilot，只认绑在本项目上的
+    id=$(mc_autopilot_id "$list" "$title" "$project")
+    if [ -z "$id" ]; then fail "本项目没有 autopilot「$title」（autoteam multica --apply）"; continue; fi
+    local ntrig status triggers
     doctor_mc_read "autopilot「$title」的触发器" autopilot get "$id" || continue
     triggers=$(jq -c '.triggers // (.autopilot.triggers // [])' <<<"$MC_READ_OUT")
     ntrig=$(jq 'length' <<<"$triggers")
-    status=$(jq -r '.status' <<<"$cur")
-    bound=$(jq -r '.project_id // ""' <<<"$cur")
+    status=$(jq -r --arg id "$id" '.autopilots[] | select(.id == $id) | .status' <<<"$list")
     if [ "$ntrig" = 0 ]; then
       fail "autopilot「$title」没有触发器"
-    elif [ -n "$project" ] && [ "$bound" != "$project" ]; then
-      # 绑错项目时 autopilot 照常运行，只是在别的项目里找任务，什么都找不到
-      fail "autopilot「$title」绑的是别的项目（autoteam multica --apply --only autopilots）"
     elif [ "$status" != active ]; then
       warn "autopilot「$title」是 $status 状态"
     else

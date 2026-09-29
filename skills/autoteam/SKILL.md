@@ -51,7 +51,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 5. Multica
 
-`autoteam multica` 预览，给用户看会建哪些状态、agent、autopilot。用户同意后 `autoteam multica --apply`；想先配好、晚点再让定时任务跑起来，加 `--paused`。
+`autoteam multica` 预览，给用户看会建哪些状态、agent、autopilot。用户同意后 `autoteam multica --apply`；想先配好、晚点再让定时任务跑起来，加 `--paused`。autopilot 只认绑在本项目（`AUTOTEAM_MULTICA_PROJECT`）上的，同一工作区别的项目的同名 autopilot 不会被改；预览里出现「另有同名 autopilot 不属于本项目」时向用户说明会另建一套。
 
 ### 6. 必须由人做的事
 
