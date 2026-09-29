@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "generated_at": "2026-09-29T12:04:33Z",
+  "generated_at": "2026-09-29T21:11:56Z",
   "files": {
     ".autoteam/README.md": { "kind": "file", "sha256": "dd72290340d83cd67f14cd3de0bb4059f5297a0765f0413a71bccf6558737801" },
     ".autoteam/instruction-budget": { "kind": "file", "sha256": "31e85a78a1eb4c12781b841646d58e9cf9a605f50236fdf50af53a57b7d37ec5" },
@@ -15,12 +15,12 @@
     ".autoteam/scripts/open-pr.sh": { "kind": "file", "sha256": "4cdf0b3b5f52d6ce701cd789756d9f5905f3ba407fca9071e825b4259d778649" },
     ".autoteam/scripts/protected-paths.sh": { "kind": "file", "sha256": "c52f105c3d1418efe51266ce9c1421dc22d53f02c5fd949ff4cdea292af6c6cd" },
     ".github/CODEOWNERS": { "kind": "block", "sha256": "2edd24b01f313a3f0dcd03d2924930ffd247a735d6bbff2a587a593a418348c8" },
-    ".github/pull_request_template.md": { "kind": "file", "sha256": "5efa19d7693e5cc1481928497f00dfffa9698ce9444f14578d8cbe33be2c4557" },
+    ".github/pull_request_template.md": { "kind": "file", "sha256": "522114ea27e36a8c3a52638c8a9130dc3c91417aeeba008dd15cc9e12e3d0158" },
     ".github/workflows/deploy.yml": { "kind": "file", "sha256": "5f6ac6e7d09b6197431fe1bee6b52ae4cdadf59b0c34b951e3b07342ca6d1627" },
     ".github/workflows/gate.yml": { "kind": "file", "sha256": "c2052364ea5120ddd3397c7dd013221e0ed47c64d8c5d731e05f546d8d95ca20" },
     ".github/workflows/rollback.yml": { "kind": "file", "sha256": "dd79c11958b154fdcc79e6c64b5c6c22cd1dfa5714822ed95f71f210649ee6bd" },
-    ".gitignore": { "kind": "block", "sha256": "dd5d86136f662b6a909bdde3fdd910499877bd854921c955f827337c8d877c6b" },
+    ".gitignore": { "kind": "block", "sha256": "938da5002c2e5a9cd886d0201028fea7b7797836733cc3b7dae472c2c1311a10" },
     ".jscpd.json": { "kind": "file", "sha256": "07d737fc41eedd7354b26087c3040016ed9b11be8fb845f4cf0c3100ed00bcde" },
-    "AGENTS.md": { "kind": "block", "sha256": "a4c99847f068e0bbcf0b146edd530e3534bca7ba364c3c30a62157d3ded8499f" }
+    "AGENTS.md": { "kind": "block", "sha256": "32f7dd780cae11362ea7688017b5e1946b28dc792f1b59969e4360562553f943" }
   }
 }
