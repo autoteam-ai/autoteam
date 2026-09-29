@@ -79,6 +79,12 @@ autoteam [-C <目录>] <命令> [选项]
 
 这三个命令均支持 `--profile <名字>`。连续 stop 保留首次标记里的恢复列表；原来就 paused 的 autopilot 不会被 resume 启动。预览不会写 Multica。
 
+## autoteam next
+
+只读列出本项目下一轮巡检需要处理的 Multica 事项：指派给 Planner、前置批次均已 `done` 的 `todo`，以及最近一次运行失败的 `todo` / `in_progress`。每行显示任务编号、类别（`dispatchable` 或 `failed_run`）和原因。`--output json` 返回包含 `id`、`identifier`、`category`、`reason` 的数组；`--profile <名字>` 选择 Multica profile。
+
+`autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 失败时返回 2。此阶段只覆盖 Multica；GitHub PR 和合并状态由后续扩展加入。
+
 ## autoteam doctor
 
 只读检查，逐项给出 ✅ / ⚠️ / ❌，有 ❌ 时退出码为 1。
