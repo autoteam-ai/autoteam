@@ -63,8 +63,38 @@ case "$1 $2" in
       echo "server_url:                        https://api.multica.test"
     else
       echo "Config file: $HOME/.multica/config.json"
-      echo "server_url:                        (not set)"
-    fi ;;
+      if [ "${STUB_CONFIG_SHOW_BULK:-}" = 1 ]; then
+        echo "server_url:                        https://api.multica.test"
+        # The real CLI prints more settings after server_url. Keep writing after
+        # the match so an early grep -q exit gives the producer SIGPIPE.
+        sleep 0.02
+        i=0
+        while [ "$i" -lt 64 ]; do
+          printf '%2048s\n' x
+          i=$((i + 1))
+        done
+      else
+        echo "server_url:                        (not set)"
+      fi
+    fi
+    cat <<'EOF'
+app_url:                           (not set)
+workspace_id:                      (not set)
+device_name:                       (not set)
+runtime_name:                      (not set)
+workspaces_root:                   (not set)
+max_concurrent_tasks:              (not set)
+poll_interval:                     (not set)
+ws_claim_poll_interval:            (not set)
+heartbeat_interval:                (not set)
+agent_timeout:                     (not set)
+codex_semantic_inactivity_timeout: (not set)
+codex_handshake_timeout:           (not set)
+disable_auto_update:               false
+auto_update_check_interval:        (not set)
+disable_auto_reload:               false
+EOF
+    ;;
   "workspace get") jq -n '{id: "ws-0000", name: "Test", slug: "test", issue_prefix: "TST"}' ;;
   "runtime list") cat "$STUB_FIXTURES/runtimes.json" ;;
   "daemon status") jq -n --arg ids "${STUB_LOCAL_RUNTIMES:-}" '{workspaces: [{id: "ws-0000", runtimes: ($ids | split(",") | map(select(. != "")))}]}' ;;

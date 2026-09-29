@@ -51,18 +51,21 @@ mc_resolve_bin() {
 # profile：参数 > AUTOTEAM_MULTICA_PROFILE > 环境变量 MULTICA_SERVER_URL + MULTICA_TOKEN（agent runtime，CLI 自己读）
 # > 已配置的默认 profile > ~/.multica/profiles 下唯一的 profile
 mc_resolve_profile() {
+  local config_out dirs n
   MC_PROFILE=${1:-${AUTOTEAM_MULTICA_PROFILE:-}}
   MC_ARGS=()
   if [ -z "$MC_PROFILE" ] && [ -n "${MULTICA_SERVER_URL:-}" ] && [ -n "${MULTICA_TOKEN:-}" ]; then
     :
-  elif [ -z "$MC_PROFILE" ] && ! "$MC_BIN" config show 2>/dev/null | grep -Eq '^server_url:[[:space:]]+https?://'; then
-    local dirs n
-    dirs=$(ls -1 "$HOME/.multica/profiles" 2>/dev/null || true)
-    n=$(printf '%s\n' "$dirs" | grep -c . || true)
-    if [ "$n" = 1 ]; then
-      MC_PROFILE=$dirs
-    else
-      die "multica 默认 profile 没有配置服务器：用 --profile 指定，或先运行 multica setup。现有 profile：$(printf '%s' "$dirs" | tr '\n' ' ')"
+  elif [ -z "$MC_PROFILE" ]; then
+    config_out=$("$MC_BIN" config show 2>/dev/null) || config_out=""
+    if ! grep -Eq '^server_url:[[:space:]]+https?://' <<<"$config_out"; then
+      dirs=$(ls -1 "$HOME/.multica/profiles" 2>/dev/null || true)
+      n=$(printf '%s\n' "$dirs" | grep -c . || true)
+      if [ "$n" = 1 ]; then
+        MC_PROFILE=$dirs
+      else
+        die "multica 默认 profile 没有配置服务器：用 --profile 指定，或先运行 multica setup。现有 profile：$(printf '%s' "$dirs" | tr '\n' ' ')"
+      fi
     fi
   fi
   if [ -n "$MC_PROFILE" ]; then
@@ -743,11 +746,11 @@ multica_schedule_trigger() {
 }
 
 multica_webhook_trigger() {
-  local id=$1 title=$2 rotate=$3 triggers tid out url
+  local id=$1 title=$2 rotate=$3 triggers tid out url secrets
   triggers=$(mc_autopilot_triggers "$id") || { fail "读取「$title」触发器失败，未执行触发器同步"; return 0; }
   tid=$(jq -r '[.[] | select(.kind == "webhook")][0].id // empty' <<<"$triggers")
   if [ -n "$tid" ] && [ "$rotate" != 1 ]; then
-    if gh secret list --repo "$AUTOTEAM_REPO" --json name --jq '.[].name' 2>/dev/null | grep -qx MULTICA_DEPLOY_HOOK; then
+    if secrets=$(gh secret list --repo "$AUTOTEAM_REPO" --json name --jq '.[].name' 2>/dev/null) && grep -qx MULTICA_DEPLOY_HOOK <<<"$secrets"; then
       ok "部署 webhook 已存在，GitHub secret MULTICA_DEPLOY_HOOK 已设置"
     else
       fail "部署 webhook 已存在，但 GitHub 上没有 secret MULTICA_DEPLOY_HOOK：加 --rotate-webhook 重新生成并写入"
