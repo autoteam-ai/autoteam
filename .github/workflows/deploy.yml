@@ -12,6 +12,9 @@ concurrency:
 
 permissions:
   contents: read   # 本仓库的 make deploy 只打包，不写仓库
+  deployments: read
+  actions: read
+  pull-requests: read
 
 jobs:
   deploy:

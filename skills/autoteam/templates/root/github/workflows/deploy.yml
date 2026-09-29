@@ -12,6 +12,9 @@ concurrency:
 
 permissions:
   contents: write   # make deploy 用到什么权限就留什么，用不到就改成 read
+  deployments: read
+  actions: read
+  pull-requests: read
 
 jobs:
   deploy:

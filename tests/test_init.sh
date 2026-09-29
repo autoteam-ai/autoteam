@@ -37,6 +37,11 @@ t_init_fresh_repo_creates_everything() {
   assert_file_contains .github/workflows/deploy.yml '${{ secrets.MULTICA_DEPLOY_HOOK }}'
   assert_file_contains .github/workflows/deploy.yml 'bash .autoteam/scripts/deployed-issues.sh deploy "$SHA"'
   assert_file_contains .github/workflows/deploy.yml 'if [ "$issues" = '\''[]'\'' ]; then'
+  for workflow in deploy rollback; do
+    for permission in 'deployments: read' 'actions: read' 'pull-requests: read'; do
+      assert_file_contains ".github/workflows/$workflow.yml" "$permission"
+    done
+  done
   if grep -rq '{{AUTOTEAM_' --include='*' . 2>/dev/null; then tfail "还有没替换的占位符：$(grep -rl '{{AUTOTEAM_' .)"; fi
   [ -z "$(tail -c 1 .github/CODEOWNERS)" ] || tfail "CODEOWNERS 应以换行结尾"
 }

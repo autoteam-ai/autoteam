@@ -16,6 +16,9 @@ concurrency:
 
 permissions:
   contents: read
+  deployments: read
+  actions: read
+  pull-requests: read
 
 jobs:
   rollback:
