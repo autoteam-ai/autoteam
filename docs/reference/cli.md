@@ -85,6 +85,17 @@ autoteam [-C <目录>] <命令> [选项]
 
 `autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 失败时返回 2。此阶段只覆盖 Multica；GitHub PR 和合并状态由后续扩展加入。
 
+## autoteam approve
+
+`autoteam approve <父任务> [--apply] [--profile <名字>]`：一次放行整个拆分。列出父任务下所有指派给 Planner、状态为 `backlog` 的子任务并按批次预览，`--apply` 才把它们改成 `todo`。
+
+- 第一个可派发的批次（前面批次的任务都已 `done`）：只有其中一个任务的状态变更会叫醒 Planner（最后改），其余带 `--no-start`；
+- 后续批次一律带 `--no-start`，由批次屏障在前一批全部完成后叫醒 Planner；
+- 逐条输出放行结果（成功或失败原因），并用 `multica issue runs` 核对 Planner 那次运行已生成；没生成会报错并提示在该任务下评论 @Planner 补一次，其余任务不必重做；
+- 有任务放行失败或运行没生成时退出码为 1。
+
+不改 `AUTOTEAM_AUTO_APPROVE`：新项目仍默认由人批准，这个命令只是把批准变成一次操作。
+
 ## autoteam doctor
 
 只读检查，逐项给出 ✅ / ⚠️ / ❌，有 ❌ 时退出码为 1。
