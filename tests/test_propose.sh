@@ -94,6 +94,24 @@ t_propose_refuses_rewritten_url() {
   HOME="$WORK/.home" git config --global url.git@github.com:.insteadOf https://github.com/
   unset AUTOTEAM_PROPOSE_REMOTE
   out=$(autoteam_stub propose --apply 2>&1) && tfail 'URL 被改写时应失败'
-  assert_contains "$out" 'insteadOf'
+  assert_contains "$out" 'insteadof'
   assert_eq "$(git -C "$REMOTE" branch --list)" ''
+}
+
+t_propose_refuses_push_instead_of() {
+  propose_fixture
+  echo "rule" >> .autoteam/playbook.md
+  unset AUTOTEAM_PROPOSE_REMOTE
+  HOME="$WORK/.home" git config --global url.https://evil.example/.pushInsteadOf https://github.com/
+  out=$(autoteam_stub propose --apply 2>&1) && tfail 'pushInsteadOf 改写时应失败'
+  assert_contains "$out" 'pushinsteadof'
+  assert_no_log 'gh pr create'
+}
+
+t_propose_remote_override_must_be_local_dir() {
+  propose_fixture
+  echo "rule" >> .autoteam/playbook.md
+  export AUTOTEAM_PROPOSE_REMOTE=https://evil.example/x.git
+  out=$(autoteam_stub propose --apply 2>&1) && tfail '非本地目录的覆盖应失败'
+  assert_contains "$out" '本地目录'
 }

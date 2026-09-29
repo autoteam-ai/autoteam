@@ -102,7 +102,7 @@ autoteam [-C <目录>] <命令> [选项]
 
 - 改动来源：工作区未提交的改动（含未跟踪文件，遵守 `.gitignore`），加上当前分支相对 `origin/<默认分支>` 的提交；两者都没有时报错；
 - PR 标题默认取分支上最新提交的标题，没有提交就按改动文件生成；标题需要任务编号时用 `--title` 传入；
-- 不改你的全局或仓库 git 配置、remote、工作区、暂存区和当前分支：改动快照用临时索引生成，提交作者是 App（`gh-app-token.sh --identity implementer`）；`git push` 直接推到 `https://github.com/<AUTOTEAM_REPO>.git`，凭据只通过这次 push 的 `-c credential.helper` 传入（先清空继承来的钥匙串助手），token 不落盘、不打印。你的 git 配置用 `url.*.insteadOf` 改写了这个地址时会拒绝执行，因为 push 会绕过 App 身份；
+- 不改你的全局或仓库 git 配置、remote、工作区、暂存区和当前分支：改动快照用临时索引生成，提交作者是 App（`gh-app-token.sh --identity implementer`）；`git push` 直接推到 `https://github.com/<AUTOTEAM_REPO>.git`，凭据只通过这次 push 的 `-c credential.helper` 传入（先清空继承来的钥匙串助手），token 不落盘、不打印。你的 git 配置用 `url.*.insteadOf` 或 `pushInsteadOf` 改写了 push 实际地址时会拒绝执行（按 `git config` 里所有 insteadOf 规则逐条匹配），因为 push 会绕过 App 身份；
 - 开 PR 在临时 worktree 里跑 `.autoteam/scripts/open-pr.sh`（合并模式、自动合并、核对都按它的约定），输出原样打印；执行后移除临时 worktree 和临时本地分支，远端分支留给 PR，不删除任何已有分支；
 - open-pr.sh 失败时分支已在远端，命令返回 1 并提示；不替你批准或合并。
 

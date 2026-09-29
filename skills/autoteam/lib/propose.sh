@@ -10,6 +10,7 @@ propose_usage() {
 把当前工作区未提交的改动（含未跟踪文件），连同当前分支相对默认分支的提交，用 Implementer App
 身份推到新分支 propose/<UTC 时间戳> 并开 PR。默认只预览（分支名、标题、改动文件）；--apply 才执行。
 - 标题默认取分支上最新提交的标题（没有提交就按改动文件生成）；标题需要任务编号时用 --title 传入；
+- 推送地址固定为 github.com 上的本仓库，insteadOf / pushInsteadOf 改写了它就拒绝；
 - 不动你的工作区、暂存区和分支，不改 git 配置和 remote：改动快照用临时索引生成，
   push 直接推到 https://github.com/<AUTOTEAM_REPO>.git，凭据只通过一次性的 credential.helper 传给这次 push；
 - PR 由 .autoteam/scripts/open-pr.sh 在临时 worktree 里开（合并模式、自动合并都按它的约定）；
@@ -43,7 +44,7 @@ EOF
 }
 
 cmd_propose() {
-  local title="" apply=0 root base baseref mb head tree commit="" files n first ahead dirty src branch remote
+  local rule title="" apply=0 root base baseref mb head tree commit="" files n first ahead dirty src branch remote
   local tok openpr idx tmp wt body ident name email rc=0 out
   while [ $# -gt 0 ]; do
     case $1 in
@@ -61,10 +62,19 @@ cmd_propose() {
   tok=$root/$AUTOTEAM_DIR/scripts/gh-app-token.sh
   openpr=$root/$AUTOTEAM_DIR/scripts/open-pr.sh
   [ -f "$tok" ] && [ -f "$openpr" ] || die "缺少 $AUTOTEAM_DIR/scripts/gh-app-token.sh 或 open-pr.sh：先 autoteam init / upgrade"
-  remote=${AUTOTEAM_PROPOSE_REMOTE:-https://github.com/$AUTOTEAM_REPO.git}
-  if [ -z "${AUTOTEAM_PROPOSE_REMOTE:-}" ] && [ "$(git ls-remote --get-url "$remote")" != "$remote" ]; then
-    die "git 配置（url.*.insteadOf）改写了 $remote，push 会绕过 App 身份；先去掉这条改写"
+  # 推送目标：默认只推 github.com 上的本仓库；覆盖只接受本地目录（测试用），token 不会被交给任何网络主机。
+  # git 会把以 url.<新前缀>.insteadOf / pushInsteadOf 的值开头的地址改写成新前缀；任何一条能匹配 push 地址就拒绝
+  remote=https://github.com/$AUTOTEAM_REPO.git
+  if [ -n "${AUTOTEAM_PROPOSE_REMOTE:-}" ]; then
+    [ -d "$AUTOTEAM_PROPOSE_REMOTE" ] || die "AUTOTEAM_PROPOSE_REMOTE 只能是本地目录"
+    remote=$AUTOTEAM_PROPOSE_REMOTE
   fi
+  while IFS= read -r rule; do
+    [ -n "$rule" ] || continue
+    case $remote in
+      "${rule#* }"*) die "git 配置 ${rule%% *} 会改写 push 地址 $remote，把 App 凭据交给别的主机；先去掉这条改写" ;;
+    esac
+  done < <(git -C "$root" config --get-regexp '^url\..*\.(push)?insteadof$' || true)
 
   baseref=refs/remotes/origin/$base
   git rev-parse --verify -q "$baseref" >/dev/null || baseref=refs/heads/$base
