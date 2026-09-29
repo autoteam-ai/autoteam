@@ -182,7 +182,7 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 - 因额度或权限失败、换过一次 Implementer 后仍然失败（换人时评论 `【换人】` 加原因）；
 - 换过一次 Reviewer 后再次在评审开始前因 runtime 路由、登录、额度或权限失败，且该 Reviewer 在 PR 上没有评审记录（换人时评论 `【换人-Reviewer】` 加原因）；
 - 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（`autoteam doctor` 报缺私钥，写明缺哪个角色、该放 `AUTOTEAM_KEYS_DIR`）；
-- 巡检提及 Implementer 补开自动合并后，同一个 PR 仍然没开（见「推进巡检」runbook 第 3 步）；
+- 巡检提及 Implementer 补开自动合并或 rebase 后，同一个 PR 仍然没开自动合并或仍然冲突（见「推进巡检」runbook 第 3 步）；
 - 线上故障（已回滚）。
 
 ```bash
