@@ -17,7 +17,7 @@ AUTOTEAM_LIB=$AUTOTEAM_HOME/lib
 # shellcheck disable=SC2034  # 在 lib 里使用
 AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/templates
 
-for autoteam_lib in common conf render registry instructions lock init upgrade github multica stop doctor; do
+for autoteam_lib in common conf render registry instructions lock init upgrade github multica stop next doctor; do
   # shellcheck source=/dev/null
   . "$AUTOTEAM_LIB/$autoteam_lib.sh"
 done
@@ -37,6 +37,7 @@ autoteam —— 把自管理 agent 团队流程装进你的项目
   stop       暂停本项目 autopilot 并取消运行（默认只预览）
   resume     恢复停止前 active 的 autopilot（默认只预览）
   status     查看本项目是否暂停（--check 在暂停时返回 1）
+  next       列出本项目下一轮巡检要处理的事（只读；--check 有事时返回 1）
   doctor     逐项检查本地文件、GitHub、Multica 是否到位（只读）
   runtimes   列出 Multica runtime，帮你填 registry.yaml 的 runtime 字段
   diff       对比已安装文件和当前模板
@@ -71,6 +72,7 @@ autoteam_main() {
     stop)     cmd_stop ${args[@]+"${args[@]}"} ;;
     resume)   cmd_resume ${args[@]+"${args[@]}"} ;;
     status)   cmd_status ${args[@]+"${args[@]}"} ;;
+    next)     cmd_next ${args[@]+"${args[@]}"} ;;
     doctor)   cmd_doctor ${args[@]+"${args[@]}"} ;;
     runtimes) cmd_runtimes ${args[@]+"${args[@]}"} ;;
     upgrade)  cmd_upgrade ${args[@]+"${args[@]}"} ;;

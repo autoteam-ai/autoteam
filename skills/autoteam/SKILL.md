@@ -7,6 +7,8 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 工具是本 skill 目录下的 `bin/autoteam`，一律用 `bash ${CLAUDE_SKILL_DIR}/bin/autoteam <命令>` 调用（不依赖可执行位），下文简写为 `autoteam`。每个命令都有 `-h`。
 
+`autoteam next [--check] [--output json] [--profile <名字>]` 只读列出本项目指派给 Planner 且前置批次已完成的 `todo`，以及最近一次运行失败的 `todo` / `in_progress`。`--check` 在无事可做时返回 0，有事返回 1，Multica 读取失败返回 2；目前不检查 GitHub 侧事项。
+
 ## 硬约束
 
 - 不替用户创建 GitHub 或 Multica 账号，不生成、不输入、不打印任何 token。需要这些时，列出步骤让用户自己做。
