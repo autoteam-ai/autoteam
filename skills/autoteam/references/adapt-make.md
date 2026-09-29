@@ -92,15 +92,17 @@ check:
 
 ```bash
 #!/usr/bin/env bash
-# scripts/wait-for-sha.sh：等线上版本接口返回本次提交，超时退出 1
+# scripts/wait-for-sha.sh：等线上版本接口的当前运行版本等于本次提交，超时退出 1
+# 接口约定返回 {"sha":"<40 位提交>"}；只取 sha 字段并完整比较，不要用「响应里包含」判断
 set -eu
 url="${VERSION_URL:?}"; want="${GITHUB_SHA:?}"; timeout="${DEPLOY_WAIT_SECONDS:-600}"
 start=$(date +%s)
 while :; do
-  got=$(curl -fsS --max-time 10 "$url" 2>/dev/null || true)
-  case "$got" in *"$want"*) echo "线上已是 $want"; exit 0;; esac
+  body=$(curl -fsS --max-time 10 "$url" 2>/dev/null || true)
+  got=$(printf '%s' "$body" | sed -n 's/.*"sha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+  if [ "$got" = "$want" ]; then echo "线上已是 $want"; exit 0; fi
   if [ $(( $(date +%s) - start )) -ge "$timeout" ]; then
-    echo "超时：$url 返回 '$got'，期望 $want" >&2; exit 1
+    echo "超时：$url 当前 sha '$got'，期望 $want" >&2; exit 1
   fi
   sleep 10
 done
