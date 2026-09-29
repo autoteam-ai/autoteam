@@ -677,6 +677,9 @@ multica_autopilot() {
     if [ "$same_rc" = 2 ]; then
       fail "读取 autopilot「$title」失败，未执行更新"
       return 0
+    elif [ "$same_rc" = 3 ]; then
+      fail "autopilot「$title」（$id）已不属于本项目，未执行该项；重新运行同步"
+      return 0
     elif [ "$same_rc" = 0 ]; then
       ok "autopilot「$title」已是最新"
     else
@@ -706,12 +709,13 @@ multica_autopilot() {
   fi
 }
 
-# 已有 autopilot 的指派、模式、runbook 是否和文件一致
+# 已有 autopilot 的指派、模式、runbook 是否和文件一致：0 一致，1 不一致，2 读取失败，
+# 3 已不属于本项目（列表和详情是两次请求，其间可能被改绑，改绑后的不能再动）
 multica_autopilot_same() {
   local id=$1 agent=$2 mode=$3 body=$4 json agent_id
   json=$(mc autopilot get "$id" --output json) || return 2
+  jq -e --arg p "$MC_PROJECT_ID" '((.autopilot // .).project_id // "") == $p' <<<"$json" >/dev/null 2>&1 || return 3
   agent_id=$(mc_agent_id "$agent") || return 2
-  # 不用比项目：按 (标题, 项目) 找到的，项目一定是本项目
   jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" '
     (.autopilot // .) as $ap
     | ($ap.assignee_id == $a)

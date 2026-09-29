@@ -305,6 +305,21 @@ t_multica_leaves_other_project_autopilots() {
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 20 "再跑不重复建"
 }
 
+# 列表里还是本项目的，读详情时已被改绑到别的项目：不更新、不同步触发器、不暂停
+t_multica_skips_autopilot_rebound_after_list() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  echo proj-other > "$STUB_STATE/mc-autopilot-get-project"
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica --apply --paused --only autopilots 2>&1) && tfail "改绑的 autopilot 应算失败"
+  assert_contains "$out" "autopilot「推进巡检」（ap-6）已不属于本项目，未执行该项"
+  assert_no_log "autopilot update"
+  assert_no_log "autopilot create"
+  assert_no_log "trigger-add"
+  assert_no_log "trigger-update"
+  assert_no_log "trigger-rotate-url"
+}
+
 t_multica_api_failure_keeps_independent_steps() {
   setup_ready_repo
   touch "$STUB_STATE/curl-timeout"
