@@ -27,6 +27,7 @@ t_init_fresh_repo_creates_everything() {
     assert_no_file "$f"
   done
   [ -x .autoteam/scripts/loop-guard.sh ] || tfail "loop-guard.sh 应可执行"
+  [ -x .autoteam/scripts/deployed-issues.sh ] || tfail "deployed-issues.sh 应安装且可执行"
   assert_file_contains .github/CODEOWNERS "/.autoteam/     @alice"
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_REPO=acme/shop"
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_ISSUE_PREFIX=SHOP"
@@ -34,6 +35,8 @@ t_init_fresh_repo_creates_everything() {
   assert_file_contains .github/workflows/deploy.yml "branches: [main]"
   assert_file_contains .github/workflows/deploy.yml "    environment: production"
   assert_file_contains .github/workflows/deploy.yml '${{ secrets.MULTICA_DEPLOY_HOOK }}'
+  assert_file_contains .github/workflows/deploy.yml 'bash .autoteam/scripts/deployed-issues.sh deploy "$SHA"'
+  assert_file_contains .github/workflows/deploy.yml 'if [ "$issues" = '\''[]'\'' ]; then'
   if grep -rq '{{AUTOTEAM_' --include='*' . 2>/dev/null; then tfail "还有没替换的占位符：$(grep -rl '{{AUTOTEAM_' .)"; fi
   [ -z "$(tail -c 1 .github/CODEOWNERS)" ] || tfail "CODEOWNERS 应以换行结尾"
 }
