@@ -96,8 +96,6 @@ cmd_stop() {
   else
     ids=$(jq -c --arg p "$STOP_PROJECT_ID" '[.autopilots[] | select(.project_id == $p and .status == "active") | .id]' <<<"$list")
   fi
-  info "停止前 active 的 autopilot："
-  jq -r --argjson ids "$ids" '.autopilots[] | select(.id as $id | $ids | index($id)) | "  \(.title) (\(.id))"' <<<"$list"
   info "将暂停的 autopilot："
   jq -r --arg p "$STOP_PROJECT_ID" '.autopilots[] | select(.project_id == $p and .status == "active") | "  \(.title) (\(.id))"' <<<"$list"
   info "将取消的运行："
@@ -118,6 +116,8 @@ cmd_stop() {
     mc issue cancel-task "$run_id" --output json >/dev/null || die "取消运行 $run_id 失败"
   done <<<"$STOP_RUNS"
   info "已停止本项目"
+  info "暂停的 autopilot 不会按计划运行；列表里的下次运行时间可以忽略。"
+  info "暂停期间的部署通知会丢失；resume 后巡检会补查。"
 }
 
 cmd_resume() {
@@ -145,7 +145,7 @@ cmd_resume() {
 }
 
 cmd_status() {
-  local profile="" check=0
+  local profile="" check=0 list
   while [ $# -gt 0 ]; do
     case $1 in
       --check) check=1; shift ;;
@@ -160,5 +160,9 @@ cmd_status() {
     [ "$check" = 0 ] || return 1
   else
     info "运行中：未暂停"
+    [ "$check" = 0 ] || return 0
   fi
+  list=$(mc autopilot list --output json) || die "读取 autopilot 列表失败"
+  info "本项目 autopilot："
+  jq -r --arg p "$STOP_PROJECT_ID" '.autopilots[] | select(.project_id == $p) | "  \(.title) (\(.id))：\(.status)，最后运行 \(.last_run_at // "未运行")"' <<<"$list"
 }

@@ -76,6 +76,8 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 同步读取失败最多尝试 3 次；写操作不自动重试。失败时会以非零退出码结束，输出“同步不完整”，按所选部分列出已完成、失败或部分完成、未执行的清单；已写入的改动不回滚，修复后可重新运行。重复挂载同一个仓库视为已是最新。`--only statuses` 不读取 runtime。
 
+紧急停止先用 `autoteam stop` 预览，再用 `autoteam stop --apply` 执行。暂停的 autopilot 不会按计划运行，Multica 列表里仍显示的下次运行时间可以忽略；暂停期间的部署通知会丢失，恢复后巡检会补查。`autoteam status` 列出本项目各 autopilot 的状态与最后运行时间；`status --check` 保持简短输出，暂停时退出码为 1。
+
 CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 30 秒，支持正秒数或 Go duration（如 `45`、`45s`、`2m`、`1m30s`）；无效或非正值会在同步前报错。格式依据 [Multica CLI 官方说明](https://github.com/multica-ai/multica/blob/main/CLI_AND_DAEMON.md)。
 
 人工 CODEOWNERS 路径的 PR：Implementer 提交后立即将任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN` 并提及人及 Reviewer；Reviewer 批准后保持 `blocked`，等待 codeowner 批准。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收；未命中人工路径的 PR 按原流程流转。

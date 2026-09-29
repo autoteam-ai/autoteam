@@ -8,7 +8,9 @@ title: 日常操作
 
 ## 紧急停止
 
-在 Multica Chat 对 Planner 说「停止 autoteam」或「暂停 autoteam」。Planner 会运行 `autoteam stop --apply --keep-run <当前 Chat run ID>`，暂停本项目 autopilot、取消 registry agent 正在运行和排队的任务，并回复清单；它自己的这次 Chat 不被取消。你也可在项目仓库先运行 `autoteam stop` 预览，再运行 `autoteam stop --apply`。用 `autoteam status` 查看状态。
+在 Multica Chat 对 Planner 说「停止 autoteam」或「暂停 autoteam」。Planner 会运行 `autoteam stop --apply --keep-run <当前 Chat run ID>`，暂停本项目 autopilot、取消 registry agent 正在运行和排队的任务，并回复清单；它自己的这次 Chat 不被取消。你也可在项目仓库先运行 `autoteam stop` 预览，再运行 `autoteam stop --apply`。`autoteam status` 会列出本项目每个 autopilot 的状态和最后运行时间；`status --check` 只简短检查是否暂停，已暂停时退出码为 1。
+
+暂停的 autopilot 不会按计划运行，即使 Multica 列表仍显示下次运行时间，也可以忽略。暂停期间的部署通知会丢失；恢复后巡检会补查。
 
 恢复时在 Chat 说「恢复 autoteam」，或运行 `autoteam resume --apply`。只有停止前 active 的 autopilot 会恢复；取消的运行不会自动重跑，下次巡检照常推进。暂停期间被手动触发的 autopilot 仍可能叫醒 agent，agent 开工检查会让它立即结束。
 
