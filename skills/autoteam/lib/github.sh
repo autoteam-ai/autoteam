@@ -67,7 +67,7 @@ cmd_github() {
 
   if [ "$create_apps" = 1 ]; then
     github_create_apps "$app_prefix"
-    return 0
+    return $?
   fi
 
   section "仓库 $AUTOTEAM_REPO"

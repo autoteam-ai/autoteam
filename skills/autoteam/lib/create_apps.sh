@@ -79,40 +79,48 @@ github_app_form_html() {
 EOF
 }
 
-# 从粘贴的内容里取 code 和 state。接受完整 URL，或只有 code
-github_parse_callback() {
-  local input=$1 query
+# 校验粘贴的回调 URL 并取出 code：必须是完整的回调 URL（以 redirect_url 开头），
+# 带 code 和 state，且 state 与本轮、本角色生成的一致。成功时 code 打到 stdout，失败时把原因打到 stderr 并返回 1
+github_callback_code() {
+  local input=$1 want_state=$2 query kv code="" state="" re='^[A-Za-z0-9_-]+$'
   case $input in
-    *\?*) query=${input#*\?}; query=${query%%#*} ;;
-    *=*) query=$input ;;
-    *) printf '%s\n' "$input"; printf '\n'; return 0 ;;
+    "$GH_APP_REDIRECT_URL"\?*) query=${input#*\?}; query=${query%%#*} ;;
+    *) echo "不是完整的回调 URL（应以 $GH_APP_REDIRECT_URL?code= 开头，裸 code 不接受）" >&2; return 1 ;;
   esac
-  local kv code="" state=""
   for kv in $(printf '%s' "$query" | tr '&' ' '); do
     case $kv in
       code=*) code=${kv#code=} ;;
       state=*) state=${kv#state=} ;;
     esac
   done
-  printf '%s\n%s\n' "$code" "$state"
+  [ -n "$state" ] || { echo "URL 里没有 state 参数" >&2; return 1; }
+  [ "$state" = "$want_state" ] || { echo "URL 里的 state 与这次创建的不一致（可能粘了另一轮或另一个角色的 URL）" >&2; return 1; }
+  [[ $code =~ $re ]] || { echo "URL 里没有有效的 code 参数" >&2; return 1; }
+  printf '%s' "$code"
 }
 
-# 往 autoteam.conf 写 App ID：只填空值，已有值不动
+# 往 autoteam.conf 写 App ID：有该键就替换第一处，没有就追加；每一步都检查，最后读回确认
 github_write_app_id() {
   local conf=$1 key=$2 id=$3 tmp
   tmp=$(autoteam_tmpdir)/conf.new
   if grep -q "^$key=" "$conf"; then
-    awk -v k="$key" -v v="$id" 'BEGIN{done=0} index($0, k "=") == 1 && !done { print k "=" v; done=1; next } { print }' "$conf" > "$tmp"
+    awk -v k="$key" -v v="$id" 'BEGIN{done=0} index($0, k "=") == 1 && !done { print k "=" v; done=1; next } { print }' "$conf" > "$tmp" || return 1
   else
-    { cat "$conf"; printf '%s=%s\n' "$key" "$id"; } > "$tmp"
+    { cat "$conf" && printf '%s=%s\n' "$key" "$id"; } > "$tmp" || return 1
   fi
-  cat "$tmp" > "$conf"
+  cat "$tmp" > "$conf" || return 1
+  [ "$(grep -m1 "^$key=" "$conf")" = "$key=$id" ]
 }
 
 # 换回 App 并落盘。私钥、client secret、webhook secret 只在这个函数里经过，不打印
 github_convert_and_store() {
   local role=$1 code=$2 keys_dir=$3 conf=$4 owner=$5 owner_type=$6
-  local resp id slug key_path settings
+  local resp id slug key_path settings conf_key recover
+  if [ "$owner_type" = Organization ]; then
+    settings=https://github.com/organizations/$owner/settings/apps
+  else
+    settings=https://github.com/settings/apps
+  fi
   gh_call POST "app-manifests/$code/conversions" || { fail "$role：用 code 换取 App 失败（code 只能用一次、一小时内有效）：$GH_OUT"; return 1; }
   resp=$GH_OUT
   id=$(jq -r '.id // empty' <<<"$resp")
@@ -122,29 +130,36 @@ github_convert_and_store() {
     return 1
   fi
   key_path=$keys_dir/$role.pem
-  if [ -e "$key_path" ]; then
-    fail "$role：$key_path 在等待期间出现了，不覆盖。App 已在 GitHub 上建好（$slug，ID $id），私钥需要到 App 设置页重新生成"
+  conf_key=$(github_app_conf_key "$role")
+  # 到这里 code 已经被消费、App 已经建好，任何一步失败都要给出恢复办法
+  recover="App 已在 GitHub 上建好：$slug（ID $id）。恢复：到 $settings/$slug 的 Private keys 点 Generate a private key，把 .pem 存为 $key_path（chmod 600），并把 $conf_key=$id 写进 $AUTOTEAM_CONF_REL"
+  if [ ! -d "$keys_dir" ] && ! (umask 077 && mkdir -p "$keys_dir"); then
+    fail "$role：建不了目录 $keys_dir。$recover"
     return 1
   fi
-  if [ ! -d "$keys_dir" ]; then
-    (umask 077 && mkdir -p "$keys_dir") || { fail "建不了目录 $keys_dir"; return 1; }
+  # noclobber：文件已存在（包括等待期间才出现的）时这一步失败，绝不覆盖
+  if ! (umask 077 && set -C && jq -r '.pem' <<<"$resp" > "$key_path") 2>/dev/null; then
+    fail "$role：写不进 $key_path（已存在或目录不可写），没有覆盖任何文件。$recover"
+    return 1
   fi
-  (umask 077 && jq -r '.pem' <<<"$resp" > "$key_path") || { fail "写不进 $key_path"; return 1; }
-  chmod 600 "$key_path"
-  github_write_app_id "$conf" "$(github_app_conf_key "$role")" "$id"
-  if [ "$owner_type" = Organization ]; then
-    settings=https://github.com/organizations/$owner/settings/apps/$slug
-  else
-    settings=https://github.com/settings/apps/$slug
+  if ! chmod 600 "$key_path" || [ ! -s "$key_path" ]; then
+    rm -f "$key_path"
+    fail "$role：私钥文件权限设置或写入不完整，已删除该文件。$recover"
+    return 1
   fi
+  if ! github_write_app_id "$conf" "$conf_key" "$id"; then
+    fail "$role：私钥已写入 $key_path，但 App ID 没能写进 $AUTOTEAM_CONF_REL（文件只读？）。手工加一行 $conf_key=$id 即可；App 是 $slug"
+    return 1
+  fi
+  settings=$settings/$slug
   ok "$role App $slug（ID $id）已建好：私钥 $key_path（权限 600），App ID 已写进 $AUTOTEAM_CONF_REL"
   info "设置页：$settings"
   info "下一步安装到仓库（Only select repositories，只选 $AUTOTEAM_REPO）：https://github.com/apps/$slug/installations/new"
 }
 
 github_create_apps() {
-  local prefix=$1 owner owner_type keys_dir conf role name manifest state action html code_in parsed code got_state
-  local pending=0 root
+  local prefix=$1 owner owner_type keys_dir conf role name manifest state action html code_in code
+  local pending=0 root failed=0
   root=$(pwd)
   conf=$root/$AUTOTEAM_CONF_REL
   [ -f "$conf" ] || die "找不到 $AUTOTEAM_CONF_REL，先运行 autoteam init"
@@ -190,7 +205,7 @@ github_create_apps() {
     [ -z "$(github_app_conf_value "$role")" ] || continue
     name=$prefix-$role
     manifest=$(github_app_manifest "$role" "$name")
-    state=$role-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
+    state=$role-${AUTOTEAM_APP_STATE_NONCE:-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')}
     if [ "$owner_type" = Organization ]; then
       action="https://github.com/organizations/$owner/settings/apps/new?state=$state"
     else
@@ -209,17 +224,16 @@ github_create_apps() {
     code_in=$(trim "$code_in")
     if [ -z "$code_in" ]; then
       fail "$role：没有收到 URL，跳过（重新运行 --apply 会从这个角色接着来）"
+      failed=$((failed + 1))
       continue
     fi
-    parsed=$(github_parse_callback "$code_in")
-    code=$(printf '%s\n' "$parsed" | sed -n 1p)
-    got_state=$(printf '%s\n' "$parsed" | sed -n 2p)
-    if [ -n "$got_state" ] && [ "$got_state" != "$state" ]; then
-      fail "$role：URL 里的 state 与这次创建的不一致（可能粘错了角色的 URL），跳过"
+    if ! code=$(github_callback_code "$code_in" "$state" 2>"$(autoteam_tmpdir)/cb.err"); then
+      fail "$role：$(cat "$(autoteam_tmpdir)/cb.err")，跳过（重新运行 --apply 会从这个角色接着来）"
+      failed=$((failed + 1))
       continue
     fi
-    [ -n "$code" ] || { fail "$role：URL 里没有 code 参数"; continue; }
-    github_convert_and_store "$role" "$code" "$keys_dir" "$conf" "$owner" "$owner_type" || true
+    github_convert_and_store "$role" "$code" "$keys_dir" "$conf" "$owner" "$owner_type" || failed=$((failed + 1))
   done
   hint "装好后运行 autoteam github 核对安装状态和权限，再运行 autoteam doctor 检查私钥"
+  [ "$failed" = 0 ] || return 1
 }
