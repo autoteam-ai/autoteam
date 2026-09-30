@@ -33,7 +33,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 1. 生成文件
 
-`autoteam init --workspace <slug>`。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。生成的 `.gitignore` 受管块会忽略 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/`。
+`autoteam init --workspace <slug>`。确认根目录生成可执行的 `./autoteam`，把它和其他生成文件一起提交；agent 会运行 `bash ./autoteam status --check`。入口优先使用本机 skill，否则下载入口中固定提交的 CLI。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。生成的 `.gitignore` 受管块会忽略 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/`。
 
 ### 2. 适配（需要判断的部分）
 
@@ -72,7 +72,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ## 升级和排查
 
-- autoteam 更新后：`npx skills update autoteam`（或 `git pull`）→ `autoteam upgrade`（按 `.autoteam/.lock.json` 覆盖没改过的文件，改过的只打印差异）→ 把列出的改过的文件给用户看，由用户决定手工合并还是 `autoteam init --force <文件>` → 连同 `.lock.json` 提交合并 → `autoteam multica --apply` 同步指令。
+- autoteam 更新后：`npx skills update autoteam`（或 `git pull`）→ `autoteam upgrade`（按 `.autoteam/.lock.json` 覆盖没改过的文件，包括根入口中的固定 ref；改过的只打印差异）→ 把列出的改过的文件给用户看，由用户决定手工合并还是 `autoteam init --force <文件>` → 连同 `.lock.json` 提交合并 → `autoteam multica --apply` 同步指令。
 - 改了 registry、`autoteam.conf` 的 `AUTOTEAM_CRON_*`，或 eject 出来的指令（`.autoteam/instructions/`）：合并后跑 `autoteam multica --apply`；`autoteam doctor` 能发现 Multica 里的指令和生效文本不一致。角色指令和 autopilot 默认不落盘、跟着 autoteam 包走；要按项目改某一份，`autoteam eject <角色名|autopilot 名|planner-mcp.json>`，升级后用 `autoteam eject --diff` 看包内新版本的差异。「开工先检查暂停」前言（含 `AUTOTEAM_LANGUAGE` 指定的输出语言要求，同步时渲染）只在包内 `instructions/_preamble.md` 一处，同步时自动加在每份角色指令和 autopilot 正文最前面，eject 出的文件不含这段；doctor 按加上前言后的文本比对。
 - 其他问题先跑 `autoteam doctor`，再查 autoteam 文档的 `docs/operations/troubleshooting.md`。
 

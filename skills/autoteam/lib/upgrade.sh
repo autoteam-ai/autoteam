@@ -43,6 +43,10 @@ cmd_upgrade() {
   while read -r tpl target mode; do
     [ -n "$tpl" ] || continue
     [ "$only" = " " ] || case $only in *" $target "*) ;; *) continue ;; esac
+    if [ "$target" = autoteam ] && [ -L "$target" ]; then
+      info "保留本仓库的自举软链 $target"
+      continue
+    fi
     AUTOTEAM_FORCE=0
     start=$(block_markers "$target" | sed -n 1p)
     # 文件不存在、受管块还没追加：交给 init_install 新建 / 追加

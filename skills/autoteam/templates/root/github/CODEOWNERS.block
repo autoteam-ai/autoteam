@@ -3,6 +3,7 @@
 /.github/        @{{AUTOTEAM_OWNER}}
 /.autoteam/     @{{AUTOTEAM_OWNER}}
 /.autoteam/instructions/ @{{AUTOTEAM_OWNER}}
+/autoteam         @{{AUTOTEAM_OWNER}}
 /Makefile        @{{AUTOTEAM_OWNER}}
 /.jscpd.json     @{{AUTOTEAM_OWNER}}
 # <<< autoteam <<<

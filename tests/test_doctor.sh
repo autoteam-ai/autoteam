@@ -12,6 +12,16 @@ t_doctor_flags_todo_makefile() {
   assert_contains "$out" "registry.yaml：6 个 agent"
 }
 
+t_doctor_reports_missing_root_launcher() {
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  rm autoteam
+  out=$(autoteam_offline doctor --skip-github --skip-multica)
+  rc=$?
+  assert_contains "$out" "autoteam init autoteam"
+  assert_eq "$rc" 1 "缺少根目录入口时 doctor 应失败"
+}
+
 t_doctor_full_after_setup() {
   setup_ready_repo
   autoteam_stub github --apply >/dev/null

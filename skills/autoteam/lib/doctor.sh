@@ -41,6 +41,7 @@ cmd_doctor() {
   fi
   conf_load "$root"
   doctor_files
+  doctor_launcher "$root"
   if rows=$(registry_agents 2>/dev/null) && registry_validate "$rows"; then
     ok "registry.yaml：$(printf '%s\n' "$rows" | grep -c .) 个 agent，角色齐全"
   else
@@ -142,6 +143,48 @@ EOF
   if [ -f .github/workflows/deploy.yml ] && ! grep -q 'MULTICA_DEPLOY_HOOK' .github/workflows/deploy.yml; then
     warn "deploy.yml 没有通知 Planner 的步骤（MULTICA_DEPLOY_HOOK）"
   fi
+}
+
+# 在没有本机 skill 的独立 worktree 里执行 agent 开工的原命令。
+doctor_launcher() {
+  local root=$1 checkout output rc home cache
+  if [ ! -f "$root/autoteam" ]; then
+    fail "缺少 ./autoteam：运行 autoteam init autoteam，提交后让新 checkout 使用"
+    return 0
+  fi
+  if [ ! -x "$root/autoteam" ]; then
+    fail "./autoteam 不可执行：运行 chmod +x autoteam 并提交"
+    return 0
+  fi
+  if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+    warn "还没有提交，无法从干净 checkout 预跑 ./autoteam；提交后重跑 autoteam doctor"
+    return 0
+  fi
+  checkout=$(autoteam_tmpdir)/doctor-checkout
+  home=$(autoteam_tmpdir)/doctor-home
+  cache=$home/.cache
+  mkdir -p "$home" "$cache"
+  if [ -d "$HOME/.multica" ]; then
+    ln -s "$HOME/.multica" "$home/.multica"
+  fi
+  if ! git worktree add --detach "$checkout" HEAD >/dev/null 2>&1; then
+    fail "创建干净 checkout 失败：检查 git worktree 状态后重跑 autoteam doctor"
+    return 0
+  fi
+  if [ ! -f "$checkout/autoteam" ]; then
+    fail "干净 checkout 缺少 ./autoteam：运行 autoteam init autoteam，提交并合并入口文件"
+  else
+    output=$(cd "$checkout" && HOME="$home" XDG_CACHE_HOME="$cache" bash ./autoteam status --check 2>&1) && rc=0 || rc=$?
+    if [ "$rc" = 0 ]; then
+      ok "干净 checkout 的 bash ./autoteam status --check 可运行"
+    elif [[ $output == *"已暂停"* ]]; then
+      ok "干净 checkout 的 bash ./autoteam status --check 可运行（项目已暂停）"
+    else
+      fail "干净 checkout 的 bash ./autoteam status --check 失败：$output；检查入口 ref、网络和缓存，修复后重跑 autoteam doctor"
+    fi
+  fi
+  git worktree remove --force "$checkout" >/dev/null 2>&1 ||
+    warn "清理 doctor 的临时 worktree 失败：运行 git worktree prune"
 }
 
 doctor_github() {

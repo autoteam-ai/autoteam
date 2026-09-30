@@ -18,7 +18,7 @@ t_init_fresh_repo_creates_everything() {
   new_repo acme/shop
   out=$(autoteam_offline init --owner alice --issue-prefix SHOP)
   assert_contains "$out" "新建 .github/workflows/gate.yml"
-  for f in AGENTS.md Makefile .jscpd.json .gitignore .github/CODEOWNERS .github/workflows/deploy.yml \
+  for f in AGENTS.md autoteam Makefile .jscpd.json .gitignore .github/CODEOWNERS .github/workflows/deploy.yml \
            .github/workflows/rollback.yml .autoteam/autoteam.conf .autoteam/registry.yaml .autoteam/playbook.md; do
     assert_file "$f"
   done
@@ -27,6 +27,8 @@ t_init_fresh_repo_creates_everything() {
     assert_no_file "$f"
   done
   [ -x .autoteam/scripts/loop-guard.sh ] || tfail "loop-guard.sh 应可执行"
+  [ -x autoteam ] || tfail "根目录 autoteam 应可执行"
+  assert_file_contains .github/CODEOWNERS "/autoteam         @alice"
   [ -x .autoteam/scripts/deployed-issues.sh ] || tfail "deployed-issues.sh 应安装且可执行"
   assert_file_contains .github/CODEOWNERS "/.autoteam/     @alice"
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_REPO=acme/shop"
