@@ -221,6 +221,24 @@ t_upgrade_without_lock_keeps_differing_files() {
   assert_contains "$out" "本地已修改，未覆盖 .github/workflows/gate.yml"
 }
 
+t_upgrade_updates_launcher_to_package_ref() {
+  local pkg old_ref new_ref
+  pkg=$(mktemp -d "$TEST_BASE/package.XXXXXX")
+  cp -R "$ROOT/skills/autoteam/." "$pkg/"
+  old_ref=4519627303be7b76fe058b4857d1d4a5e058295f
+  new_ref=$(git -C "$ROOT" rev-parse HEAD)
+  printf '%s\n' "$old_ref" > "$pkg/source-ref"
+  AUTOTEAM=$pkg/bin/autoteam
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  assert_file_contains autoteam "AUTOTEAM_REF=$old_ref"
+
+  printf '%s\n' "$new_ref" > "$pkg/source-ref"
+  autoteam_offline upgrade autoteam >/dev/null
+  assert_file_contains autoteam "AUTOTEAM_REF=$new_ref"
+  assert_file_contains .autoteam/.lock.json '"autoteam"'
+}
+
 # autoteam diff --check：CI 用来挡住"改了模板但没同步到本仓库"的漂移
 t_diff_check_uses_lock() {
   setup_ready_repo

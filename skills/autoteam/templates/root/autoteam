@@ -2,8 +2,8 @@
 # 根目录入口：只定位固定版本的 autoteam CLI，然后交给它执行。
 set -euo pipefail
 
-# 已发布的提交；升级模板时更新此值，不使用会移动的 main 分支。
-AUTOTEAM_REF=4519627303be7b76fe058b4857d1d4a5e058295f
+# 由当前 autoteam 包的构建提交渲染，不使用会移动的 main 分支。
+AUTOTEAM_REF={{AUTOTEAM_SOURCE_REF}}
 root=$(cd "$(dirname "$0")" && pwd)
 
 for skill in \
