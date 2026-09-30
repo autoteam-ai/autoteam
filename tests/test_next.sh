@@ -6,11 +6,7 @@ next_fixture() {
 #!/usr/bin/env bash
 set -e
 printf '%s\n' "$*" >> "$NEXT_LOG"
-args=()
-while [ $# -gt 0 ]; do
-  case $1 in --profile|--workspace-id|--output) shift 2 ;; *) args+=("$1"); shift ;; esac
-done
-set -- "${args[@]}"
+. "$(dirname "$STUB_FIXTURES")/stubs/strip-multica-args.sh"
 case "$1 $2" in
   'project list') echo '[{"id":"project-1","title":"shop"}]' ;;
   'agent list') echo '[{"id":"planner-1","name":"planner"}]' ;;
