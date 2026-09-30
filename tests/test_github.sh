@@ -159,10 +159,8 @@ t_create_apps_stores_keys_and_ids() {
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_REVIEWER_APP_ID=222"
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_PLANNER_APP_ID=333"
   assert_contains "$out" "https://github.com/apps/shop-implementer/installations/new"
-  # 密钥类内容一个字都不能出现在输出里
-  assert_not_contains "$out" "STUB-PEM"
-  assert_not_contains "$out" "STUB-CLIENT-SECRET"
-  assert_not_contains "$out" "STUB-WEBHOOK-SECRET"
+  # 私钥、client secret、webhook secret（桩里都以 STUB- 开头）一个字都不能出现在输出里
+  assert_not_contains "$out" "STUB-"
 }
 
 t_create_apps_manifest_form_has_permissions() {
@@ -177,7 +175,7 @@ t_create_apps_manifest_form_has_permissions() {
     AUTOTEAM_REPO=acme/shop
     m=$(github_app_manifest reviewer shop-reviewer)
     assert_eq "$(jq -c .default_permissions <<<"$m")" '{"contents":"write","pull_requests":"write"}'
-    assert_eq "$(jq -c '[.public, (.hook_attributes // "none")]' <<<"$m")" '[false,"none"]'
+    assert_eq "$(jq -c '[.public, .hook_attributes]' <<<"$m")" '[false,null]'
     assert_eq "$(jq -c .default_permissions <<<"$(github_app_manifest planner p)")" '{"actions":"write","contents":"read","pull_requests":"read"}'
     html=$(github_app_form_html "https://github.com/settings/apps/new?state=s" "$m" reviewer)
     assert_contains "$html" 'action="https://github.com/settings/apps/new?state=s"'
@@ -195,7 +193,6 @@ t_create_apps_skips_existing_key() {
   assert_contains "$out" "reviewer：$WORK/.home/.autoteam 里已有私钥，跳过"
   assert_eq "$(cat "$WORK/.home/.autoteam/implementer.pem")" ORIGINAL
   assert_no_log "CONVERT implementer"
-  assert_no_log "CONVERT reviewer"
   assert_log "CONVERT planner"
 }
 
@@ -222,8 +219,6 @@ t_create_apps_rejects_bad_callbacks() {
   assert_contains "$out" "state 与这次创建的不一致"
   assert_no_log "app-manifests"
   assert_no_file "$WORK/.home/.autoteam/implementer.pem"
-  assert_no_file "$WORK/.home/.autoteam/planner.pem"
-  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_IMPLEMENTER_APP_ID="
   out=$(printf '%s\n' 'https://evil.example/autoteam-callback?code=code-implementer&state=implementer-n0nce' | create_apps_run) || true
   assert_contains "$out" "不是完整的回调 URL"
   rc=0

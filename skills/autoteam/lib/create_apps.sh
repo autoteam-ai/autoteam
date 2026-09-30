@@ -1,13 +1,7 @@
 # shellcheck shell=bash
 # autoteam github --create-apps：用 GitHub App Manifest 流程创建三个角色的 App。默认只预览。
-#
-# 流程：为每个角色生成一个本地 HTML 页（带预填权限的表单）→ 人在浏览器里打开并点确认 →
-# GitHub 跳转到 redirect_url?code=...&state=... → 人把地址栏里的完整 URL 粘回终端 →
-# 用 code 调 POST /app-manifests/{code}/conversions 换回 App ID 和私钥。
-#
-# 回调用“粘贴 URL”而不是本地监听：不占端口、不依赖 nc/python、macOS bash 3.2 和没有浏览器的
-# 远端机器都能用（HTML 拷到有浏览器的机器上打开即可）。redirect_url 指向没人监听的本机端口，
-# 浏览器会报连接失败，但地址栏里的 code 已经在了。
+# 每个角色：本地 HTML 表单 → 人在浏览器点确认 → 跳到 redirect_url?code=&state= → 人把完整 URL 粘回终端 →
+# 用 code 换回 App ID 和私钥。用“粘贴 URL”而不是本地监听，不占端口，bash 3.2 和无浏览器的远端机器都能用。
 
 AUTOTEAM_APP_ROLES="implementer reviewer planner"
 GH_APP_REDIRECT_URL=http://localhost:3000/autoteam-callback
@@ -22,9 +16,7 @@ github_app_permissions() {
   esac
 }
 
-github_app_conf_key() {
-  printf 'AUTOTEAM_%s_APP_ID' "$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')"
-}
+github_app_conf_key() { printf 'AUTOTEAM_%s_APP_ID' "$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')"; }
 
 # autoteam.conf（或环境变量）里这个角色已有的 App ID
 github_app_conf_value() {
