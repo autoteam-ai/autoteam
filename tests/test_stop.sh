@@ -6,11 +6,7 @@ stop_fixture() {
 #!/usr/bin/env bash
 set -e
 printf '%s\n' "$*" >> "$STOP_LOG"
-args=()
-while [ $# -gt 0 ]; do
-  case $1 in --profile|--workspace-id|--output) shift 2 ;; *) args+=("$1"); shift ;; esac
-done
-set -- "${args[@]}"
+. "$(dirname "$STUB_FIXTURES")/stubs/strip-multica-args.sh"
 case "$1 $2" in
   'project list') echo '[{"id":"project-1","title":"shop"}]' ;;
   'issue list')
