@@ -139,9 +139,17 @@ EOF
     mv "$issues.tmp" "$issues"
     echo '{"ok":true}' ;;
   "issue status")
-    issues=$state/mc-issues-project.json
-    jq --arg id "$3" --arg s "$4" \
-      'map(if .id == $id then .status = $s else . end)' "$issues" > "$issues.tmp"
+    if jq -e --arg id "$3" '.[] | select(.id == $id)' "$state/mc-issues-shipping.json" >/dev/null 2>&1; then
+      issues=$state/mc-issues-shipping.json
+      [ -f "$state/mc-status-fail" ] && [ "$3" = "$(cat "$state/mc-status-fail")" ] && { echo 'status update failed' >&2; exit 1; }
+    else
+      issues=$state/mc-issues-project.json
+    fi
+    if [ "$issues" = "$state/mc-issues-shipping.json" ]; then
+      jq --arg id "$3" 'map(select(.id != $id))' "$issues" > "$issues.tmp"
+    else
+      jq --arg id "$3" --arg s "$4" 'map(if .id == $id then .status = $s else . end)' "$issues" > "$issues.tmp"
+    fi
     mv "$issues.tmp" "$issues"
     echo '{"ok":true}' ;;
   "issue runs") echo '[]' ;;

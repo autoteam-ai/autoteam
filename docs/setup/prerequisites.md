@@ -25,7 +25,7 @@ Windows 请在 WSL 里运行。
 
 ## Multica
 
-- 有一个工作区，运行 `autoteam multica` 的人是 owner 或 admin（自定义状态只有他们能建）。
+- 有一个工作区；若需迁移并归档旧的 `shipping` 状态，执行该步骤的人须是 owner 或 admin。其余 Multica 同步步骤不要求这个角色。
 - 至少一台机器跑着 Multica daemon（桌面端会自动起；服务器上用 `multica setup cloud` 或 `multica daemon start`），机器上的 agent CLI（Claude Code、Codex、Copilot 等）已经登录对应的订阅账号。`autoteam runtimes` 能列出在线的 runtime。
 - 推荐三台机器（或三个隔离的环境）：A 跑 Implementer、B 跑 Reviewer、C 跑 Planner 和 Auditor，每台只放对应角色的 App 私钥。
 - agent 运行时要能访问仓库：daemon 会用机器上的 git 凭据克隆，确认那台机器能 `git clone` 你的仓库。

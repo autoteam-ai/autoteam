@@ -6,7 +6,7 @@ t_multica_preview_makes_no_writes() {
   : > "$STUB_LOG"
   out=$(autoteam_stub multica)
   assert_contains "$out" "profile：test"
-  assert_contains "$out" "[预览] 新建状态 shipping（待上线，类别 started）"
+  assert_contains "$out" "旧状态 shipping 不存在或已归档"
   assert_contains "$out" "[预览] 新建 agent planner（planner，runtime rt-c-cla，模型 default，并发 1）"
   assert_contains "$out" "[预览] 新建 agent rev-codex（reviewer，runtime rt-b-cod，模型 gpt-5.5，并发 2）"
   assert_contains "$out" "runtime codex@machine-b 现在不在线"
@@ -23,9 +23,8 @@ t_multica_apply_creates_everything() {
   setup_ready_repo
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply)
-  assert_contains "$out" "已新建状态 shipping"
-  assert_log 'BODY POST /api/issue-statuses {"key":"shipping","name":"待上线","category":"started","color":"#14b8a6"'
-  assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
+  assert_contains "$out" "旧状态 shipping 不存在或已归档"
+  assert_no_log "curl POST https://api.multica.test/api/issue-statuses"
   assert_eq "$(jq length "$STUB_STATE/mc-agents.json")" 4
   assert_eq "$(jq length "$STUB_STATE/mc-issues-project.json")" 1
   assert_eq "$(jq -r '.[0] | [.title,.project_id,.assignee_id,.status] | join("|")' "$STUB_STATE/mc-issues-project.json")" '运营笔记|proj-1|agent-planner|in_progress'
@@ -55,7 +54,7 @@ t_multica_second_apply_is_noop() {
   autoteam_stub multica --apply >/dev/null
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply)
-  assert_contains "$out" "状态 shipping（待上线）已存在"
+  assert_contains "$out" "旧状态 shipping 不存在或已归档"
   assert_contains "$out" "agent planner 已是最新"
   assert_contains "$out" "运营笔记已存在（1 条）"
   assert_eq "$(jq length "$STUB_STATE/mc-issues-project.json")" 1
@@ -374,11 +373,44 @@ t_multica_profile_multiple_dies() {
 t_multica_env_only_needs_no_profile() {
   setup_ready_repo
   rm -rf "$WORK/.home/.multica"
+  echo '[{"id":"status-shipping","key":"shipping","name":"待上线","category":"in_progress","archived_at":null}]' > "$STUB_STATE/mc-statuses.json"
   : > "$STUB_LOG"
   out=$(TEST_MULTICA_SERVER_URL=https://api.multica.test TEST_MULTICA_TOKEN=mul_test_token autoteam_stub multica --apply --only statuses)
-  assert_contains "$out" "已新建状态 shipping"
+  assert_contains "$out" "已归档旧状态 shipping"
   assert_no_log "--profile"
-  assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
+  assert_log "curl DELETE https://api.multica.test/api/issue-statuses/status-shipping auth=ok"
+}
+
+t_multica_shipping_preview_pages_then_migrates_and_archives() {
+  setup_ready_repo
+  echo '[{"id":"status-shipping","key":"shipping","name":"待上线","category":"in_progress","archived_at":null}]' > "$STUB_STATE/mc-statuses.json"
+  jq -n '[range(0; 101) | {id:("issue-" + tostring),identifier:("TST-" + tostring),title:"旧任务",status:"shipping"}]' > "$STUB_STATE/mc-issues-shipping.json"
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica --only statuses)
+  assert_contains "$out" '[预览] 迁移 TST-100 旧任务：shipping → in_review'
+  assert_contains "$out" '[预览] 归档旧状态 shipping'
+  assert_log 'issue list --status shipping --limit 100 --offset 100'
+  assert_no_log 'issue status'
+  assert_no_log 'curl DELETE'
+  out=$(autoteam_stub multica --apply --only statuses)
+  assert_contains "$out" '已归档旧状态 shipping'
+  assert_eq "$(jq length "$STUB_STATE/mc-issues-shipping.json")" 0
+  assert_log 'issue status issue-100 in_review --no-start'
+  assert_eq "$(jq -r '.[0].archived_at' "$STUB_STATE/mc-statuses.json")" '2026-09-30T00:00:00Z'
+  out=$(autoteam_stub multica --apply --only statuses)
+  assert_contains "$out" '旧状态 shipping 不存在或已归档'
+}
+
+t_multica_shipping_failure_keeps_status() {
+  setup_ready_repo
+  echo '[{"id":"status-shipping","key":"shipping","name":"待上线","category":"in_progress","archived_at":null}]' > "$STUB_STATE/mc-statuses.json"
+  echo '[{"id":"issue-1","identifier":"TST-1","title":"旧任务","status":"shipping"}]' > "$STUB_STATE/mc-issues-shipping.json"
+  echo issue-1 > "$STUB_STATE/mc-status-fail"
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica --apply --only statuses 2>&1) && tfail '迁移失败应返回非零'
+  assert_contains "$out" '迁移 TST-1 旧任务 失败；未归档 shipping'
+  assert_no_log 'curl DELETE'
+  assert_eq "$(jq -r '.[0].archived_at' "$STUB_STATE/mc-statuses.json")" null
 }
 
 t_multica_env_needs_both_vars() {
