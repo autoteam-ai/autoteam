@@ -32,7 +32,7 @@ title: 配置文件
 | `AUTOTEAM_ACCEPT_RECHECK_HOURS` | 1 | 已合并的任务超过几小时没验收，巡检补查 |
 | `AUTOTEAM_METRICS_DAYS` | 30 | health-metrics 默认窗口 |
 | `AUTOTEAM_PR_SIZE_EXCLUDE` | lock 文件、Markdown、`.github/**`、`.autoteam/**` | 不计入 PR 行数上限的路径，逗号分隔。上限管的是**代码**改动量，文档和由人批准的规则文件不占 agent 的预算 |
-| `AUTOTEAM_CRON_*` | 见模板 | 9 个 autopilot 各自的 cron，见下 |
+| `AUTOTEAM_CRON_*` | 见模板 | 6 个 autopilot 各自的 cron，见下 |
 | `AUTOTEAM_DEPLOY_ENVIRONMENT` | production（Free 私有仓库为空） | 部署用的 GitHub environment |
 | `AUTOTEAM_TIMEZONE` | Asia/Shanghai | autopilot 定时触发的时区 |
 | `AUTOTEAM_LANGUAGE` | zh-CN | agent 评论、PR 标题和描述、提交信息、任务描述的语言（代码标识符、命令、日志原文除外），如 zh-CN、en。渲染进指令前言，改完跑 `autoteam multica --apply` |
@@ -93,15 +93,13 @@ autoteam multica --apply --only autopilots   # 同步到 Multica
 |---|---|---|
 | `AUTOTEAM_CRON_PATROL` | 推进巡检 | `0 */2 * * *` |
 | `AUTOTEAM_CRON_DAILY_DIGEST` | 每日摘要 | `0 9 * * *` |
-| `AUTOTEAM_CRON_SCORECARD` | agent 成绩单 | `0 8 * * 1` |
-| `AUTOTEAM_CRON_CONSOLIDATION` | 整合审计 | `0 9 * * 1` |
-| `AUTOTEAM_CRON_ROADMAP` | 路线图对账 | `0 10 * * 1` |
-| `AUTOTEAM_CRON_FRONTIER` | 前沿扫描 | `0 11 * * 1` |
+| `AUTOTEAM_CRON_HEALTH` | 周度健康报告（整合审计、agent 成绩单、老代码巡检、规格对账四节） | `0 9 * * 1` |
+| `AUTOTEAM_CRON_DIRECTION` | 月度方向报告（前沿扫描、路线图对账两节） | `0 11 1 * *` |
 | `AUTOTEAM_CRON_RULE_REVIEW` | 规则复盘 | `0 12 * * 1` |
-| `AUTOTEAM_CRON_SPEC_RECONCILE` | 规格对账 | `0 9 * * 5` |
-| `AUTOTEAM_CRON_LEGACY_SWEEP` | 老代码巡检 | `0 3 1 * *` |
 
-**刚开始跑的项目先降频**。默认值是团队稳定后的节奏，新装的项目按它跑有两个问题：空转消耗 token，以及每周一挤进 4 份报告，人一次看不完就会积压。建议按优先级分级——流转心跳（推进巡检）减半、人了解全局的窗口（每日摘要）和把人工介入变成规则的一条（规则复盘）不降、审计和方向类（成绩单、整合审计、规格对账、路线图、前沿扫描）改成每月并分散到不同日子。本仓库自己的 `.autoteam/autoteam.conf` 末尾就是一份这样的配置，可以照抄。
+以下六个旧键已合并，`autoteam.conf` 里读到时被忽略，`autoteam doctor` 会提示改用哪个新键：`AUTOTEAM_CRON_CONSOLIDATION`、`AUTOTEAM_CRON_SCORECARD`、`AUTOTEAM_CRON_LEGACY_SWEEP`、`AUTOTEAM_CRON_SPEC_RECONCILE` → `AUTOTEAM_CRON_HEALTH`；`AUTOTEAM_CRON_FRONTIER`、`AUTOTEAM_CRON_ROADMAP` → `AUTOTEAM_CRON_DIRECTION`。Multica 上已有的旧 autopilot 不会被 autoteam 删除，到界面里手动停用或删除。
+
+**刚开始跑的项目先降频**。默认值是团队稳定后的节奏，新装的项目按它跑有两个问题：空转消耗 token，以及报告堆在同一天，人一次看不完就会积压。建议按优先级分级——流转心跳（推进巡检）减半、人了解全局的窗口（每日摘要）和把人工介入变成规则的一条（规则复盘）不降、两份报告（周度健康报告、月度方向报告）改成每月并分散到不同日子。本仓库自己的 `.autoteam/autoteam.conf` 末尾就是一份这样的配置，可以照抄。
 
 什么时候改回来：连续 4 周 `health-metrics.sh` 的 `human_7d` 不上升、也没有因为降频漏掉的问题。这件事由 Planner 在「规则复盘」里提任务、人批准，不用你盯着。
 

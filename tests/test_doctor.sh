@@ -659,6 +659,16 @@ t_doctor_auditor_remote_runtime_hints() {
   assert_eq "$rc" 0 "auditor runtime 不在本机时只提示：$(printf '%s' "$out" | grep '❌')"
 }
 
+t_doctor_warns_retired_cron_keys() {
+  setup_ready_repo
+  out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_not_contains "$out" "已合并到"
+  printf 'AUTOTEAM_CRON_SCORECARD=0 8 * * 1\nAUTOTEAM_CRON_FRONTIER=0 11 * * 1\n' >> .autoteam/autoteam.conf
+  out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_contains "$out" "AUTOTEAM_CRON_SCORECARD 已合并到 AUTOTEAM_CRON_HEALTH，旧键被忽略"
+  assert_contains "$out" "AUTOTEAM_CRON_FRONTIER 已合并到 AUTOTEAM_CRON_DIRECTION，旧键被忽略"
+}
+
 t_doctor_warns_orphan_ejected_runbook() {
   setup_ready_repo
   autoteam_stub eject example >/dev/null

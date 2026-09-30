@@ -60,11 +60,9 @@ Multica 0.5.1 起还可在单个任务上用 `multica issue wakeup create <任�
 |---|---|---|---|
 | 推进巡检 | Planner | `0 */2 * * *` | run_only |
 | 每日摘要 | Planner | `0 9 * * *` | create_issue，订阅人是 AUTOTEAM_HUMAN |
-| 路线图对账 | Planner | `0 10 * * 1` | run_only |
-| agent 成绩单 | Auditor | `0 8 * * 1` | create_issue |
-| 整合审计 | Auditor | `0 9 * * 1` | create_issue |
-| 规格对账 | Auditor | `0 9 * * 5` | create_issue |
-| 老代码巡检 | Auditor | `0 3 1 * *` | create_issue |
+| 周度健康报告 | Auditor | `0 9 * * 1` | create_issue，整合审计、agent 成绩单、老代码巡检、规格对账四节 |
+| 月度方向报告 | Auditor | `0 11 1 * *` | create_issue，订阅人是 AUTOTEAM_HUMAN，前沿扫描、路线图对账两节 |
+| 规则复盘 | Planner | `0 12 * * 1` | run_only |
 | 部署结果 | Planner | webhook | run_only |
 
 - run_only 在 runtime 离线时会跳过本次运行，所以巡检要补查超过一小时还没验收的“待上线”任务。

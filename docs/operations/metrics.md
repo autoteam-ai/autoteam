@@ -10,11 +10,11 @@ title: 每周指标
 
 | 指标 | 从哪里来 | 说明 |
 |---|---|---|
-| Reviewer 一次通过率 | Auditor 的成绩单；`health-metrics.sh` 的 `first_pass_pct` | 太低：任务拆得太大，或 Implementer 不行；太高（接近 100%）：Reviewer 可能在放水 |
-| 验收一次通过率 | 成绩单（【验收不通过】次数） | 低说明验收标准没写清，或实现和需求有偏差 |
+| Reviewer 一次通过率 | 周度健康报告的成绩单一节；`health-metrics.sh` 的 `first_pass_pct` | 太低：任务拆得太大，或 Implementer 不行；太高（接近 100%）：Reviewer 可能在放水 |
+| 验收一次通过率 | 周度健康报告的成绩单一节（【验收不通过】次数） | 低说明验收标准没写清，或实现和需求有偏差 |
 | 升级到人的次数 | 每日摘要里的 blocked | 越来越多：流程在空转，要看是哪类升级 |
-| 单任务花费 | 成绩单（`multica issue usage`） | 突然变高：任务变大了，或某个 agent 在打转 |
-| 重复代码占比趋势 | 整合审计（`duplication_pct`） | 只降不升；涨了就是“向外长而不向内整合” |
+| 各 agent 用量 | 周度健康报告的成绩单一节（按 agent 汇总，单列 autopilot 用量） | 突然变高：任务变大了，或某个 agent 在打转；autopilot 那一行变高：某个定时任务太频繁 |
+| 重复代码占比趋势 | 周度健康报告的整合审计一节（`duplication_pct`） | 只降不升；涨了就是“向外长而不向内整合” |
 | **人工介入次数** | `health-metrics.sh` 的 `human_7d`；规则复盘 | 人自己提交和评审代码的次数。**这是判断规则有没有在变好的唯一客观指标，目标是下降**；连续两周上升就该人工复盘 |
 
 ## health-metrics.sh
@@ -49,17 +49,14 @@ Auditor 每周跑，你也可以随时在仓库里跑：
 
 ## 看 Auditor 的报告
 
-四份报告都会建成任务（create_issue），并 @Planner 把值得做的拆进 backlog：
+两份报告都会建成任务（create_issue），并 @Planner 把值得做的拆进 backlog；某一节相对上一份没有变化时只写一句「无变化」：
 
-- **agent 成绩单**（`AUTOTEAM_CRON_SCORECARD`）：哪个 Implementer 该多派、哪个该少派，Planner 选人时会参考；
-- **前沿扫描**（`AUTOTEAM_CRON_FRONTIER`）：扫描 A 类流程前提、B 类 AI 工程实践和 C 类项目技术栈方向，指出需调整的文件或参数及 B、C 类结论的时机；
-- **整合审计**（`AUTOTEAM_CRON_CONSOLIDATION`）：新增的重复实现、该复用却重写的地方；
-- **规格对账**（`AUTOTEAM_CRON_SPEC_RECONCILE`）：任务的验收标准和实际代码不一致的地方；
-- **老代码巡检**（每月 1 号）：一年没动、可能已经没用的模块。
+- **周度健康报告**（`AUTOTEAM_CRON_HEALTH`）：四节。整合审计——新增的重复实现、该复用却重写的地方；agent 成绩单——哪个 Implementer 该多派、哪个该少派，Planner 选人时会参考，用量按 agent 汇总（`multica agent tasks`），挂在 autopilot 名下的运行不在任何任务名下，所以单列一行，不再用按任务加总当总量；老代码巡检——一年没动、可能已经没用的模块；规格对账——任务的验收标准和实际代码不一致的地方。
+- **月度方向报告**（`AUTOTEAM_CRON_DIRECTION`）：两节。前沿扫描——扫描 A 类流程前提、B 类 AI 工程实践和 C 类项目技术栈方向，指出需调整的文件或参数及 B、C 类结论的时机；路线图对账——还没做的目标，以及不变量的偏离。
 
 Planner 拆出来的整改任务一样要你批准。业界经验是固定拿出 15–25% 的容量做整合和偿债，作为常态而不是一次性冲刺。
 
-成绩单、整合审计和规格对账的统计窗口从上一份同类报告算起；没有上一份时取过去 30 天。运行频率由各自的 `AUTOTEAM_CRON_*` 配置决定。
+统计窗口从上一份同类报告算起；没有上一份时取过去 30 天。运行频率由 `AUTOTEAM_CRON_HEALTH` 和 `AUTOTEAM_CRON_DIRECTION` 决定。
 
 ## 规则复盘（周一 12:00）
 
