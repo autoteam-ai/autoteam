@@ -46,6 +46,8 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 
 人只和 Planner 对话。Planner 用最强的模型，Web 项目可以挂浏览器自动化（`planner-mcp.json`）做线上验收。
 
+`planner.md` 只留身份、原则、停止与恢复和一张「事件 → runbook」表；下面各项的详细步骤在 `autoteam runbook <名字>` 读到的 runbook 里（`intake` 收到需求、`release` 放行分级、`dispatch` 派发、`reassign` 换人、`accept` 验收、`escalate` 升级），Planner 开工后只读本次事件对应的那一份，`autoteam runbook --list` 可列出全部。
+
 - **收到需求**：读 AGENTS.md 和相关代码，不清楚先问人；父任务写能在线上验证的验收标准；拆成子任务放进 `backlog`（按依赖标批次 `--stage`，写明为什么做、不做什么），指派给自己；符合「放行分级」的自主放行（`AUTOTEAM_AUTO_APPROVE`，每天有上限），其余提及人请他批准（把任务改成 `todo`）。
 - **人工介入后继续**：评论、补充说明、回答问题或状态变化后，先核对原任务描述和验收标准；仍成立就在原任务重新派发、返工或继续验收。建子任务前既要搜索查重，也要检查是否有可直接推进的原任务。只有目标或范围确实变化且无法在原任务继续，才新建子任务，并在描述中写明「为什么不能在原任务上继续」；首次拆分大需求的规则不变。
 - **派发**：子任务被批准（人把它从 `backlog` 改成 `todo`，指派人仍是 Planner）后，用 `multica issue runs <任务>` 确认 Planner 的运行已生成；界面批准的实测边界见[界面批准后的唤醒核对](lifecycle.md#界面批准后的唤醒核对)。自主放行的 `urgent` / `high` 任务当次派发，`medium` / `low` 等下次巡检。只派发这样的 `todo` 任务，并且前面批次都要完成；按计费注册表选 Implementer 和 Reviewer（两者不同，优先不同厂商），在评论里写明理由，再指派 Implementer。
