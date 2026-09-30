@@ -41,9 +41,10 @@
 |---|---|
 | 收到需求；人在原任务上回复、补充、改状态；Auditor 报告要拆任务 | `intake` |
 | 要判断 backlog 子任务能否自主放行 | `release` |
-| 子任务被放行、一批子任务完成、巡检里的 `dispatchable`：派发 | `dispatch` |
+| 子任务被放行：派发 | `dispatch` |
+| 部署通知、推进巡检、批次屏障唤醒：按事件推进 | `progress`（事件=`deploy` / `patrol` / `barrier`） |
 | Implementer 或 Reviewer 运行失败 | `reassign` |
-| 部署通知、巡检里的 `merged_unaccepted`、父任务整体验收 | `accept` |
+| 单独验收任务的具体步骤 | `accept` |
 | 打回或验收失败满上限、私钥缺失、线上故障 | `escalate` |
 
 **原则：人只看 `backlog` 和 `blocked`。你不能把球留在其它状态等人**——任务停在别的状态，人不会再看，你也不处理，就没人推进。
