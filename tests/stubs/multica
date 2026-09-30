@@ -128,6 +128,9 @@ EOF
     [ -f "$issues" ] || echo '[]' > "$issues"
     limit=$(flag --limit "$@" || echo 50)
     offset=$(flag --offset "$@" || echo 0)
+    if [ -n "${STUB_ISSUES_EMPTY_MORE:-}" ]; then
+      echo '{"issues":[],"has_more":true}'; exit 0
+    fi
     jq --argjson limit "$limit" --argjson offset "$offset" \
       '{issues: .[$offset:($offset + $limit)], has_more: (length > ($offset + $limit)),
         limit: $limit, offset: $offset, total: length}' "$issues" ;;

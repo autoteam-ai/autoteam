@@ -335,19 +335,25 @@ cmd_multica() {
 
 # ---------- 旧状态迁移 ----------
 
-# 先收齐各页，再写状态；边翻页边迁移会让 offset 跳过任务。
-mc_shipping_issues() {
-  local offset=0 page size more
+# 读完 issue list 的全部页：$1 是对每页 JSON 应用的 jq 程序（jq -r 输出），其余参数原样传给 issue list。
+# 真实 JSON 是 {issues:[...],has_more:bool}，每页最多 100 条；has_more 为真却拿到空页会永远翻不完，直接失败。
+mc_issue_pages() {
+  local filter=$1 offset=0 page size
+  shift
   while :; do
-    page=$(mc issue list --status shipping --limit 100 --offset "$offset" --fields id,identifier,title --output json) || return 1
+    page=$(mc issue list "$@" --limit 100 --offset "$offset" --output json) || return 1
     jq -e '.issues | type == "array"' <<<"$page" >/dev/null || return 1
-    jq -c '.issues[] | {id,identifier,title}' <<<"$page"
-    more=$(jq -r '.has_more' <<<"$page")
-    [ "$more" = true ] || break
+    jq -r "$filter" <<<"$page" || return 1
+    [ "$(jq -r '.has_more' <<<"$page")" = true ] || break
     size=$(jq '.issues | length' <<<"$page")
     [ "$size" -gt 0 ] || return 1
     offset=$((offset + size))
   done
+}
+
+# 先收齐各页，再写状态；边翻页边迁移会让 offset 跳过任务。
+mc_shipping_issues() {
+  mc_issue_pages '.issues[] | {id,identifier,title} | tojson' --status shipping --fields id,identifier,title
 }
 
 multica_migrate_shipping() {
@@ -600,19 +606,8 @@ multica_project() {
   multica_project_note
 }
 
-# issue list 的真实 JSON 是 {issues:[...],has_more:bool}，每页最多 100 条。
 mc_project_note_ids() {
-  local project=$1 offset=0 page size more
-  while :; do
-    page=$(mc issue list --project "$project" --limit 100 --offset "$offset" --fields id,title --output json) || return 1
-    jq -e '.issues | type == "array"' <<<"$page" >/dev/null || return 1
-    jq -r '.issues[] | select(.title == "运营笔记") | .id' <<<"$page"
-    more=$(jq -r '.has_more' <<<"$page")
-    [ "$more" = true ] || break
-    size=$(jq '.issues | length' <<<"$page")
-    [ "$size" -gt 0 ] || return 1
-    offset=$((offset + size))
-  done
+  mc_issue_pages '.issues[] | select(.title == "运营笔记") | .id' --project "$1" --fields id,title
 }
 
 multica_project_note() {
