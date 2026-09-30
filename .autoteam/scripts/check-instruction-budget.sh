@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Check line limits for role and autopilot instructions listed in a budget file.
+# Check line limits for role, autopilot and runbook instructions listed in a budget file.
 set -euo pipefail
 
 budget=${1:-.autoteam/instruction-budget}
@@ -24,8 +24,8 @@ while read -r limit path extra; do
     failed=1
   fi
 done < "$budget"
-for dir in skills/autoteam/instructions/roles skills/autoteam/instructions/autopilots \
-  .autoteam/instructions/roles .autoteam/instructions/autopilots; do
+for dir in skills/autoteam/instructions/roles skills/autoteam/instructions/autopilots skills/autoteam/instructions/runbooks \
+  .autoteam/instructions/roles .autoteam/instructions/autopilots .autoteam/instructions/runbooks; do
   for path in "$dir"/*.md; do
     [ -f "$path" ] || continue
     if ! awk -v p="$path" '$2 == p { found=1 } END { exit !found }' "$budget"; then

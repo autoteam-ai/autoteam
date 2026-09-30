@@ -322,3 +322,26 @@ t_eject_rejects_bad_usage() {
   out=$(autoteam_offline eject -h)
   assert_contains "$out" "用法：autoteam eject"
 }
+
+# autoteam runbook：按名字读取，eject 优先
+t_runbook_list_show_and_unknown() {
+  setup_ready_repo
+  out=$(autoteam_offline runbook --list)
+  assert_contains "$out" "example"
+  assert_contains "$out" "占位示例"
+  out=$(autoteam_offline runbook example)
+  assert_contains "$out" "autoteam runbook <名字>"
+  assert_not_contains "$out" "description:"
+  if out=$(autoteam_offline runbook nope 2>&1); then tfail "不存在的名字应失败"; fi
+  assert_contains "$out" "没有名为 nope 的 runbook"
+  assert_contains "$out" "example"
+}
+
+t_runbook_prefers_ejected() {
+  setup_ready_repo
+  out=$(autoteam_offline eject example)
+  assert_contains "$out" "已 eject .autoteam/instructions/runbooks/example.md"
+  echo "我改过的一行" >> .autoteam/instructions/runbooks/example.md
+  out=$(autoteam_offline runbook example)
+  assert_contains "$out" "我改过的一行"
+}
