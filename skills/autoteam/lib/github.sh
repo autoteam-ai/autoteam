@@ -12,6 +12,11 @@ github_usage() {
   --apps impl=<App ID>,review=<App ID>,planner=<App ID>
                            三个角色各自的 GitHub App ID（也可以写在 autoteam.conf 的 AUTOTEAM_*_APP_ID）
   --repo <owner/name>      覆盖 autoteam.conf 里的仓库
+  --create-apps            用 GitHub App Manifest 流程创建三个角色的 App（默认预览，--apply 才创建）：
+                           你在浏览器里各点一次确认，把跳转后的 URL 粘回终端，私钥写进
+                           AUTOTEAM_KEYS_DIR（权限 600，已有私钥不覆盖），App ID 写回 autoteam.conf；
+                           只创建 App，不安装。不做其他 github 步骤
+  --app-prefix <前缀>      --create-apps 的 App 名字前缀（默认仓库名，得到 <前缀>-implementer 等）
 
 会做的事：
   1. 仓库设置：允许自动合并、合并后删分支、只保留 squash 合并
@@ -19,7 +24,7 @@ github_usage() {
      新提交作废旧审批、规则文件要 Code Owner 审批、最后一次推送要别人批准、
      必需检查 check（只认 GitHub Actions 上报）、组织仓库再加合并队列
   3. 部署 environment（autoteam.conf 的 AUTOTEAM_DEPLOY_ENVIRONMENT）
-  4. 核对三个 GitHub App 装好没有、权限对不对（App 只能由人创建和安装，autoteam 不代做）
+  4. 核对三个 GitHub App 装好没有、权限对不对（App 由人创建和安装：--create-apps 可以帮你创建，安装仍要你点）
 EOF
 }
 
@@ -38,13 +43,15 @@ gh_call() {
 }
 
 cmd_github() {
-  local trial=0 apps=""
+  local trial=0 apps="" create_apps=0 app_prefix=""
   while [ $# -gt 0 ]; do
     case $1 in
       --apply) AUTOTEAM_APPLY=1; shift ;;
       --trial) trial=1; shift ;;
       --apps) apps=$2; shift 2 ;;
       --repo) AUTOTEAM_REPO=$2; shift 2 ;;
+      --create-apps) create_apps=1; shift ;;
+      --app-prefix) app_prefix=$2; shift 2 ;;
       -h|--help) github_usage; return 0 ;;
       *) github_usage >&2; die "未知选项：$1" ;;
     esac
@@ -57,6 +64,11 @@ cmd_github() {
   conf_load "$root"
   [ -n "$AUTOTEAM_REPO" ] || die "autoteam.conf 里没有 AUTOTEAM_REPO，先运行 autoteam init"
   gh auth status >/dev/null 2>&1 || die "gh 还没登录：gh auth login"
+
+  if [ "$create_apps" = 1 ]; then
+    github_create_apps "$app_prefix"
+    return $?
+  fi
 
   section "仓库 $AUTOTEAM_REPO"
   local repo_json owner_type visibility level rulesets_ok=1
@@ -305,12 +317,12 @@ github_apps() {
 
   if [ "$any" = 0 ]; then
     warn "还没有配置 GitHub App：写代码和评审会是同一个身份，GitHub 不允许作者批准自己的 PR"
-    hint "按 docs/setup/github.md 建好 App，把 App ID 写进 autoteam.conf 的 AUTOTEAM_*_APP_ID，或用 --apps 传入"
+    hint "运行 autoteam github --create-apps 创建（或按 docs/setup/github.md 手工建），把 App ID 写进 autoteam.conf 的 AUTOTEAM_*_APP_ID，或用 --apps 传入"
   fi
   github_app_table
 }
 
-# App 不能用 API 创建和安装，只能核对；核对不到时如实说不知道，不要假装通过
+# 这里只核对安装（--create-apps 只负责创建）；核对不到时如实说不知道，不要假装通过
 github_app_check() {
   local role=$1 id=$2 installed=$3 row
   if [ -z "$installed" ]; then
@@ -350,7 +362,7 @@ github_app_table() {
   info "  review   Contents 读写、Pull requests 读写   提交评审。写权限不能省：App 的批准"
   info "                                              只有在它有写权限时才计入必需审批数"
   info "  planner  Actions 读写、Contents 只读、Pull requests 只读   查 PR、触发回滚"
-  hint "App 由人在 GitHub 上创建和安装，autoteam 不会也不能代做；建完把 App ID 填进 autoteam.conf"
+  hint "App 由人在 GitHub 上点确认创建和安装：autoteam github --create-apps 用 Manifest 流程创建（会写好私钥和 App ID），安装仍要人做"
 }
 
 github_extra_checks() {

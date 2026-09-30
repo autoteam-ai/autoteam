@@ -54,7 +54,7 @@ autoteam doctor --skip-github --skip-multica
 autoteam setup  # 一次预览两边；交互终端确认一次后执行
 ```
 
-非交互终端默认只预览，确认后运行 `autoteam setup --apply`。命令依次执行 GitHub、Multica，最后自动运行 doctor；中途失败会说明已完成的步骤和继续方式。先按提示建好三个 GitHub App、放好私钥（[GitHub 设置](github.md)）。还没建 App 时可加 `--trial` 试用；想先暂停新建的定时任务可加 `--paused`。
+非交互终端默认只预览，确认后运行 `autoteam setup --apply`。命令依次执行 GitHub、Multica，最后自动运行 doctor；中途失败会说明已完成的步骤和继续方式。先建好三个 GitHub App、放好私钥：可用 `autoteam github --create-apps --apply` 一键创建，也可手工建（[GitHub 设置](github.md)）。还没建 App 时可加 `--trial` 试用；想先暂停新建的定时任务可加 `--paused`。
 
 Multica 会迁移并归档旧工作区的 `shipping` 状态、同步 registry 里的 agent、一个项目、包内定义的 autopilot，并把部署 webhook 地址写进 GitHub secret（[Multica 设置](multica.md)）。执行结束会列出工作区的 agents、autopilots、项目看板链接。如果提示尚未登录，运行 `multica login`；如果默认 profile 未配置服务器，运行 `multica setup`，或用 `--profile` 指定已经配置的 profile。
 

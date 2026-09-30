@@ -52,7 +52,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 4. 接入 GitHub 和 Multica
 
-`autoteam setup` 一次预览两边，给用户解释 GitHub 保护等级（full / standard / none）、`--trial` 的含义和要做的改动。非交互终端用户同意后运行 `autoteam setup --apply`；交互终端确认一次即可执行。按情况加 `--trial`、`--apps impl=<App ID>,review=<App ID>,planner=<App ID>`、`--paused`。App 只能由人创建和安装，autoteam 只核对。执行顺序是 GitHub → Multica → doctor，失败时按输出从断点继续。
+`autoteam setup` 一次预览两边，给用户解释 GitHub 保护等级（full / standard / none）、`--trial` 的含义和要做的改动。非交互终端用户同意后运行 `autoteam setup --apply`；交互终端确认一次即可执行。按情况加 `--trial`、`--apps impl=<App ID>,review=<App ID>,planner=<App ID>`、`--paused`。App 的创建和安装要人点确认：还没有 App 时，预览并（经用户同意后）单独运行 `autoteam github --create-apps --apply`（App Manifest 流程：用户在浏览器点确认、把跳转后的 URL 粘回终端；私钥写进 `AUTOTEAM_KEYS_DIR`，已有私钥不覆盖，不打印密钥），装到仓库仍由用户做；`autoteam setup` 和 `autoteam github` 本身只核对。执行顺序是 GitHub → Multica → doctor，失败时按输出从断点继续。
 如 App 安装在组织全部仓库，说明私钥泄露会影响安装范围内所有仓库；有意多仓库共用时，逐个核对安装范围与权限后设置 `AUTOTEAM_APP_ALL_REPOS_ACK=on`，后续仅显示确认信息。
 
 ### 5. Multica 结果

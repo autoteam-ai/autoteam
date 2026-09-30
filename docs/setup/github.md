@@ -29,13 +29,31 @@ GitHub 不允许 PR 作者批准自己的 PR。只要 Implementer 和 Reviewer �
 
 ### 建 App
 
-App 不能用 API 创建和安装，这一步必须由人做（`autoteam github` 只核对，不会代建）。三个 App 各做一遍：
+**推荐：`autoteam github --create-apps`**（用 GitHub 的 App Manifest 流程，一次建好三个，权限已按上表预填）。默认只预览，`--apply` 才创建：
+
+```bash
+autoteam github --create-apps            # 预览：会建哪几个、权限是什么、私钥写到哪
+autoteam github --create-apps --apply    # 创建
+```
+
+对每个角色：
+
+1. autoteam 生成一个本地 HTML 页（临时目录里，路径会打印出来），在**有浏览器的机器**上打开它（远端机器先把这个文件拷过去；命令会一直等你粘贴，文件不会提前被删）。页面自动跳到 GitHub 的创建页，名称、权限都已填好（默认名字是 `<仓库名>-implementer`、`-reviewer`、`-planner`，可用 `--app-prefix` 改前缀；名字被占用时在页面上改）。
+2. 点 **Create GitHub App**。GitHub 会跳到 `http://localhost:3000/autoteam-callback?code=…`——没有程序在监听这个端口，浏览器显示"无法连接"是正常的。
+3. 把地址栏里的**完整 URL** 粘回终端。autoteam 只接受以回调地址开头、带 `code` 和本轮本角色 `state` 的完整 URL（裸 code、缺 state、粘错角色的 URL 都会被拒绝）；通过后用里面的 `code` 向 GitHub 换回 App ID 和私钥：私钥写进 `AUTOTEAM_KEYS_DIR/<角色>.pem`（权限 600，目录不存在时以 700 创建），App ID 写进 `autoteam.conf` 对应的键。私钥、client secret、webhook secret 都不会打印。
+
+之后**装到仓库**：命令会打印每个 App 的安装地址，Repository access 选 **Only select repositories**，只选本仓库（autoteam 只创建、不安装）。装完运行 `autoteam github` 核对安装状态和权限。
+
+不做的事：`AUTOTEAM_KEYS_DIR` 里已有该角色私钥就跳过这个角色，绝不覆盖；`autoteam.conf` 已有 App ID 但没有私钥的角色也不重复建，到该 App 的设置页 Generate a private key 即可。换回之后写私钥或写 `autoteam.conf` 失败时，命令会明确报错、退出码非 0，并打印恢复办法（App 已建好，到设置页重新生成私钥、手工补一行 App ID）。中途出错或跳过某个角色，重新运行 `--apply` 会从没做完的角色接着来。
+
+回调用"粘贴 URL"而不是本地监听，是为了在 macOS 自带的 bash 3.2 和没有浏览器的远端机器上都能用，不占端口。
+
+**备选：手工创建。** 三个 App 各做一遍：
 
 1. 组织的 Settings → Developer settings → GitHub Apps → **New GitHub App**（个人仓库就在个人 Settings 下）。
-2. 名字按上表；Homepage URL 随便填一个（比如仓库地址）；**取消勾选 Webhook 的 Active**——这套方案不需要 webhook 服务，App 只当身份用。
-3. Repository permissions 按上表勾。**Where can this GitHub App be installed** 选 Only on this account。
-4. 建好后记下 **App ID**，点 Generate a private key 下载 `.pem`。
-5. 左侧 Install App → 装到本仓库，Repository access 选 **Only select repositories**，只选这一个仓库。
+2. 名字按上表；Homepage URL 随便填；**取消勾选 Webhook 的 Active**；Repository permissions 按上表勾；**Where can this GitHub App be installed** 选 Only on this account。
+3. 建好后记下 **App ID**，点 Generate a private key 下载 `.pem`；Install App → 装到本仓库，只选这一个仓库。
+4. App ID 和私钥按下面「配置」放好。
 
 如果有意让同一组 App 服务组织里的多个仓库，可以保留 **All repositories**。先在 GitHub 的 Install App 页面逐个核对三个 App 的安装范围和权限，确认私钥泄露时可能触及范围内所有仓库；再在每个项目的 `.autoteam/autoteam.conf` 设置 `AUTOTEAM_APP_ALL_REPOS_ACK=on`。`autoteam github` 此后只报确认信息，不再重复警告。未确认时会提醒缩小安装范围。
 

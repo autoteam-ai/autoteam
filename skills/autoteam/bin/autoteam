@@ -17,7 +17,7 @@ AUTOTEAM_LIB=$AUTOTEAM_HOME/lib
 # shellcheck disable=SC2034  # 在 lib 里使用
 AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/templates
 
-for autoteam_lib in common conf render registry instructions lock init upgrade github multica stop next approve propose doctor setup; do
+for autoteam_lib in common conf render registry instructions lock init upgrade github create_apps multica stop next approve propose doctor setup; do
   # shellcheck source=/dev/null
   . "$AUTOTEAM_LIB/$autoteam_lib.sh"
 done
