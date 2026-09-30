@@ -334,7 +334,11 @@ github_app_check() {
     hint "去 App 设置把 Contents 改成 Read and write，再到 Install 页面接受新权限"
   fi
   if [ "$(jq -r '.repository_selection // ""' <<<"$row")" = all ]; then
-    warn "$role App 装在了组织的全部仓库上：改成只选 $AUTOTEAM_REPO，缩小私钥泄露时的影响面"
+    if [ "$AUTOTEAM_APP_ALL_REPOS_ACK" = on ]; then
+      info "$role App 装在组织全部仓库上（已确认多仓库共用）"
+    else
+      warn "$role App 装在组织全部仓库上：私钥泄露会影响整个组织；若只用于 $AUTOTEAM_REPO，到 Install App 改为 Only select repositories；有意多仓库共用时，逐个核对安装范围和权限后设置 AUTOTEAM_APP_ALL_REPOS_ACK=on"
+    fi
   fi
 }
 

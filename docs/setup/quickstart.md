@@ -66,6 +66,7 @@ autoteam multica --apply         # 想先不让定时任务跑，加 --paused
 ```
 
 会迁移并归档旧工作区的 `shipping` 状态、同步 registry 里的 agent、一个项目、包内定义的 autopilot，并把部署 webhook 地址写进 GitHub secret（[第 4–6 步](multica.md)）。
+执行结束会列出当前工作区的 agents、autopilots、项目看板网页链接。链接取自 Multica CLI 的 `app_url`；未配置时由当前 API 服务器地址推导。如果提示尚未登录，运行 `multica login`；如果默认 profile 未配置服务器，运行 `multica setup`，或用 `--profile` 指定已经配置的 profile。
 
 ## 7. 验收
 
@@ -74,3 +75,4 @@ autoteam doctor
 ```
 
 所有 ❌ 处理掉，⚠️ 逐条确认是预期的（比如试用模式）。然后提一个小需求演练一遍：[跑通第一个需求](first-run.md)。
+`doctor` 结尾也会列出当前工作区的网页链接。同一台远端机器需要检查的 App 私钥会合成一条提示，列出角色与 `AUTOTEAM_KEYS_DIR`。

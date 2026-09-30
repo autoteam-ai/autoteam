@@ -359,7 +359,7 @@ t_multica_profile_missing_dir_dies() {
   setup_ready_repo
   rm -rf "$WORK/.home/.multica"
   out=$(autoteam_stub multica 2>&1) && tfail "没有 profile 也没有环境变量应报错"
-  assert_contains "$out" "multica 默认 profile 没有配置服务器"
+  assert_contains "$out" "multica 还没登录：先运行 multica login"
 }
 
 t_multica_profile_multiple_dies() {
@@ -368,6 +368,21 @@ t_multica_profile_multiple_dies() {
   out=$(autoteam_stub multica 2>&1) && tfail "多个 profile 应报错"
   assert_contains "$out" "multica 默认 profile 没有配置服务器"
   assert_contains "$out" "other"
+}
+
+t_multica_profile_server_missing_differs_from_login() {
+  setup_ready_repo
+  rm -rf "$WORK/.home/.multica/profiles"
+  printf '{"token":"mul_test_token"}\n' > "$WORK/.home/.multica/config.json"
+  out=$(autoteam_stub multica 2>&1) && tfail "默认 profile 无服务器应失败"
+  assert_contains "$out" "默认 profile 没有配置服务器"
+  assert_contains "$out" "multica setup"
+  assert_not_contains "$out" "还没登录"
+
+  rm "$WORK/.home/.multica/config.json"
+  out=$(autoteam_stub multica 2>&1) && tfail "未登录应失败"
+  assert_contains "$out" "multica 还没登录：先运行 multica login"
+  assert_not_contains "$out" "默认 profile 没有配置服务器"
 }
 
 t_multica_env_only_needs_no_profile() {

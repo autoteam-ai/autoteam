@@ -122,6 +122,8 @@ case "$method $path" in
     repo_json | out ;;
   "GET repos/acme/shop/rules/branches/main")
     if [ -f "$state/branch-rules.json" ]; then cat "$state/branch-rules.json"; else echo '[]'; fi | out ;;
+  "GET orgs/acme/installations")
+    if [ -f "$state/installations.json" ]; then cat "$state/installations.json" | out; else echo '{"installations":[]}' | out; fi ;;
   "GET graphql")
     jq -n --argjson auto "$([ -f "$state/auto-merge" ] && echo true || echo false)" '{data: {repository: {pullRequest:
       {state: "OPEN", isInMergeQueue: false, autoMergeRequest: (if $auto then {enabledAt: "2026-09-27T00:00:00Z"} else null end)}}}}' | out ;;

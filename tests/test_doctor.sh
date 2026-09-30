@@ -37,6 +37,32 @@ t_doctor_full_after_setup() {
   assert_contains "$out" "项目有且只有一条运营笔记"
   assert_not_contains "$out" "与 registry 不一致" "刚同步完，runtime / 模型 / 并发都应一致"
   assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
+  assert_contains "$out" "https://multica.test/test/agents"
+  assert_contains "$out" "https://multica.test/test/autopilots"
+  assert_contains "$out" "https://multica.test/test/projects"
+}
+
+t_doctor_links_use_configured_app_url() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  out=$(STUB_APP_URL=https://app.example.test autoteam_stub doctor --skip-github)
+  assert_contains "$out" "https://app.example.test/test/agents"
+  assert_not_contains "$out" "https://multica.test/test/agents"
+}
+
+t_doctor_distinguishes_login_and_server_setup() {
+  setup_ready_repo
+  rm -rf "$WORK/.home/.multica"
+  out=$(autoteam_stub doctor --skip-github 2>&1)
+  assert_contains "$out" "multica 还没登录：先运行 multica login"
+  assert_not_contains "$out" "默认 profile 没有配置服务器"
+
+  mkdir -p "$WORK/.home/.multica"
+  printf '{"token":"mul_test_token"}\n' > "$WORK/.home/.multica/config.json"
+  out=$(autoteam_stub doctor --skip-github 2>&1)
+  assert_contains "$out" "默认 profile 没有配置服务器"
+  assert_contains "$out" "multica setup"
+  assert_not_contains "$out" "multica 还没登录"
 }
 
 t_doctor_checks_note_count() {
@@ -568,7 +594,7 @@ t_doctor_keys_missing_on_local_runtime_fails() {
   assert_contains "$out" "~/.autoteam" "要给出应该放的位置"
   assert_contains "$out" "AUTOTEAM_IMPLEMENTER_APP_KEY"
   assert_not_contains "$out" "本机没有 reviewer 的私钥" "不在本机的 runtime 不判错"
-  assert_contains "$out" "agent rev-codex 的 runtime codex@machine-b 不在本机"
+  assert_contains "$out" "远端机器 machine-b 的私钥待检查（角色：reviewer"
 }
 
 t_doctor_keys_in_repo_local_passes() {
@@ -594,8 +620,18 @@ t_doctor_keys_remote_runtime_only_hints() {
   out=$(autoteam_stub doctor --skip-github)
   rc=$?
   assert_not_contains "$out" "本机没有"
-  assert_contains "$out" "agent impl-claude 的 runtime claude@machine-a 不在本机"
+  assert_contains "$out" "远端机器 machine-a 的私钥待检查（角色：implementer"
   assert_eq "$rc" 0 "runtime 都不在本机时缺私钥只是提示：$(printf '%s' "$out" | grep '❌')"
+}
+
+t_doctor_remote_keys_aggregate_same_machine() {
+  doctor_keys_repo
+  sed -i 's/codex@machine-b/claude@machine-a/' .autoteam/registry.yaml
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" "远端机器 machine-a 的私钥待检查（角色：implementer reviewer"
+  count=$(printf '%s\n' "$out" | grep -c '远端机器 machine-a 的私钥待检查')
+  assert_eq "$count" 1 "同一台远端机器只应有一条私钥提示"
+  assert_contains "$out" "AUTOTEAM_KEYS_DIR，当前 ~/.autoteam"
 }
 
 t_doctor_auditor_uses_planner_key() {
@@ -619,7 +655,7 @@ t_doctor_auditor_remote_runtime_hints() {
   doctor_keys_repo
   out=$(autoteam_stub doctor --skip-github)
   rc=$?
-  assert_contains "$out" "agent auditor 的 runtime rt-c-claude-0000 不在本机：auditor 使用 planner 身份，planner 的私钥要到那台机器上检查"
+  assert_contains "$out" "远端机器 rt-c-claude-0000 的私钥待检查（角色：planner"
   assert_eq "$rc" 0 "auditor runtime 不在本机时只提示：$(printf '%s' "$out" | grep '❌')"
 }
 

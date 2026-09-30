@@ -37,6 +37,8 @@ App 不能用 API 创建和安装，这一步必须由人做（`autoteam github`
 4. 建好后记下 **App ID**，点 Generate a private key 下载 `.pem`。
 5. 左侧 Install App → 装到本仓库，Repository access 选 **Only select repositories**，只选这一个仓库。
 
+如果有意让同一组 App 服务组织里的多个仓库，可以保留 **All repositories**。先在 GitHub 的 Install App 页面逐个核对三个 App 的安装范围和权限，确认私钥泄露时可能触及范围内所有仓库；再在每个项目的 `.autoteam/autoteam.conf` 设置 `AUTOTEAM_APP_ALL_REPOS_ACK=on`。`autoteam github` 此后只报确认信息，不再重复警告。未确认时会提醒缩小安装范围。
+
 ### 配置
 
 App ID 写进 `.autoteam/autoteam.conf`：
