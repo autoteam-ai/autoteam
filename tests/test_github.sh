@@ -247,9 +247,11 @@ t_create_apps_reports_store_failures() {
     AUTOTEAM_REPO=acme/shop AUTOTEAM_CONF_REL=.autoteam/autoteam.conf
     # shellcheck disable=SC2034  # GH_OUT 由 gh_call 桩写、被 github_convert_and_store 读
     GH_OUT='{"id":111,"slug":"shop-implementer","pem":"STUB-PEM"}'
+    # shellcheck disable=SC2329  # 覆盖 lib 里的同名函数，由 github_convert_and_store 调用
     gh_call() { return 0; }
     keys=$WORK/keys
     # 1) 写 App ID 失败：私钥已在，消息要说清楚并给出手工写入的那一行
+    # shellcheck disable=SC2329  # 覆盖 lib 里的同名函数，由 github_convert_and_store 调用
     github_write_app_id() { return 1; }
     out=$(github_convert_and_store implementer code1 "$keys" "$WORK/.autoteam/autoteam.conf" acme User) && tfail "写 conf 失败时应返回非 0"
     assert_contains "$out" "App ID 没能写进"
@@ -257,6 +259,7 @@ t_create_apps_reports_store_failures() {
     assert_not_contains "$out" "已建好：私钥"
     rm -f "$keys/implementer.pem"
     # 2) 私钥文件已存在（竞态）：不覆盖，给出恢复办法
+    # shellcheck disable=SC2329  # 覆盖 lib 里的同名函数，由 github_convert_and_store 调用
     github_write_app_id() { return 0; }
     printf 'ORIGINAL' > "$keys/implementer.pem"
     out=$(github_convert_and_store implementer code1 "$keys" "$WORK/.autoteam/autoteam.conf" acme User) && tfail "私钥已存在时应返回非 0"

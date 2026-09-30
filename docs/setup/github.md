@@ -40,11 +40,11 @@ autoteam github --create-apps --apply    # 创建
 
 1. autoteam 生成一个本地 HTML 页（临时目录里，路径会打印出来），在**有浏览器的机器**上打开它（远端机器先把这个文件拷过去；命令会一直等你粘贴，文件不会提前被删）。页面自动跳到 GitHub 的创建页，名称、权限都已填好（默认名字是 `<仓库名>-implementer`、`-reviewer`、`-planner`，可用 `--app-prefix` 改前缀；名字被占用时在页面上改）。
 2. 点 **Create GitHub App**。GitHub 会跳到 `http://localhost:3000/autoteam-callback?code=…`——没有程序在监听这个端口，浏览器显示"无法连接"是正常的。
-3. 把地址栏里的**完整 URL** 粘回终端。autoteam 用里面的 `code` 向 GitHub 换回 App ID 和私钥：私钥写进 `AUTOTEAM_KEYS_DIR/<角色>.pem`（权限 600，目录不存在时以 700 创建），App ID 写进 `autoteam.conf` 对应的键。私钥、client secret、webhook secret 都不会打印。
+3. 把地址栏里的**完整 URL** 粘回终端。autoteam 只接受以回调地址开头、带 `code` 和本轮本角色 `state` 的完整 URL（裸 code、缺 state、粘错角色的 URL 都会被拒绝）；通过后用里面的 `code` 向 GitHub 换回 App ID 和私钥：私钥写进 `AUTOTEAM_KEYS_DIR/<角色>.pem`（权限 600，目录不存在时以 700 创建），App ID 写进 `autoteam.conf` 对应的键。私钥、client secret、webhook secret 都不会打印。
 
 之后**装到仓库**：命令会打印每个 App 的安装地址，Repository access 选 **Only select repositories**，只选本仓库（autoteam 只创建、不安装）。装完运行 `autoteam github` 核对安装状态和权限。
 
-不做的事：`AUTOTEAM_KEYS_DIR` 里已有该角色私钥就跳过这个角色，绝不覆盖；`autoteam.conf` 已有 App ID 但没有私钥的角色也不重复建，到该 App 的设置页 Generate a private key 即可。中途出错或跳过某个角色，重新运行 `--apply` 会从没做完的角色接着来。
+不做的事：`AUTOTEAM_KEYS_DIR` 里已有该角色私钥就跳过这个角色，绝不覆盖；`autoteam.conf` 已有 App ID 但没有私钥的角色也不重复建，到该 App 的设置页 Generate a private key 即可。换回之后写私钥或写 `autoteam.conf` 失败时，命令会明确报错、退出码非 0，并打印恢复办法（App 已建好，到设置页重新生成私钥、手工补一行 App ID）。中途出错或跳过某个角色，重新运行 `--apply` 会从没做完的角色接着来。
 
 回调用"粘贴 URL"而不是本地监听，是为了在 macOS 自带的 bash 3.2 和没有浏览器的远端机器上都能用，不占端口。
 
