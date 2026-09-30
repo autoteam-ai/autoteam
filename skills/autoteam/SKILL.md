@@ -53,10 +53,12 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 ### 4. GitHub
 
 `autoteam github` 预览，给用户解释保护等级（full / standard / none）、`--trial` 的含义和要做的改动。用户同意后：`autoteam github --apply`，按情况加 `--trial`、`--apps impl=<App ID>,review=<App ID>,planner=<App ID>`。App 只能由人创建和安装，autoteam 只核对。
+如 App 安装在组织全部仓库，说明私钥泄露会影响安装范围内所有仓库；有意多仓库共用时，逐个核对安装范围与权限后设置 `AUTOTEAM_APP_ALL_REPOS_ACK=on`，后续仅显示确认信息。
 
 ### 5. Multica
 
 `autoteam multica` 预览，给用户看会建哪些状态、agent、autopilot。用户同意后 `autoteam multica --apply`；想先配好、晚点再让定时任务跑起来，加 `--paused`。autopilot 只认绑在本项目（`AUTOTEAM_MULTICA_PROJECT`）上的，同一工作区别的项目的同名 autopilot 不会被改；预览里出现「另有同名 autopilot 不属于本项目」时向用户说明会另建一套。
+同步完成时给用户看输出末尾的 agents、autopilots、项目看板链接。未登录提示对应 `multica login`；默认 profile 没有服务器对应 `multica setup` 或 `--profile`。
 
 ### 6. 必须由人做的事
 
@@ -65,6 +67,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 ### 7. 验收
 
 `autoteam doctor`，逐条解释 ⚠️ 和 ❌。处理完后，建议用户跑一个小需求演练一遍（autoteam 文档的 `docs/setup/first-run.md`）。
+远端机器上的 App 私钥检查按机器聚合；到提示的机器上把所列角色的 `.pem` 放进 `AUTOTEAM_KEYS_DIR`，再运行 `autoteam doctor`。
 
 ## Planner 推进已有任务
 

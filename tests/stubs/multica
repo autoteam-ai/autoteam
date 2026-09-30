@@ -94,6 +94,9 @@ disable_auto_update:               false
 auto_update_check_interval:        (not set)
 disable_auto_reload:               false
 EOF
+    if [ -n "${STUB_APP_URL:-}" ]; then
+      printf 'app_url:                           %s\n' "$STUB_APP_URL"
+    fi
     ;;
   "workspace get") jq -n '{id: "ws-0000", name: "Test", slug: "test", issue_prefix: "TST"}' ;;
   "runtime list") cat "$STUB_FIXTURES/runtimes.json" ;;

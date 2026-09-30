@@ -102,6 +102,18 @@ t_github_checks_apps() {
   assert_no_log "BODY PUT repos/acme/shop/collaborators"
 }
 
+t_github_all_repos_ack_silences_warning() {
+  setup_ready_repo
+  printf '{"installations":[{"app_id":111,"app_slug":"impl","repository_selection":"all","permissions":{"workflows":"write"}}]}\n' > "$STUB_STATE/installations.json"
+  out=$(STUB_SCENARIO=org-public autoteam_stub github --apps impl=111)
+  assert_contains "$out" "私钥泄露会影响整个组织"
+  assert_contains "$out" "AUTOTEAM_APP_ALL_REPOS_ACK=on"
+  sed -i 's/^AUTOTEAM_APP_ALL_REPOS_ACK=off$/AUTOTEAM_APP_ALL_REPOS_ACK=on/' .autoteam/autoteam.conf
+  out=$(STUB_SCENARIO=org-public autoteam_stub github --apps impl=111)
+  assert_contains "$out" "已确认多仓库共用"
+  assert_not_contains "$out" "私钥泄露会影响整个组织"
+}
+
 # 同一个 App 既开 PR 又批准，GitHub 会拒，评审独立性就没了——这是整套方案的核心约束
 t_github_rejects_same_app_for_impl_and_review() {
   setup_ready_repo

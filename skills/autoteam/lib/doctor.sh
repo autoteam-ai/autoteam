@@ -332,7 +332,8 @@ doctor_mc_read() {
 # 只有 runtime 就是本机（本机 daemon 管着它）时缺私钥才算错误：远端的 runtime 从这里
 # 看不到它的磁盘，只能提示。私钥的查找规则只有 gh-app-token.sh 一份，这里调它的 --find-key。
 doctor_app_keys() {
-  local rows=$1 runtimes=$2 local_ids name role key_role runtime rid err upper id_var
+  local rows=$1 runtimes=$2 local_ids name role key_role runtime rid err upper id_var machine i found
+  local remote_machines=() remote_roles=()
   local_ids=$(mc daemon status --output json 2>/dev/null | jq -r '[.workspaces[]?.runtimes[]?] | .[]' 2>/dev/null) || local_ids=""
   while IFS=$'\t' read -r name role _ runtime _; do
     case $role in
@@ -346,7 +347,20 @@ doctor_app_keys() {
     rid=$(mc_runtime_id "$runtimes" "$runtime" || true)
     [ -n "$rid" ] || continue   # 找不到 runtime 是 autoteam multica 的事
     if ! grep -qxF "$rid" <<<"$local_ids"; then
-      info "agent $name 的 runtime $runtime 不在本机：$role 使用 $key_role 身份，$key_role 的私钥要到那台机器上检查（放 AUTOTEAM_KEYS_DIR，在那里跑 autoteam doctor）"
+      machine=${runtime##*@}
+      found=-1
+      for ((i=0; i<${#remote_machines[@]}; i++)); do
+        [ "${remote_machines[$i]}" = "$machine" ] && { found=$i; break; }
+      done
+      if [ "$found" -lt 0 ]; then
+        found=${#remote_machines[@]}
+        remote_machines+=("$machine")
+        remote_roles+=("")
+      fi
+      case " ${remote_roles[$found]} " in
+        *" $key_role "*) ;;
+        *) remote_roles[found]="${remote_roles[found]:+${remote_roles[found]} }$key_role" ;;
+      esac
       continue
     fi
     if err=$("$AUTOTEAM_DIR/scripts/gh-app-token.sh" --find-key "$key_role" 2>&1 >/dev/null); then
@@ -362,6 +376,9 @@ doctor_app_keys() {
   done <<EOF
 $rows
 EOF
+  for ((i=0; i<${#remote_machines[@]}; i++)); do
+    info "远端机器 ${remote_machines[$i]} 的私钥待检查（角色：${remote_roles[$i]}；放 AUTOTEAM_KEYS_DIR，当前 $AUTOTEAM_KEYS_DIR；在该机器运行 autoteam doctor）"
+  done
 }
 
 # agent 实际绑定的 runtime / 模型 / 并发要和 registry 一致。有人在界面上直接改绑时指令不变，
@@ -404,6 +421,7 @@ doctor_multica() {
   local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want list f title id project last notes note_count
   mc_resolve_bin
   mc_resolve_profile "$profile"
+  mc_require_login
   mc_resolve_workspace "$ws"
   info "工作区 $MC_WS_NAME（profile ${MC_PROFILE:-默认}）"
 
@@ -485,4 +503,5 @@ EOF
   done <<EOF
 $(instructions_list autopilots)
 EOF
+  mc_print_links
 }

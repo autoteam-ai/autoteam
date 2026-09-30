@@ -44,7 +44,7 @@ mc_resolve_bin() {
 # profile：参数 > AUTOTEAM_MULTICA_PROFILE > 环境变量 MULTICA_SERVER_URL + MULTICA_TOKEN（agent runtime，CLI 自己读）
 # > 已配置的默认 profile > ~/.multica/profiles 下唯一的 profile
 mc_resolve_profile() {
-  local config_out dirs n
+  local config_out dirs n cfg
   MC_PROFILE=${1:-${AUTOTEAM_MULTICA_PROFILE:-}}
   MC_ARGS=()
   if [ -z "$MC_PROFILE" ] && [ -n "${MULTICA_SERVER_URL:-}" ] && [ -n "${MULTICA_TOKEN:-}" ]; then
@@ -57,12 +57,27 @@ mc_resolve_profile() {
       if [ "$n" = 1 ]; then
         MC_PROFILE=$dirs
       else
+        cfg=$(sed -n 's/^Config file:[[:space:]]*//p' <<<"$config_out")
+        if [ -z "${MULTICA_TOKEN:-}" ] && [ -z "$dirs" ] && { [ -z "$cfg" ] || [ ! -f "$cfg" ]; }; then
+          die "multica 还没登录：先运行 multica login，再运行 autoteam multica"
+        fi
         die "multica 默认 profile 没有配置服务器：用 --profile 指定，或先运行 multica setup。现有 profile：$(printf '%s' "$dirs" | tr '\n' ' ')"
       fi
     fi
   fi
   if [ -n "$MC_PROFILE" ]; then
     MC_ARGS=(--profile "$MC_PROFILE")
+  fi
+}
+
+mc_require_login() {
+  local config_out cfg
+  if [ -z "${MULTICA_TOKEN:-}" ]; then
+    config_out=$("$MC_BIN" ${MC_ARGS[@]+"${MC_ARGS[@]}"} config show 2>/dev/null) || config_out=""
+    cfg=$(sed -n 's/^Config file:[[:space:]]*//p' <<<"$config_out")
+    if [ -z "$cfg" ] || [ ! -f "$cfg" ] || [ -z "$(jq -r '.token // empty' "$cfg" 2>/dev/null)" ]; then
+      die "multica 还没登录：先运行 multica login（使用其他 profile 时加 --profile）"
+    fi
   fi
 }
 
@@ -160,6 +175,7 @@ mc_resolve_workspace() {
   json=$(mc workspace get "$ws" --output json 2>&1) || die "找不到工作区 $ws：$json"
   MC_WS_ID=$(jq -r '.id' <<<"$json")
   MC_WS_NAME=$(jq -r '.name' <<<"$json")
+  MC_WS_SLUG=$(jq -r '.slug // empty' <<<"$json")
   MC_WS_PREFIX=$(jq -r '.issue_prefix // empty' <<<"$json")
   MC_ARGS+=(--workspace-id "$MC_WS_ID")
 }
@@ -182,6 +198,29 @@ mc_resolve_api() {
     [ -n "$MC_TOKEN" ] || MC_TOKEN=$(jq -r '.token // empty' "$cfg")
   fi
   MC_SERVER=${MC_SERVER%/}
+}
+
+# config show 提供 app_url；未单独配置时按 API 主机推导网页主机。
+mc_print_links() {
+  local config_out app_url server
+  [ -n "${MC_WS_SLUG:-}" ] || return 0
+  config_out=$(mc config show 2>/dev/null) || return 0
+  app_url=$(sed -n 's/^app_url:[[:space:]]*//p' <<<"$config_out" | tail -n 1)
+  case $app_url in http://*|https://*) ;; *) app_url="" ;; esac
+  if [ -z "$app_url" ]; then
+    mc_resolve_api
+    server=$MC_SERVER
+    case $server in
+      http://api.*) app_url="http://${server#http://api.}" ;;
+      https://api.*) app_url="https://${server#https://api.}" ;;
+      *) app_url=$server ;;
+    esac
+  fi
+  [ -n "$app_url" ] || return 0
+  app_url=${app_url%/}
+  info "Multica 网页：agents $app_url/$MC_WS_SLUG/agents"
+  info "             autopilots $app_url/$MC_WS_SLUG/autopilots"
+  info "             项目看板 $app_url/$MC_WS_SLUG/projects"
 }
 
 # 调 Multica HTTP API；token 通过 stdin 交给 curl，不出现在进程参数里
@@ -216,6 +255,7 @@ mc_api_once() {
 multica_setup() {
   mc_resolve_bin
   mc_resolve_profile "$1"
+  mc_require_login
   mc_resolve_workspace "$2"
   info "multica：$MC_BIN（$("$MC_BIN" version 2>/dev/null | head -n1)）"
   info "profile：${MC_PROFILE:-默认}，工作区：$MC_WS_NAME（任务前缀 ${MC_WS_PREFIX:-?}）"
@@ -290,6 +330,7 @@ cmd_multica() {
   section "需要你在 Multica 界面里做的事"
   info "GitHub 集成（可选）：Settings → GitHub 连接仓库后，任务卡片上能看到关联 PR 和 CI 状态"
   preview_footer
+  mc_print_links
 }
 
 # ---------- 旧状态迁移 ----------
