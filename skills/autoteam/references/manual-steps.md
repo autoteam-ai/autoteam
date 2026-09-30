@@ -6,7 +6,9 @@
 
 GitHub 不允许 PR 作者批准自己的 PR，所以 Implementer 和 Reviewer 用两个不同的 GitHub App，"写代码的不能评审自己"就由平台保证。用 App 而不是机器账号：不用注册邮箱和两步验证、不占席位。注意 Reviewer App 也要给 Contents 写权限，否则它的批准不计入必需审批数。
 
-App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做一遍：
+App 的创建和安装都要人在 GitHub 上点确认。推荐先运行 `autoteam github --create-apps`（预览）、`--apply`（用 App Manifest 流程创建，权限已预填）：为每个角色生成一个本地 HTML 页，人在有浏览器的机器上打开、点 Create GitHub App，再把跳转后地址栏里的完整 URL 粘回终端；autoteam 换回 App ID 和私钥，私钥写进 `AUTOTEAM_KEYS_DIR/<角色>.pem`（600，已有则跳过不覆盖），App ID 写回 `autoteam.conf`，不打印任何密钥。之后仍要人把三个 App 装到本仓库（只选这一个仓库）。
+
+手工方式（备选）——三个 App 各做一遍：
 
 1. 组织（或个人）Settings → Developer settings → GitHub Apps → New GitHub App。
 2. **取消 Webhook 的 Active**（只当身份用，不需要 webhook 服务）；安装范围选 Only on this account。

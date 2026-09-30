@@ -24,7 +24,7 @@ github_usage() {
      新提交作废旧审批、规则文件要 Code Owner 审批、最后一次推送要别人批准、
      必需检查 check（只认 GitHub Actions 上报）、组织仓库再加合并队列
   3. 部署 environment（autoteam.conf 的 AUTOTEAM_DEPLOY_ENVIRONMENT）
-  4. 核对三个 GitHub App 装好没有、权限对不对（App 只能由人创建和安装，autoteam 不代做）
+  4. 核对三个 GitHub App 装好没有、权限对不对（App 由人创建和安装：--create-apps 可以帮你创建，安装仍要你点）
 EOF
 }
 
@@ -317,12 +317,12 @@ github_apps() {
 
   if [ "$any" = 0 ]; then
     warn "还没有配置 GitHub App：写代码和评审会是同一个身份，GitHub 不允许作者批准自己的 PR"
-    hint "按 docs/setup/github.md 建好 App，把 App ID 写进 autoteam.conf 的 AUTOTEAM_*_APP_ID，或用 --apps 传入"
+    hint "运行 autoteam github --create-apps 创建（或按 docs/setup/github.md 手工建），把 App ID 写进 autoteam.conf 的 AUTOTEAM_*_APP_ID，或用 --apps 传入"
   fi
   github_app_table
 }
 
-# App 不能用 API 创建和安装，只能核对；核对不到时如实说不知道，不要假装通过
+# 这里只核对安装（--create-apps 只负责创建）；核对不到时如实说不知道，不要假装通过
 github_app_check() {
   local role=$1 id=$2 installed=$3 row
   if [ -z "$installed" ]; then
@@ -362,7 +362,7 @@ github_app_table() {
   info "  review   Contents 读写、Pull requests 读写   提交评审。写权限不能省：App 的批准"
   info "                                              只有在它有写权限时才计入必需审批数"
   info "  planner  Actions 读写、Contents 只读、Pull requests 只读   查 PR、触发回滚"
-  hint "App 由人在 GitHub 上创建和安装，autoteam 不会也不能代做；建完把 App ID 填进 autoteam.conf"
+  hint "App 由人在 GitHub 上点确认创建和安装：autoteam github --create-apps 用 Manifest 流程创建（会写好私钥和 App ID），安装仍要人做"
 }
 
 github_extra_checks() {

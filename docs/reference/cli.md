@@ -49,6 +49,8 @@ autoteam [-C <目录>] <命令> [选项]
 | `--trial` | 单账号试用模式：规则集不要求审批 |
 | `--bots impl=<用户>,review=<用户>,planner=<用户>` | 邀请机器账号（也可以写在 autoteam.conf） |
 | `--repo <owner/name>` | 覆盖 autoteam.conf 里的仓库 |
+| `--create-apps` | 用 GitHub App Manifest 流程创建三个角色的 App（默认预览，`--apply` 才创建；只做这一件事）。私钥写进 `AUTOTEAM_KEYS_DIR`（600，已有私钥不覆盖），App ID 写回 autoteam.conf；只创建不安装，见[建 App](../setup/github.md#建-app) |
+| `--app-prefix <前缀>` | `--create-apps` 的 App 名字前缀（默认仓库名） |
 
 保护等级的判断和每条规则见[第 1–3 步 GitHub](../setup/github.md)。重复运行是幂等的。
 
