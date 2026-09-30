@@ -162,7 +162,7 @@ t_multica_prepends_preamble() {
   assert_eq "$(jq '[.[] | select((.autopilot.description | split("\n")[0]) != $p)] | length' --arg p "$pre" "$STUB_STATE/mc-autopilots.json")" 0 "每个 autopilot 正文开头是前言"
   assert_contains "$(jq -r '.[] | select(.autopilot.title == "推进巡检") | .autopilot.description' "$STUB_STATE/mc-autopilots.json")" "$pre
 
-按 Planner 角色指令做一次推进巡检"
+按 \`bash ./autoteam runbook progress\` 处理，事件=\`patrol\`"
 
   # eject 出的文件不含前言，同步时仍自动加上，不会重复
   autoteam_stub eject reviewer >/dev/null
@@ -505,7 +505,7 @@ t_multica_autopilot_cron_comes_from_conf() {
 t_multica_uses_ejected_autopilot() {
   setup_ready_repo
   autoteam_stub eject patrol >/dev/null
-  sed -i.bak 's|^按 Planner 角色指令做一次推进巡检|自定义巡检 runbook|' .autoteam/instructions/autopilots/patrol.md && rm -f .autoteam/instructions/autopilots/patrol.md.bak
+  sed -i.bak 's|^按 `bash ./autoteam runbook progress`|自定义巡检 runbook|' .autoteam/instructions/autopilots/patrol.md && rm -f .autoteam/instructions/autopilots/patrol.md.bak
   : > "$STUB_LOG"
   autoteam_stub multica --apply >/dev/null
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 5 "同名以 eject 的为准，不重复建"

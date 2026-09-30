@@ -450,13 +450,15 @@ t_open_pr_help_and_bad_args() {
 
 t_instructions_single_auto_merge_fallback() {
   dir=$ROOT/skills/autoteam/instructions
-  # 核对自动合并只出现在交付（implementer）和巡检兜底（patrol）两处
+  # 核对自动合并只出现在交付（implementer）和推进 runbook 两处
   assert_eq "$(grep -rl "merge-status.sh" "$dir" | sed "s|$dir/||" | sort | tr '\n' ' ')" \
-    "autopilots/patrol.md roles/implementer.md " "merge-status.sh 只应出现在 implementer.md 和 patrol.md"
+    "roles/implementer.md runbooks/progress.md " "merge-status.sh 只应出现在 implementer.md 和 progress.md"
   assert_file_contains "$dir/roles/implementer.md" "open-pr.sh --title"
   assert_file_contains "$dir/roles/implementer.md" "open-pr.sh <PR>"
-  assert_file_contains "$dir/autopilots/patrol.md" "【补开自动合并】"
-  assert_file_contains "$dir/autopilots/patrol.md" "open-pr.sh <PR>"
+  assert_file_contains "$dir/autopilots/patrol.md" "runbook progress"
+  assert_file_contains "$dir/autopilots/deploy-result.md" "runbook progress"
+  assert_file_contains "$dir/runbooks/progress.md" "【补开自动合并】"
+  assert_file_contains "$dir/runbooks/progress.md" "open-pr.sh <PR>"
   assert_file_contains "$dir/roles/planner.md" "不要用你的身份跑 \`merge-mode.sh\`"
   ! grep -q "gh pr merge <PR> --auto" "$dir/roles/implementer.md" || tfail "implementer.md 不应再手写 gh pr merge --auto"
 }

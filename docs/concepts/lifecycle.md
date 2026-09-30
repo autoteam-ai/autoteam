@@ -22,7 +22,7 @@ Multica 的流程使用 7 个内置状态。旧工作区的 `shipping` 已退出
 
 1. **放行就是把 `backlog` 改成 `todo`**，由人批准，或由 Planner 按「放行分级」自主放行（开关见[配置文件](../reference/config.md#autoteamconf)的 `AUTOTEAM_AUTO_APPROVE`）。不需要单独的“已批准”状态。人批准整个拆分时用 `autoteam approve <父任务> --apply`：前置批次已完成时只叫醒 Planner 一次并核对运行已生成，后续批次一律 `--no-start`；前置批次未完成时所有放行都用 `--no-start`，等批次屏障叫醒 Planner。手工在界面批准时见[界面批准后的唤醒核对](#界面批准后的唤醒核对)。
 2. **打回和返工不占状态**。Reviewer 在 PR 上要求修改，并在评论里 @Implementer；Implementer 被 @ 后第一步把任务改回 `in_progress`。Planner 验收不通过时同样把任务改回 `in_progress` 并 @Implementer。打回次数由 `loop-guard.sh` 从 GitHub 评审记录和评论里统计，不依赖任何状态。
-3. **评审通过不改状态**。部署通知按上次成功部署到本次提交间的 PR 生成 `issues` 清单，Planner 验收清单内任务；巡检先运行 `autoteam next --check`，只补查清单里的已合并未 `done` 任务。需要观察期的任务由 Planner 设任务级 `multica issue wakeup create <任务> --kind at --at <到期时间>`，到期验收一次。
+3. **评审通过不改状态**。部署通知按上次成功部署到本次提交间的 PR 生成 `issues` 清单，Planner 只验收清单内任务；巡检先运行 `autoteam next --check`，只补查清单里的已合并未 `done` 任务。两者共用 `progress` 推进 runbook，动作前查状态和评论，已有【验收通过】就跳过、不重复评论。需要观察期的任务由 Planner 设任务级 `multica issue wakeup create <任务> --kind at --at <到期时间>`，到期验收一次。
 4. **旧状态迁移**。`shipping` 中的任务迁回 `in_review` 时使用 `--no-start`，不会因迁移叫醒 agent；全部迁移成功才归档状态。
 5. **平台自己改状态时只写内置状态**：运行失败回滚到 `todo`；PR 带关闭关键字合并会直接设为 `done`。所以 PR 标题只写任务编号（建立关联），不写 `Closes XXX-123`。
 6. **“批准”agent 也能做**。平台拦不住 agent 把任务从 `backlog` 改成 `todo`；除了按「放行分级」留下 `【自主放行】` 评论的，其余靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
@@ -54,7 +54,7 @@ autoteam 的选择是：**让人对已指派任务的普通评论使用平台默
 
 ## 批次
 
-Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。后续批次提前批准时一律用 `--no-start` 放行；第 1 批全部完成后，批次屏障叫醒父任务的指派人（Planner），它当次派发第 2 批里已批准的任务。第 1 批没全部完成，第 2 批就算被批准了，Planner 也不会派发。
+Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。后续批次提前批准时一律用 `--no-start` 放行；第 1 批全部完成后，批次屏障叫醒父任务的指派人（Planner），它按 `progress` 的 `barrier` 事件派发第 2 批里已批准的任务。第 1 批没全部完成，第 2 批就算被批准了，Planner 也不会派发。最后一批全 `done` 后，只有批次屏障负责父任务整体验收；部署结果和巡检均不做。已派发或已有【验收通过】的任务会跳过，不再发评论。
 
 ## 防止来回打转
 
