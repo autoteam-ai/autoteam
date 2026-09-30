@@ -41,7 +41,7 @@ title: 日常操作
 
 - Planner 拆好的子任务先进入 backlog（待审核）。开启 `AUTOTEAM_AUTO_APPROVE` 后，符合条件的由 Planner 自主放行并留 `【自主放行】` 评论；需你批准的任务才会在父任务评论里提及你。每日名额用完的候选留在 backlog 等下次放行。
 - 看每个子任务的“为什么做 / 不做什么 / 验收标准”，值得做就改成“待办”（todo，指派人保持 Planner），不值得做就改成 cancelled 并写一句原因。
-- 可以一次批准多个。逐个用 `multica issue runs <任务>` 确认 Planner 的运行已生成；界面批准的实测边界见[界面批准后的唤醒核对](../concepts/lifecycle.md#界面批准后的唤醒核对)。前面批次没完成的任务会先留着。
+- 批准整个拆分时，在项目仓库先运行 `autoteam approve <父任务>` 预览，再加 `--apply` 放行；命令只叫醒 Planner 一次并核对运行。前面批次没完成时，后续批次一律用 `--no-start` 放行，由批次屏障在前一批完成后叫醒 Planner。手工逐项在界面批准时仍需核对运行，见[界面批准后的唤醒核对](../concepts/lifecycle.md#界面批准后的唤醒核对)。Planner 被叫醒后会直接派发人批准的任务，包括 `medium` / `low`。
 - **agent 也有改状态的权限**，平台拦不住它把任务从 backlog 改成 todo。每日摘要的批准核对会把带 `【自主放行】` 评论的任务列在「自主放行」一栏，供你查看理由和当前状态；你可以直接取消不该做的任务。没有可核实放行依据、或自主放行了受保护路径的任务会列为「违规」，需要处理。
 
 ## 评论的讲究
@@ -74,6 +74,8 @@ Planner 把任务设为 blocked 时，会在父任务评论里提及你，说明
 - 推荐让 Implementer 改：给 Planner 提需求，走正常流程，最后由你作为 Code Owner 批准 PR；
 - 你自己改：在本地改好（可以不提交），跑 `autoteam propose` 预览，确认后 `autoteam propose --apply`（标题要带任务编号就加 `--title`）。PR 由 Implementer App 身份开出，你只是批准人，不会撞上「最后推送者不能批准」，也不用临时关规则集；
 - 改了 `.autoteam/`，或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`），合并后要同步到 Multica 才生效；升级 autoteam 版本（角色指令、autopilot 跟着包走）同理——这一步 Planner 在验收时自己做（`autoteam multica --apply` + `autoteam doctor`），你不用管。它跑不起来会在运营笔记里提及你。
+
+「运营笔记」由接入时的 `autoteam multica --apply` 创建；若缺失，按升级提示运行 `autoteam multica --apply --only project` 补建。Planner 日常派发只核对选中的 Implementer 和 Reviewer 的 runtime、最近一次运行及私钥；完整 `autoteam doctor` 用于接入、升级和规则文件部署后。
 
 ## 每周
 

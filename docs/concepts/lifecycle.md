@@ -11,7 +11,7 @@ Multica 的流程使用 7 个内置状态。旧工作区的 `shipping` 已退出
 | 设计中的状态 | key | 类型 | 类别 | 谁设置 | 下一步怎么被叫醒 |
 |---|---|---|---|---|---|
 | 待审核 | `backlog` | 内置 | unstarted | Planner 建子任务时，指派给自己 | 不启动运行；符合「放行分级」的由 Planner 自主放行，其余等人批准 |
-| 待办 | `todo` | 内置 | unstarted | **放行**：人把 `backlog` 改成 `todo`，或 Planner 按「放行分级」自主放行（带 `【自主放行】` 评论，`AUTOTEAM_AUTO_APPROVE=on` 且未超每日上限），指派人仍是 Planner；Planner 派发时改指派为 Implementer | 人用 CLI 不带 `--no-start` 离开 backlog 会叫醒 Planner；界面批准后用 `multica issue runs <任务>` 确认运行已生成（见[界面批准后的唤醒核对](#界面批准后的唤醒核对)）；自主放行用 `--no-start`，`urgent` / `high` 当次派发，`medium` / `low` 等下次巡检；指派给 Implementer 即启动它 |
+| 待办 | `todo` | 内置 | unstarted | **放行**：人把 `backlog` 改成 `todo`，或 Planner 按「放行分级」自主放行（带 `【自主放行】` 评论，`AUTOTEAM_AUTO_APPROVE=on` 且未超每日上限），指派人仍是 Planner；Planner 派发时改指派为 Implementer | 人用 `autoteam approve <父任务> --apply` 时只叫醒 Planner 一次，后续批次用 `--no-start` 等批次屏障；界面批准后核对运行（见[界面批准后的唤醒核对](#界面批准后的唤醒核对)）；自主放行的 `urgent` / `high` 当次派发，`medium` / `low` 等下次巡检；人批准或批次解锁的任务被叫醒时直接派发；指派给 Implementer 即启动它 |
 | 实现中 | `in_progress` | 内置 | started | Implementer 开工时，被打回或验收不通过后重新开工时 | 运行失败时平台回滚到 `todo`，巡检兜底 |
 | 审核中 | `in_review` | 内置 | started | Implementer 提交 PR 后；Reviewer 批准后也不改，停在这里直到合并 | 评论里 @Reviewer；合并部署后部署 webhook 叫醒 Planner，巡检补查已合并超过 `AUTOTEAM_ACCEPT_RECHECK_HOURS` 小时没验收的 |
 | 完成 | `done` | 内置 | done | Planner 验收通过后 | — |
@@ -20,9 +20,9 @@ Multica 的流程使用 7 个内置状态。旧工作区的 `shipping` 已退出
 
 几点注意：
 
-1. **放行就是把 `backlog` 改成 `todo`**，由人批准，或由 Planner 按「放行分级」自主放行（开关见[配置文件](../reference/config.md#autoteamconf)的 `AUTOTEAM_AUTO_APPROVE`）。不需要单独的“已批准”状态。CLI 不带 `--no-start` 离开 backlog 会叫醒指派人；人用 `autoteam approve <父任务> --apply` 一次放行，它只叫醒 Planner 一次并核对运行已生成（手工在界面批准时见[界面批准后的唤醒核对](#界面批准后的唤醒核对)）。
+1. **放行就是把 `backlog` 改成 `todo`**，由人批准，或由 Planner 按「放行分级」自主放行（开关见[配置文件](../reference/config.md#autoteamconf)的 `AUTOTEAM_AUTO_APPROVE`）。不需要单独的“已批准”状态。人批准整个拆分时用 `autoteam approve <父任务> --apply`：前置批次已完成时只叫醒 Planner 一次并核对运行已生成，后续批次一律 `--no-start`；前置批次未完成时所有放行都用 `--no-start`，等批次屏障叫醒 Planner。手工在界面批准时见[界面批准后的唤醒核对](#界面批准后的唤醒核对)。
 2. **打回和返工不占状态**。Reviewer 在 PR 上要求修改，并在评论里 @Implementer；Implementer 被 @ 后第一步把任务改回 `in_progress`。Planner 验收不通过时同样把任务改回 `in_progress` 并 @Implementer。打回次数由 `loop-guard.sh` 从 GitHub 评审记录和评论里统计，不依赖任何状态。
-3. **评审通过不改状态**。部署通知按上次成功部署到本次提交间的 PR 生成 `issues` 清单，Planner 验收清单内任务；巡检用 `gh pr list --state merged` 补查已合并未 `done` 的任务。需要观察期的任务由 Planner 设任务级 `multica issue wakeup create <任务> --kind at --at <到期时间>`，到期验收一次。
+3. **评审通过不改状态**。部署通知按上次成功部署到本次提交间的 PR 生成 `issues` 清单，Planner 验收清单内任务；巡检先运行 `autoteam next --check`，只补查清单里的已合并未 `done` 任务。需要观察期的任务由 Planner 设任务级 `multica issue wakeup create <任务> --kind at --at <到期时间>`，到期验收一次。
 4. **旧状态迁移**。`shipping` 中的任务迁回 `in_review` 时使用 `--no-start`，不会因迁移叫醒 agent；全部迁移成功才归档状态。
 5. **平台自己改状态时只写内置状态**：运行失败回滚到 `todo`；PR 带关闭关键字合并会直接设为 `done`。所以 PR 标题只写任务编号（建立关联），不写 `Closes XXX-123`。
 6. **“批准”agent 也能做**。平台拦不住 agent 把任务从 `backlog` 改成 `todo`；除了按「放行分级」留下 `【自主放行】` 评论的，其余靠指令约束加每日摘要里的批准核对来发现；代码仍然要过检查和独立评审才能合入。
@@ -54,7 +54,7 @@ autoteam 的选择是：**让人对已指派任务的普通评论使用平台默
 
 ## 批次
 
-Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。第 1 批全部完成后平台会叫醒父任务的指派人（Planner），它再派发第 2 批里已批准（人已改为 `todo`）的任务。第 1 批没全部完成，第 2 批就算被批准了，Planner 也不会派发。
+Planner 拆分时用 `--stage` 标批次，先做的是第 1 批。后续批次提前批准时一律用 `--no-start` 放行；第 1 批全部完成后，批次屏障叫醒父任务的指派人（Planner），它当次派发第 2 批里已批准的任务。第 1 批没全部完成，第 2 批就算被批准了，Planner 也不会派发。
 
 ## 防止来回打转
 
