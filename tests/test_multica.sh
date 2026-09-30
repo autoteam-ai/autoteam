@@ -84,7 +84,7 @@ t_multica_note_lookup_pages_and_keeps_existing_note() {
 t_multica_issue_pages_reads_all_pages_and_fails_on_empty_page() {
   setup_ready_repo
   source "$ROOT/skills/autoteam/lib/multica.sh"
-  MC_BIN="$TESTS_DIR/stubs/multica" STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE"
+  MC_BIN="$TESTS_DIR/stubs/multica"
   export STUB_LOG STUB_STATE
   jq -n '[range(0; 205) | {id:("i-" + tostring),title:"t"}]' > "$STUB_STATE/mc-issues-project.json"
   : > "$STUB_LOG"
