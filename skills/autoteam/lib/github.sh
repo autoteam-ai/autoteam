@@ -12,6 +12,11 @@ github_usage() {
   --apps impl=<App ID>,review=<App ID>,planner=<App ID>
                            三个角色各自的 GitHub App ID（也可以写在 autoteam.conf 的 AUTOTEAM_*_APP_ID）
   --repo <owner/name>      覆盖 autoteam.conf 里的仓库
+  --create-apps            用 GitHub App Manifest 流程创建三个角色的 App（默认预览，--apply 才创建）：
+                           你在浏览器里各点一次确认，把跳转后的 URL 粘回终端，私钥写进
+                           AUTOTEAM_KEYS_DIR（权限 600，已有私钥不覆盖），App ID 写回 autoteam.conf；
+                           只创建 App，不安装。不做其他 github 步骤
+  --app-prefix <前缀>      --create-apps 的 App 名字前缀（默认仓库名，得到 <前缀>-implementer 等）
 
 会做的事：
   1. 仓库设置：允许自动合并、合并后删分支、只保留 squash 合并
@@ -38,13 +43,15 @@ gh_call() {
 }
 
 cmd_github() {
-  local trial=0 apps=""
+  local trial=0 apps="" create_apps=0 app_prefix=""
   while [ $# -gt 0 ]; do
     case $1 in
       --apply) AUTOTEAM_APPLY=1; shift ;;
       --trial) trial=1; shift ;;
       --apps) apps=$2; shift 2 ;;
       --repo) AUTOTEAM_REPO=$2; shift 2 ;;
+      --create-apps) create_apps=1; shift ;;
+      --app-prefix) app_prefix=$2; shift 2 ;;
       -h|--help) github_usage; return 0 ;;
       *) github_usage >&2; die "未知选项：$1" ;;
     esac
@@ -57,6 +64,11 @@ cmd_github() {
   conf_load "$root"
   [ -n "$AUTOTEAM_REPO" ] || die "autoteam.conf 里没有 AUTOTEAM_REPO，先运行 autoteam init"
   gh auth status >/dev/null 2>&1 || die "gh 还没登录：gh auth login"
+
+  if [ "$create_apps" = 1 ]; then
+    github_create_apps "$app_prefix"
+    return 0
+  fi
 
   section "仓库 $AUTOTEAM_REPO"
   local repo_json owner_type visibility level rulesets_ok=1

@@ -127,3 +127,94 @@ t_github_warns_when_no_apps() {
   out=$(autoteam_stub github)
   assert_contains "$out" "还没有配置 GitHub App"
 }
+
+# --- github --create-apps（App Manifest 流程）---
+
+# 三个角色的回调 URL：state 取自 autoteam 生成的表单页，这里由桩输入按角色顺序给出
+create_apps_input() {
+  printf 'http://localhost:3000/autoteam-callback?code=code-implementer&state=%s\n' "$1"
+}
+
+t_create_apps_preview_writes_nothing() {
+  setup_ready_repo
+  out=$(autoteam_stub github --create-apps)
+  assert_contains "$out" "[预览] 创建 App shop-implementer"
+  assert_contains "$out" '"workflows":"write"'
+  assert_contains "$out" "以上是预览"
+  assert_no_log "app-manifests"
+  assert_no_file "$WORK/.home/.autoteam"
+}
+
+t_create_apps_stores_keys_and_ids() {
+  setup_ready_repo
+  # state 无法预知：让桩输入只带 code，跳过 state 校验（有 state 时的校验另有测试）
+  out=$(printf '%s\n' 'code-implementer' 'http://localhost:3000/autoteam-callback?code=code-reviewer' 'code-planner' | autoteam_stub github --create-apps --apply)
+  for r in implementer reviewer planner; do
+    key=$WORK/.home/.autoteam/$r.pem
+    assert_file "$key"
+    assert_eq "$(stat -c %a "$key" 2>/dev/null || stat -f %Lp "$key")" 600
+    assert_file_contains "$key" "STUB-PEM-$r"
+  done
+  assert_eq "$(stat -c %a "$WORK/.home/.autoteam" 2>/dev/null || stat -f %Lp "$WORK/.home/.autoteam")" 700
+  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_IMPLEMENTER_APP_ID=111"
+  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_REVIEWER_APP_ID=222"
+  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_PLANNER_APP_ID=333"
+  assert_contains "$out" "https://github.com/apps/shop-implementer/installations/new"
+  # 密钥类内容一个字都不能出现在输出里
+  assert_not_contains "$out" "STUB-PEM"
+  assert_not_contains "$out" "STUB-CLIENT-SECRET"
+  assert_not_contains "$out" "STUB-WEBHOOK-SECRET"
+}
+
+t_create_apps_manifest_form_has_permissions() {
+  setup_ready_repo
+  ( AUTOTEAM_HOME=$ROOT/skills/autoteam
+    # shellcheck source=/dev/null
+    . "$AUTOTEAM_HOME/lib/common.sh"
+    # shellcheck source=/dev/null
+    . "$AUTOTEAM_HOME/lib/conf.sh"
+    # shellcheck source=/dev/null
+    . "$AUTOTEAM_HOME/lib/create_apps.sh"
+    AUTOTEAM_REPO=acme/shop
+    m=$(github_app_manifest reviewer shop-reviewer)
+    assert_eq "$(jq -c .default_permissions <<<"$m")" '{"contents":"write","pull_requests":"write"}'
+    assert_eq "$(jq -c '[.public, (.hook_attributes // "none")]' <<<"$m")" '[false,"none"]'
+    assert_eq "$(jq -c .default_permissions <<<"$(github_app_manifest planner p)")" '{"actions":"write","contents":"read","pull_requests":"read"}'
+    html=$(github_app_form_html "https://github.com/settings/apps/new?state=s" "$m" reviewer)
+    assert_contains "$html" 'action="https://github.com/settings/apps/new?state=s"'
+    assert_contains "$html" '&quot;pull_requests&quot;:&quot;write&quot;' )
+}
+
+t_create_apps_skips_existing_key() {
+  setup_ready_repo
+  mkdir -p "$WORK/.home/.autoteam"
+  printf 'ORIGINAL' > "$WORK/.home/.autoteam/implementer.pem"
+  printf 'ORIGINAL' > "$WORK/.home/.autoteam/shop-reviewer.2026-01-01.private-key.pem"
+  out=$(printf '%s\n' 'code-planner' | autoteam_stub github --create-apps --apply)
+  assert_contains "$out" "implementer：$WORK/.home/.autoteam 里已有私钥，跳过"
+  assert_contains "$out" "reviewer：$WORK/.home/.autoteam 里已有私钥，跳过"
+  assert_eq "$(cat "$WORK/.home/.autoteam/implementer.pem")" ORIGINAL
+  assert_no_log "CONVERT implementer"
+  assert_no_log "CONVERT reviewer"
+  assert_log "CONVERT planner"
+}
+
+t_create_apps_configured_id_without_key_is_not_recreated() {
+  setup_ready_repo
+  sed -i 's/^AUTOTEAM_PLANNER_APP_ID=$/AUTOTEAM_PLANNER_APP_ID=999/' .autoteam/autoteam.conf
+  out=$(printf '%s\n' 'code-implementer' 'code-reviewer' | autoteam_stub github --create-apps --apply)
+  assert_contains "$out" "已有 AUTOTEAM_PLANNER_APP_ID"
+  assert_no_log "CONVERT planner"
+  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_PLANNER_APP_ID=999"
+}
+
+t_create_apps_rejects_mismatched_state_and_bad_code() {
+  setup_ready_repo
+  out=$(printf '%s\n' 'http://localhost:3000/x?code=code-implementer&state=someone-else' '' 'http://localhost:3000/x?code=bad' | autoteam_stub github --create-apps --apply)
+  assert_contains "$out" "state 与这次创建的不一致"
+  assert_contains "$out" "没有收到 URL"
+  assert_contains "$out" "用 code 换取 App 失败"
+  assert_no_file "$WORK/.home/.autoteam/implementer.pem"
+  assert_no_file "$WORK/.home/.autoteam/planner.pem"
+  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_IMPLEMENTER_APP_ID="
+}

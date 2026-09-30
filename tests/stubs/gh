@@ -154,6 +154,13 @@ case "$method $path" in
   "PUT repos/acme/shop/collaborators/"*)
     touch "$state/invite-${path##*/}"; echo '{"id":1}' | out ;;
   "GET repos/acme/shop/invitations") echo '[]' | out ;;
+  "POST app-manifests/code-"*"/conversions")
+    role=${path#app-manifests/code-}; role=${role%/conversions}
+    printf 'CONVERT %s\n' "$role" >> "$STUB_LOG"
+    jq -n --arg r "$role" '{id: (if $r == "implementer" then 111 elif $r == "reviewer" then 222 else 333 end),
+      slug: ("shop-" + $r), client_secret: "STUB-CLIENT-SECRET", webhook_secret: "STUB-WEBHOOK-SECRET",
+      pem: ("-----BEGIN RSA PRIVATE KEY-----\nSTUB-PEM-" + $r + "\n-----END RSA PRIVATE KEY-----\n")}' | out ;;
+  "POST app-manifests/"*) http_error 404 "Not Found" ;;
   "GET repos/acme/shop/codeowners/errors") echo '{"errors":[]}' | out ;;
   *) echo "gh api 桩不支持：$method $path" >&2; exit 2 ;;
 esac
