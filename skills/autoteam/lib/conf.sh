@@ -31,6 +31,7 @@ AUTOTEAM_MAX_IMPLEMENTER_SWITCHES=1
 AUTOTEAM_ACCEPT_RECHECK_HOURS=1
 AUTOTEAM_METRICS_DAYS=30
 AUTOTEAM_PR_SIZE_EXCLUDE=**/*.lock,**/package-lock.json,**/pnpm-lock.yaml,**/go.sum,**/*.md,.github/**,.autoteam/**
+AUTOTEAM_AUTOPILOTS=deploy-result,patrol,daily-digest,rule-review,health
 AUTOTEAM_CRON_PATROL=0 */2 * * *
 AUTOTEAM_CRON_DAILY_DIGEST=0 9 * * *
 AUTOTEAM_CRON_HEALTH=0 9 * * 1
@@ -82,6 +83,12 @@ conf_load_file() {
 # 加载仓库配置，再用默认值补齐
 conf_load() {
   local root=${1:-$(repo_root)}
+  # shellcheck disable=SC2034  # multica、doctor、upgrade 在 source 后使用
+  AUTOTEAM_AUTOPILOTS_CONFIGURED=1
+  if [ -z "${AUTOTEAM_AUTOPILOTS+x}" ] && ! grep -qE '^[[:space:]]*AUTOTEAM_AUTOPILOTS[[:space:]]*=' "$root/$AUTOTEAM_CONF_REL" 2>/dev/null; then
+    # shellcheck disable=SC2034  # multica、doctor、upgrade 在 source 后使用
+    AUTOTEAM_AUTOPILOTS_CONFIGURED=0
+  fi
   conf_load_file "$root/$AUTOTEAM_CONF_REL"
   local line key val
   while IFS= read -r line; do

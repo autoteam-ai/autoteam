@@ -510,11 +510,23 @@ EOF
   list=$MC_READ_OUT
   while IFS= read -r f; do
     title=$(fm_get "$f" title)
+    local name
+    name=${f##*/} name=${name%.md}
     # 同一工作区的别的项目也会有同名 autopilot，只认绑在本项目上的
     id=$(mc_autopilot_id "$list" "$title" "$project")
+    if ! autopilot_selected "$name" "$id"; then
+      if [ -z "$id" ]; then continue; fi
+      autopilot_unlisted_hint "$title"
+    fi
     if [ -z "$id" ]; then fail "本项目没有 autopilot「$title」（autoteam multica --apply）"; continue; fi
     local ntrig status triggers
     doctor_mc_read "autopilot「$title」的触发器" autopilot get "$id" || continue
+    local body actual
+    body=$(instructions_with_preamble "$(fm_body "$f")")
+    actual=$(jq -r '(.autopilot // .).description // empty' <<<"$MC_READ_OUT")
+    if [ "$actual" != "$body" ]; then
+      fail "autopilot「$title」的指令和生效文本不一致（指令漂移）：autoteam multica --apply"
+    fi
     triggers=$(jq -c '.triggers // (.autopilot.triggers // [])' <<<"$MC_READ_OUT")
     ntrig=$(jq 'length' <<<"$triggers")
     status=$(jq -r --arg id "$id" '.autopilots[] | select(.id == $id) | .status' <<<"$list")

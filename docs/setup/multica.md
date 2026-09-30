@@ -56,12 +56,14 @@ Multica 0.5.1 起还可在单个任务上用 `multica issue wakeup create <任�
 
 定时触发和部署通知由 autoteam 包内的 autopilot 指令定义（想改某一个，`autoteam eject <名字>` 落到 `.autoteam/instructions/autopilots/`），autoteam 按 front matter 建 autopilot 和触发器，正文是每次运行的 runbook：
 
+新项目默认只新建 `AUTOTEAM_AUTOPILOTS=deploy-result,patrol,daily-digest,rule-review,health` 这 5 个。清单写包内文件名，逗号分隔；如需月度方向报告，在 conf 中追加 `direction`。已有项目升级时，conf 缺少该键则按远端已存在的 autopilot 加默认 5 个处理，`autoteam upgrade` 会提醒补写。远端已存在但未列入清单的实例仍会按包内指令更新，预览与 doctor 会提示：要保留就加入清单，不要就到 Multica 界面删除。autoteam 不会删除或暂停它们。
+
 | 名称 | 指派 | 触发 | 模式 |
 |---|---|---|---|
 | 推进巡检 | Planner | `0 */2 * * *` | run_only |
 | 每日摘要 | Planner | `0 9 * * *` | create_issue，订阅人是 AUTOTEAM_HUMAN |
 | 周度健康报告 | Auditor | `0 9 * * 1` | create_issue，整合审计、agent 成绩单、老代码巡检、规格对账四节 |
-| 月度方向报告 | Auditor | `0 11 1 * *` | create_issue，订阅人是 AUTOTEAM_HUMAN，前沿扫描、路线图对账两节 |
+| 月度方向报告（需显式启用） | Auditor | `0 11 1 * *` | create_issue，订阅人是 AUTOTEAM_HUMAN，前沿扫描、路线图对账两节 |
 | 规则复盘 | Planner | `0 12 * * 1` | run_only |
 | 部署结果 | Planner | webhook | run_only |
 

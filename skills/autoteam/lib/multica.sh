@@ -634,6 +634,21 @@ multica_project_note() {
 
 # ---------- autopilot ----------
 
+# 配置按文件名选择要新建的 autopilot；旧配置没有该键时，已有的也算启用。
+autopilot_selected() {
+  local name=$1 existing_id=$2 item
+  local -a selected
+  IFS=, read -r -a selected <<<"$AUTOTEAM_AUTOPILOTS"
+  for item in "${selected[@]}"; do
+    [ "$(trim "$item")" = "$name" ] && return 0
+  done
+  [ "${AUTOTEAM_AUTOPILOTS_CONFIGURED:-1}" = 0 ] && [ -n "$existing_id" ]
+}
+
+autopilot_unlisted_hint() {
+  warn "autopilot「$1」未在 AUTOTEAM_AUTOPILOTS 里，要保留就加上，不要就到 Multica 界面删除"
+}
+
 # autopilot 的 cron：front matter 的 cron_key 指向 autoteam.conf 里的 AUTOTEAM_CRON_* 配置项
 autopilot_cron() {
   local key re='^AUTOTEAM_CRON_[A-Z0-9_]+$'
@@ -684,8 +699,17 @@ mc_agent_id() {
 
 multica_autopilot() {
   local f=$1 rows=$2 list=$3 paused=$4 rotate=$5
-  local title role mode cron trigger issue_title subscriber agent body id out args
+  local title role mode cron trigger issue_title subscriber agent body id out args name newly_created=0
+  name=${f##*/} name=${name%.md}
   title=$(fm_get "$f" title) role=$(fm_get "$f" role) mode=$(fm_get "$f" mode)
+  id=$(mc_autopilot_id "$list" "$title" "$MC_PROJECT_ID")
+  if ! autopilot_selected "$name" "$id"; then
+    if [ -z "$id" ]; then
+      info "跳过未启用的 autopilot「$title」（$name）"
+      return 0
+    fi
+    autopilot_unlisted_hint "$title"
+  fi
   cron=$(autopilot_cron "$f") trigger=$(fm_get "$f" trigger) issue_title=$(fm_get "$f" issue_title)
   subscriber=$(fm_get "$f" subscriber)
   if [ -z "$title" ] || [ -z "$role" ] || [ -z "$mode" ]; then
@@ -720,7 +744,6 @@ multica_autopilot() {
 
   # 按 (标题, 项目) 找：Multica 允许同一工作区里 autopilot 重名，同一工作区的别的项目
   # 也会有「推进巡检」等同名 autopilot，只按标题找会把别人的改成本项目的配置
-  id=$(mc_autopilot_id "$list" "$title" "$MC_PROJECT_ID")
   if [ -z "$id" ]; then
     if jq -e --arg t "$title" '.autopilots[]? | select(.title == $t)' <<<"$list" >/dev/null; then
       info "工作区里另有同名 autopilot「$title」不属于本项目，不改动它"
@@ -729,6 +752,7 @@ multica_autopilot() {
     if [ "$AUTOTEAM_APPLY" = 1 ]; then
       if out=$(mc autopilot create --title "$title" "${args[@]}" --output json 2>&1); then
         id=$(jq -r '.id // .autopilot.id // empty' <<<"$out")
+        newly_created=1
         ok "已新建 autopilot「$title」"
       else
         fail "新建 autopilot「$title」失败：$out"; return 0
@@ -763,7 +787,7 @@ multica_autopilot() {
     webhook) multica_webhook_trigger "$id" "$title" "$rotate" ;;
     *) fail "$f 的 trigger 只能是 schedule 或 webhook：$trigger" ;;
   esac
-  if [ "$paused" = 1 ] && [ "$AUTOTEAM_APPLY" = 1 ]; then
+  if [ "$paused" = 1 ] && [ "$newly_created" = 1 ]; then
     if mc autopilot update "$id" --status paused --output json >/dev/null 2>&1; then
       info "已暂停「$title」"
     else
