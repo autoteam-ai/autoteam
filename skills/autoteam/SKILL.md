@@ -16,7 +16,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 ## 硬约束
 
 - 不替用户创建 GitHub 或 Multica 账号，不生成、不输入、不打印任何 token。需要这些时，列出步骤让用户自己做。
-- `autoteam github`、`autoteam multica` 先不加 `--apply` 跑一遍预览，把预览结果讲给用户听，得到明确同意后才加 `--apply`。
+- `autoteam setup` 一次预览 GitHub 和 Multica，把预览结果讲给用户听；非交互终端得到明确同意后才加 `--apply`。交互终端由命令确认一次。
 - 不覆盖用户已有的文件；`autoteam init --force` 只在用户看过 `autoteam diff` 并同意后才用。
 - `make check`、`make dev`、`make deploy` 必须真的跑通再交付，不要编造命令，也不要声称跑过没跑的东西。
 
@@ -50,14 +50,14 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 新建分支、提交、开 PR，请用户审阅后合并。这些都是约束 agent 的规则文件，本来就该由人批准。
 
-### 4. GitHub
+### 4. 接入 GitHub 和 Multica
 
-`autoteam github` 预览，给用户解释保护等级（full / standard / none）、`--trial` 的含义和要做的改动。用户同意后：`autoteam github --apply`，按情况加 `--trial`、`--apps impl=<App ID>,review=<App ID>,planner=<App ID>`。App 的创建和安装要人点确认：还没有 App 时，预览并（经用户同意后）运行 `autoteam github --create-apps --apply`（App Manifest 流程：用户在浏览器点确认、把跳转后的 URL 粘回终端；私钥写进 `AUTOTEAM_KEYS_DIR`，已有私钥不覆盖，不打印密钥），装到仓库仍由用户做；`autoteam github` 本身只核对。
+`autoteam setup` 一次预览两边，给用户解释 GitHub 保护等级（full / standard / none）、`--trial` 的含义和要做的改动。非交互终端用户同意后运行 `autoteam setup --apply`；交互终端确认一次即可执行。按情况加 `--trial`、`--apps impl=<App ID>,review=<App ID>,planner=<App ID>`、`--paused`。App 的创建和安装要人点确认：还没有 App 时，预览并（经用户同意后）单独运行 `autoteam github --create-apps --apply`（App Manifest 流程：用户在浏览器点确认、把跳转后的 URL 粘回终端；私钥写进 `AUTOTEAM_KEYS_DIR`，已有私钥不覆盖，不打印密钥），装到仓库仍由用户做；`autoteam setup` 和 `autoteam github` 本身只核对。执行顺序是 GitHub → Multica → doctor，失败时按输出从断点继续。
 如 App 安装在组织全部仓库，说明私钥泄露会影响安装范围内所有仓库；有意多仓库共用时，逐个核对安装范围与权限后设置 `AUTOTEAM_APP_ALL_REPOS_ACK=on`，后续仅显示确认信息。
 
-### 5. Multica
+### 5. Multica 结果
 
-`autoteam multica` 预览，给用户看会建哪些状态、agent、autopilot。用户同意后 `autoteam multica --apply`；想先配好、晚点再让定时任务跑起来，加 `--paused`。autopilot 只认绑在本项目（`AUTOTEAM_MULTICA_PROJECT`）上的，同一工作区别的项目的同名 autopilot 不会被改；预览里出现「另有同名 autopilot 不属于本项目」时向用户说明会另建一套。
+给用户看预览中会建哪些状态、agent、autopilot。想先配好、晚点再让定时任务跑起来，加 `--paused`。autopilot 只认绑在本项目（`AUTOTEAM_MULTICA_PROJECT`）上的，同一工作区别的项目的同名 autopilot 不会被改；预览里出现「另有同名 autopilot 不属于本项目」时向用户说明会另建一套。
 同步完成时给用户看输出末尾的 agents、autopilots、项目看板链接。未登录提示对应 `multica login`；默认 profile 没有服务器对应 `multica setup` 或 `--profile`。
 
 ### 6. 必须由人做的事
@@ -66,7 +66,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 7. 验收
 
-`autoteam doctor`，逐条解释 ⚠️ 和 ❌。处理完后，建议用户跑一个小需求演练一遍（autoteam 文档的 `docs/setup/first-run.md`）。
+查看 `autoteam setup` 自动运行的 doctor 结果，逐条解释 ⚠️ 和 ❌。处理完后，建议用户跑一个小需求演练一遍（autoteam 文档的 `docs/setup/first-run.md`）。
 远端机器上的 App 私钥检查按机器聚合；到提示的机器上把所列角色的 `.pem` 放进 `AUTOTEAM_KEYS_DIR`，再运行 `autoteam doctor`。
 
 ## Planner 推进已有任务
