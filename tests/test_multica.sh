@@ -76,9 +76,24 @@ t_multica_note_lookup_pages_and_keeps_existing_note() {
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply --only project)
   assert_contains "$out" '运营笔记已存在（1 条）'
-  assert_log 'issue list --project proj-1 --limit 100 --offset 100'
+  assert_log 'issue list --project proj-1 --fields id,title --limit 100 --offset 100'
   assert_no_log 'issue create'
   assert_eq "$(jq -r '.[-1].metadata["autoteam.paused"]' "$STUB_STATE/mc-issues-project.json")" keep
+}
+
+t_multica_issue_pages_reads_all_pages_and_fails_on_empty_page() {
+  setup_ready_repo
+  source "$ROOT/skills/autoteam/lib/multica.sh"
+  MC_BIN="$TESTS_DIR/stubs/multica"
+  export STUB_LOG STUB_STATE
+  jq -n '[range(0; 205) | {id:("i-" + tostring),title:"t"}]' > "$STUB_STATE/mc-issues-project.json"
+  : > "$STUB_LOG"
+  out=$(mc_issue_pages '.issues[].id' --project proj-1)
+  assert_eq "$(grep -c . <<<"$out")" 205
+  assert_log 'issue list --project proj-1 --limit 100 --offset 200'
+  # has_more 为真却是空页：必须报错，不能死循环
+  STUB_ISSUES_EMPTY_MORE=1 mc_issue_pages '.issues[].id' --project proj-1 >/dev/null && tfail '空页应返回非零'
+  return 0
 }
 
 t_multica_rewrites_env_file_every_apply() {
@@ -404,7 +419,7 @@ t_multica_shipping_preview_pages_then_migrates_and_archives() {
   out=$(autoteam_stub multica --only statuses)
   assert_contains "$out" '[预览] 迁移 TST-100 旧任务：shipping → in_review'
   assert_contains "$out" '[预览] 归档旧状态 shipping'
-  assert_log 'issue list --status shipping --limit 100 --offset 100'
+  assert_log 'issue list --status shipping --fields id,identifier,title --limit 100 --offset 100'
   assert_no_log 'issue status'
   assert_no_log 'curl DELETE'
   out=$(autoteam_stub multica --apply --only statuses)
