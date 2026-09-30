@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- Planner 指令拆分：`planner.md` 从 214 行降到 72 行，只留身份、原则、停止与恢复和「事件 → runbook」表；收到需求、放行分级、派发、换人、验收、升级搬进 `instructions/runbooks/`（`intake` / `release` / `dispatch` / `reassign` / `accept` / `escalate`），用 `autoteam runbook <名字>` 按需读取。规则语义不变；常用命令表分放进各 runbook。
+
 - 新增 `autoteam github --create-apps [--apply] [--app-prefix <前缀>]`：用 GitHub App Manifest 流程一次创建 planner / implementer / reviewer 三个 App（权限与文档一致，预填）。你在浏览器里各点一次确认，把跳转后的 URL 粘回终端（不起本地监听，兼容 macOS bash 3.2 和无浏览器的远端机器）；私钥写进 `AUTOTEAM_KEYS_DIR/<角色>.pem`（600，已有私钥不覆盖），App ID 写回 `autoteam.conf`，密钥不打印。只创建、不安装；手工建 App 的方式保留为备选。
 - 报告类 autopilot 由 6 个合成 2 个：「周度健康报告」（`AUTOTEAM_CRON_HEALTH`，整合审计、agent 成绩单、老代码巡检、规格对账四节）和「月度方向报告」（`AUTOTEAM_CRON_DIRECTION`，前沿扫描、路线图对账两节）；规则复盘不变。旧的六个 `AUTOTEAM_CRON_*` 键被忽略，`autoteam doctor` 提示已并入哪个新键；Multica 上已有的旧 autopilot 不会被删除，到界面手动处理。用量口径改为按 agent 汇总（`multica agent tasks`），并单列挂在 autopilot 名下的运行；每日摘要的额度一节同步。
 - 新增 `autoteam approve <父任务> [--apply]`：一次放行父任务下所有指派给 Planner 的 backlog 子任务，第一个可派发批次只有一个任务叫醒 Planner，其余和后续批次带 `--no-start`，并核对 Planner 的运行已生成。首次运行文档不再要求逐个核对唤醒。
