@@ -208,6 +208,19 @@ t_upgrade_overwrites_unmodified_keeps_modified() {
   assert_contains "$out" "已是最新 .github/workflows/gate.yml"
 }
 
+t_init_upgrade_keep_bootstrap_symlink() {
+  setup_ready_repo
+  rm -f autoteam && ln -s skills/autoteam/bin/autoteam autoteam
+  out=$(autoteam_offline init --force)
+  assert_contains "$out" "保留本仓库的自举软链 autoteam"
+  [ -L autoteam ] || tfail "init 后根目录 autoteam 软链丢了"
+  assert_eq "$(readlink autoteam)" skills/autoteam/bin/autoteam
+  out=$(autoteam_offline upgrade)
+  assert_contains "$out" "保留本仓库的自举软链 autoteam"
+  [ -L autoteam ] || tfail "upgrade 后根目录 autoteam 软链丢了"
+  assert_eq "$(readlink autoteam)" skills/autoteam/bin/autoteam
+}
+
 t_upgrade_without_lock_keeps_differing_files() {
   setup_ready_repo
   rm .autoteam/.lock.json
