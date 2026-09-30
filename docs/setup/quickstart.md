@@ -48,31 +48,27 @@ autoteam doctor --skip-github --skip-multica
 
 开 PR，审阅后合并。之后这些规则文件受 CODEOWNERS 保护，改动都要人批准。
 
-## 5. 配置 GitHub
+## 5. 配置 GitHub 和 Multica
 
 ```bash
-autoteam github                  # 预览
-autoteam github --apply          # 建好 App：--apps impl=<App ID>,review=<App ID>,planner=<App ID>
-autoteam github --apply --trial  # 还没建 App：单身份试用模式
+autoteam setup  # 一次预览两边；交互终端确认一次后执行
 ```
 
-然后按提示建好三个 GitHub App、放好私钥（[第 1–3 步](github.md)）。
+非交互终端默认只预览，确认后运行 `autoteam setup --apply`。命令依次执行 GitHub、Multica，最后自动运行 doctor；中途失败会说明已完成的步骤和继续方式。先按提示建好三个 GitHub App、放好私钥（[GitHub 设置](github.md)）。还没建 App 时可加 `--trial` 试用；想先暂停新建的定时任务可加 `--paused`。
 
-## 6. 配置 Multica
+Multica 会迁移并归档旧工作区的 `shipping` 状态、同步 registry 里的 agent、一个项目、包内定义的 autopilot，并把部署 webhook 地址写进 GitHub secret（[Multica 设置](multica.md)）。执行结束会列出工作区的 agents、autopilots、项目看板链接。如果提示尚未登录，运行 `multica login`；如果默认 profile 未配置服务器，运行 `multica setup`，或用 `--profile` 指定已经配置的 profile。
+
+### 分步操作（进阶）
 
 ```bash
-autoteam multica                 # 预览
-autoteam multica --apply         # 想先不让定时任务跑，加 --paused
+autoteam github             # 预览 GitHub
+autoteam github --apply     # 执行 GitHub；可加 --trial 或 --apps
+autoteam multica            # 预览 Multica
+autoteam multica --apply    # 执行 Multica；可加 --paused
+autoteam doctor             # 验收
 ```
 
-会迁移并归档旧工作区的 `shipping` 状态、同步 registry 里的 agent、一个项目、包内定义的 autopilot，并把部署 webhook 地址写进 GitHub secret（[第 4–6 步](multica.md)）。
-执行结束会列出当前工作区的 agents、autopilots、项目看板网页链接。链接取自 Multica CLI 的 `app_url`；未配置时由当前 API 服务器地址推导。如果提示尚未登录，运行 `multica login`；如果默认 profile 未配置服务器，运行 `multica setup`，或用 `--profile` 指定已经配置的 profile。
+## 6. 验收
 
-## 7. 验收
-
-```bash
-autoteam doctor
-```
-
-所有 ❌ 处理掉，⚠️ 逐条确认是预期的（比如试用模式）。然后提一个小需求演练一遍：[跑通第一个需求](first-run.md)。
+查看 `autoteam setup` 末尾的 doctor 结果。所有 ❌ 处理掉，⚠️ 逐条确认是预期的（比如试用模式）。然后提一个小需求演练一遍：[跑通第一个需求](first-run.md)。
 `doctor` 结尾也会列出当前工作区的网页链接。同一台远端机器需要检查的 App 私钥会合成一条提示，列出角色与 `AUTOTEAM_KEYS_DIR`。

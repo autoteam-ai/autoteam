@@ -33,6 +33,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 set -- "${args[@]}"
+if [ -f "$state/mc-fail-agent-create" ] && [ "$1" = agent ] && [ "$2" = create ]; then
+  echo 'simulated agent create failure' >&2
+  exit 2
+fi
 printf 'http-timeout=%s\n' "${MULTICA_HTTP_TIMEOUT:-30s}" >> "$STUB_LOG"
 # 故障次数放文件里，跨 CLI 子进程递减；-1 表示持续失败。
 if [ -f "$state/mc-fail-command" ] && [ "$*" = "$(cat "$state/mc-fail-command")" ]; then
