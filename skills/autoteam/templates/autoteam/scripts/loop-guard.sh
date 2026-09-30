@@ -21,13 +21,17 @@ repo=$(conf_get AUTOTEAM_REPO)
 repo_args=()
 [ -n "$repo" ] && repo_args=(--repo "$repo")
 mc=${MULTICA_BIN:-multica}
+mc_args=()
+[ -n "${AUTOTEAM_MULTICA_PROFILE:-}" ] && mc_args=(--profile "$AUTOTEAM_MULTICA_PROFILE")
 
 # 标题以任务编号开头的 PR（包括已关闭、已合并的）
 prs=$(gh pr list ${repo_args[@]+"${repo_args[@]}"} --state all --search "$key in:title" --limit 50 \
-        --json number,title,state,url,reviews 2>/dev/null || echo '[]')
+        --json number,title,state,url,reviews) || { echo "loop-guard.sh：查询 PR 失败" >&2; exit 2; }
 
 # 任务评论里的标记（Planner 写的【验收不通过】【换人】【换人-Reviewer】）
-comments=$("$mc" issue comment list "$key" --full --output json 2>/dev/null || echo '[]')
+comments=$("$mc" issue comment list "$key" --full --output json "${mc_args[@]}") || { echo "loop-guard.sh：查询任务评论失败" >&2; exit 2; }
+jq -e 'type == "array"' <<<"$prs" >/dev/null || { echo "loop-guard.sh：PR 格式错误" >&2; exit 2; }
+jq -e 'type == "array" or (type == "object" and (.comments | type == "array"))' <<<"$comments" >/dev/null || { echo "loop-guard.sh：任务评论格式错误" >&2; exit 2; }
 
 jq -n --arg key "$key" --argjson prs "$prs" --argjson comments "$comments" \
   --argjson max_rej "${max_rej:-2}" --argjson max_acc "${max_acc:-2}" \
