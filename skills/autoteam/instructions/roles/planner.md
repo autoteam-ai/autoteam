@@ -16,7 +16,7 @@
 ## 先知道这些
 
 - **开工先读 `.autoteam/playbook.md`**：本项目积累下来的经验（拆任务、验收、选人、参数为什么是这个值、踩过的坑），它优先于你的通用习惯。
-- 你还有一条长期的「运营笔记」任务：日常观察写在那里，不走 PR。没有就建一条（`multica issue create --title "运营笔记" --assignee <你> --status in_progress --project <项目 ID>`），永不关闭。
+- 你还有一条长期的「运营笔记」任务：日常观察写在那里，不走 PR，永不关闭。它由 `autoteam multica --apply` 在接入时创建；如果缺失，提示人按升级说明运行 `autoteam multica --apply --only project`，不要在运行中自己新建。
 - 配置在 `.autoteam/autoteam.conf`（仓库、各种上限、负责人），团队和计费在 `.autoteam/registry.yaml`。工作目录里没有本仓库时，先 `multica repo checkout https://github.com/<AUTOTEAM_REPO>`。
 - 读写任务一律用 `multica` CLI，读的时候加 `--output json`。
 - 任务状态（命令里写 key）：
@@ -106,15 +106,11 @@ Auditor 报告和前沿扫描的建议满足以上条件也可以自主放行，
 
 **放行动作**：任务建的时候已设好 `--priority`。在任务上评论 `【自主放行】`，逐条写明满足哪几条条件和优先级，然后 `multica issue status <任务> todo --no-start`（`--no-start` 避免叫醒你自己，派发按下面的优先级来）。
 
-**按优先级派发**（照常检查批次和额度，按「派发」操作）：
-
-- `urgent` / `high`：本次运行里直接派发；
-- `medium` / `low`：留在指派给你的 `todo`，等下次巡检派发；
-- 额度紧张时只派 `high` 及以上，`low` 等额度充足再派。
-
 ## 派发
 
-被叫醒的原因是子任务被放行、一批子任务完成，或者巡检时。只派发 `todo` 且指派给你自己的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。人把任务从 `backlog` 改到 `todo`、或你按「放行分级」自主放行，都是明确放行，不要求人再批准，不要退回 `backlog`，也不要评论请人批准。有多个可派发的任务时按「放行分级」里的「按优先级派发」排先后。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
+被叫醒的原因是子任务被放行、一批子任务完成，或者巡检时。只派发 `todo` 且指派给你自己的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。人把任务从 `backlog` 改到 `todo`、或你按「放行分级」自主放行，都是明确放行，不要求人再批准，不要退回 `backlog`，也不要评论请人批准。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
+
+**按优先级派发只用于自主放行的任务**：`urgent` / `high` 当次派发，`medium` / `low` 留在指派给你的 `todo` 等下次巡检；额度紧张时只派 `high` 及以上，`low` 等额度充足再派。人批准的任务、前一批全部 `done` 后解锁的任务，被叫醒时直接派发，包括 `medium` / `low`；多个可派发任务按优先级安排先后。始终先核对批次和额度。这与「放行分级」一致，不把人的明确批准再延后一轮。
 
 **原则：人只看 `backlog` 和 `blocked`。你不能把球留在其它状态等人**——任务停在别的状态，人不会再看，你也不处理，就没人推进。
 
@@ -122,8 +118,8 @@ Auditor 报告和前沿扫描的建议满足以上条件也可以自主放行，
    - 计费顺序：订阅额度 > 包月点数 > 按量计费（不超过当日预算）；
    - 额度快用完的账号不派大任务，因为中途耗尽会留下半成品。参考 `multica runtime usage <runtime-id> --days 7 --output json`，以及最近因额度失败的运行（`multica issue runs <任务> --output json` 的错误信息，通常带恢复时间）；
    - 条件相同时，优先最近成绩单里一次通过率高的；
-   - 派发前看 `autoteam doctor` 里该 Implementer / Reviewer 的私钥检查是否通过（缺私钥会在它开工时才暴露，白耗运行和一次换人）；未通过就不派这个 agent，换一个通过的；都不通过就按下面「升级给人」处理，说明缺哪个角色的私钥、该放哪里；
-   - 没有可用的 Implementer 或 Reviewer，就保持指派给你的 `todo`，下次巡检再试。
+   - 派发前只检查选中的 Implementer / Reviewer：用 `multica runtime list --output json` 确认两者的 runtime 在线，用 `multica agent tasks <agent ID> --output json` 看各自最近一次运行没有因额度或登录失败；在能访问其 runtime 文件系统时，用 `.autoteam/scripts/gh-app-token.sh --find-key <角色>` 检查所需私钥。未通过就换一个可用的 agent；都因缺私钥不可用时按下面「升级给人」处理，说明缺哪个角色的私钥、该放哪里。完整的 `autoteam doctor` 只在接入、升级或部署了规则文件改动时运行，不在每次派发时运行；
+   - 因 runtime 离线或额度暂时不足而没有可用的 Implementer 或 Reviewer，就保持指派给你的 `todo`，下次巡检再试。
 2. 在任务评论里写明 Implementer、Reviewer 和选择理由。**Reviewer 只写名字，不要用提及链接**，否则会提前叫醒它。
 3. `multica issue status <任务> todo --no-start`，再 `multica issue assign <任务> --to <Implementer 名>`，指派会启动 Implementer。
 
@@ -181,8 +177,8 @@ Auditor 在报告任务里提及你时，把值得做的建议拆成独立任务
 - 同一个任务验收不通过满 `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` 次（默认 2）；
 - 因额度或权限失败、换过一次 Implementer 后仍然失败（换人时评论 `【换人】` 加原因）；
 - 换过一次 Reviewer 后再次在评审开始前因 runtime 路由、登录、额度或权限失败，且该 Reviewer 在 PR 上没有评审记录（换人时评论 `【换人-Reviewer】` 加原因）；
-- 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（`autoteam doctor` 报缺私钥，写明缺哪个角色、该放 `AUTOTEAM_KEYS_DIR`）；
-- 巡检提及 Implementer 补开自动合并或 rebase 后，同一个 PR 仍然没开自动合并或仍然冲突（见「推进巡检」runbook 第 3 步）；
+- 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（写明缺哪个角色的私钥、该放 `AUTOTEAM_KEYS_DIR`）；
+- 巡检提及 Implementer 补开自动合并或 rebase 后，同一个 PR 仍然没开自动合并或仍然冲突（见「推进巡检」runbook 的 `pr_remediation`）；
 - 线上故障（已回滚）。
 
 ```bash
