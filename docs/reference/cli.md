@@ -54,14 +54,14 @@ autoteam [-C <目录>] <命令> [选项]
 
 ## autoteam multica
 
-配置自定义状态、agent、项目、运营笔记、autopilot 和部署 webhook。默认只预览。项目没有「运营笔记」时，`--apply` 会创建并指派 Planner、设为 `in_progress`，全程使用不启动运行的命令；已有则跳过。
+迁移旧 `shipping` 任务并归档状态，同步 agent、项目、运营笔记、autopilot 和部署 webhook。默认只预览。项目没有「运营笔记」时，`--apply` 会创建并指派 Planner、设为 `in_progress`，全程使用不启动运行的命令；已有则跳过。
 
 | 选项 | 说明 |
 |---|---|
 | `--apply` | 执行 |
 | `--profile <名字>` | multica profile；也可以用环境变量 `AUTOTEAM_MULTICA_PROFILE` |
 | `--workspace <slug 或 ID>` | 覆盖 autoteam.conf 的 `AUTOTEAM_MULTICA_WORKSPACE` |
-| `--only <部分>` | 只处理其中几部分：`statuses,agents,project,autopilots` |
+| `--only <部分>` | 只处理其中几部分：`statuses`（旧状态迁移）、`agents,project,autopilots` |
 | `--paused` | 新建的 autopilot 立即暂停 |
 | `--rotate-webhook` | 重新生成部署 webhook 地址并写入 GitHub secret |
 
@@ -118,7 +118,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--skip-multica` | 不检查 Multica |
 | `--profile`、`--workspace` | 同 autoteam multica |
 
-检查项：工作流文件和受管块、`.lock.json` 的版本、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的自定义状态、agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目及其唯一的「运营笔记」、autopilot 和触发器；以及 registry 里每个 agent 的 runtime 上有没有它角色的 App 私钥（按 `gh-app-token.sh --find-key` 的顺序查）——runtime 就是本机（本机 daemon 管着它）而缺私钥报 ❌，远端 runtime 从这里看不到磁盘，只提示到那台机器上跑 doctor。
+检查项：工作流文件和受管块、`.lock.json` 的版本、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的 agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目及其唯一的「运营笔记」、autopilot 和触发器；以及 registry 里每个 agent 的 runtime 上有没有它角色的 App 私钥（按 `gh-app-token.sh --find-key` 的顺序查）——runtime 就是本机（本机 daemon 管着它）而缺私钥报 ❌，远端 runtime 从这里看不到磁盘，只提示到那台机器上跑 doctor。
 
 ## autoteam runtimes
 

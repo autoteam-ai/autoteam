@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# autoteam multica / autoteam runtimes：自定义状态、agent、项目、autopilot、部署 webhook。默认只预览。
+# autoteam multica / autoteam runtimes：旧状态迁移、agent、项目、autopilot、部署 webhook。默认只预览。
 
 multica_usage() {
   cat <<'EOF'
@@ -16,7 +16,7 @@ multica_usage() {
   --rotate-webhook        重新生成部署 webhook 地址并写入 GitHub secret
 
 会做的事：
-  1. 自定义状态 shipping（调 Multica API，需要工作区 owner 或 admin）
+  1. 将旧 shipping 任务迁回 in_review，再归档该状态（这一步需要工作区 owner 或 admin）
   2. 按 registry.yaml 创建或更新 agent，指令优先取 .autoteam/instructions/roles/<角色>.md
      （autoteam eject 落盘的那份），没有就用 autoteam 包内的
   3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源并创建运营笔记
@@ -27,13 +27,6 @@ EOF
 }
 
 MC_APP_BIN=/Applications/Multica.app/Contents/Resources/app.asar.unpacked/resources/bin/multica
-
-# 自定义状态：key 名称 类别 颜色 图标 说明
-autoteam_statuses() {
-  cat <<'EOF'
-shipping	待上线	started	#14b8a6	three_quarters	评审通过，等合并、部署和 Planner 线上验收
-EOF
-}
 
 mc_resolve_bin() {
   [ -n "${MC_BIN:-}" ] && return 0
@@ -267,9 +260,9 @@ cmd_multica() {
   multica_setup "$profile" "${ws:-$AUTOTEAM_MULTICA_WORKSPACE}"
 
   if multica_want statuses; then
-    section "自定义状态"
+    section "旧状态迁移"
     multica_sync_begin statuses
-    multica_statuses
+    multica_migrate_shipping
     multica_sync_end
   fi
   local runtimes
@@ -296,68 +289,63 @@ cmd_multica() {
 
   section "需要你在 Multica 界面里做的事"
   info "GitHub 集成（可选）：Settings → GitHub 连接仓库后，任务卡片上能看到关联 PR 和 CI 状态"
-  info "看板上确认自定义状态：待上线"
   preview_footer
 }
 
-# ---------- 自定义状态 ----------
+# ---------- 旧状态迁移 ----------
 
-mc_category_ok() {
-  case "$1:$2" in
-    unstarted:unstarted|unstarted:backlog|unstarted:todo) return 0 ;;
-    started:started|started:in_progress|started:in_review|started:blocked) return 0 ;;
-    *) return 1 ;;
-  esac
+# 先收齐各页，再写状态；边翻页边迁移会让 offset 跳过任务。
+mc_shipping_issues() {
+  local offset=0 page size more
+  while :; do
+    page=$(mc issue list --status shipping --limit 100 --offset "$offset" --fields id,identifier,title --output json) || return 1
+    jq -e '.issues | type == "array"' <<<"$page" >/dev/null || return 1
+    jq -c '.issues[] | {id,identifier,title}' <<<"$page"
+    more=$(jq -r '.has_more' <<<"$page")
+    [ "$more" = true ] || break
+    size=$(jq '.issues | length' <<<"$page")
+    [ "$size" -gt 0 ] || return 1
+    offset=$((offset + size))
+  done
 }
 
-multica_statuses() {
+multica_migrate_shipping() {
   mc_resolve_api
   if [ -z "$MC_TOKEN" ] || [ -z "$MC_SERVER" ]; then
-    fail "读不到 multica 的登录 token，不能自动建状态"
-    multica_status_manual
+    fail "读不到 multica 的登录 token，不能归档旧状态"
     return 0
   fi
   if ! mc_api GET /api/issue-statuses; then
     fail "读取状态列表失败：$MC_API_OUT"
-    multica_status_manual
     return 0
   fi
-  local catalog=$MC_API_OUT key name category color icon desc have body
-  while IFS=$'\t' read -r key name category color icon desc; do
-    [ -n "$key" ] || continue
-    have=$(jq -r --arg k "$key" '.statuses[] | select(.key == $k) | .category' <<<"$catalog")
-    if [ -n "$have" ]; then
-      if mc_category_ok "$category" "$have"; then
-        ok "状态 $key（$name）已存在"
-      else
-        fail "状态 $key 已存在但类别是 $have，应为 $category。类别建好后不能改：在界面里归档它，再重新运行"
-      fi
-      continue
-    fi
-    planned "新建状态 $key（$name，类别 $category）"
+  local entry id issues issue issue_id label failed=0
+  entry=$(jq -c '[.statuses[] | select(.key == "shipping" and (.archived_at // null) == null)][0] // empty' <<<"$MC_API_OUT")
+  [ -n "$entry" ] || { ok "旧状态 shipping 不存在或已归档"; return 0; }
+  id=$(jq -r '.id // empty' <<<"$entry")
+  [ -n "$id" ] || { fail "旧状态 shipping 没有 API id，无法归档"; return 0; }
+  issues=$(mc_shipping_issues) || { fail "读取 shipping 任务失败；为安全起见未归档"; return 0; }
+  while IFS= read -r issue; do
+    [ -n "$issue" ] || continue
+    issue_id=$(jq -r '.id' <<<"$issue")
+    label=$(jq -r '"\(.identifier // .id) \(.title)"' <<<"$issue")
+    planned "迁移 $label：shipping → in_review"
     [ "$AUTOTEAM_APPLY" = 1 ] || continue
-    body=$(jq -nc --arg key "$key" --arg name "$name" --arg category "$category" \
-      --arg color "$color" --arg icon "$icon" --arg desc "$desc（autoteam）" \
-      '{key: $key, name: $name, category: $category, color: $color, icon: $icon, description: $desc}')
-    if mc_api POST /api/issue-statuses "$body"; then
-      ok "已新建状态 $key"
+    if mc issue status "$issue_id" in_review --no-start >/dev/null; then
+      ok "已迁移 $label"
     else
-      fail "新建状态 $key 失败：$MC_API_OUT"
-      hint "需要工作区 owner 或 admin；也可以在 Settings → Issue Statuses 手动建（key 必须一致）"
+      fail "迁移 $label 失败；未归档 shipping"
+      failed=1
     fi
-  done <<EOF
-$(autoteam_statuses)
-EOF
-}
-
-multica_status_manual() {
-  hint "在 Settings → Issue Statuses 手动添加（key 必须一致，类别建好后不能改）："
-  local key name category color icon desc
-  while IFS=$'\t' read -r key name category color icon desc; do
-    hint "  key $key，名称 $name，类别 $category"
-  done <<EOF
-$(autoteam_statuses)
-EOF
+  done <<<"$issues"
+  [ "$failed" = 0 ] || return 0
+  planned "归档旧状态 shipping"
+  [ "$AUTOTEAM_APPLY" = 1 ] || return 0
+  if mc_api DELETE "/api/issue-statuses/$id"; then
+    ok "已归档旧状态 shipping"
+  else
+    fail "归档旧状态 shipping 失败：$MC_API_OUT"
+  fi
 }
 
 # ---------- runtime ----------

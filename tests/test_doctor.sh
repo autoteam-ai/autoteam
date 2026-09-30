@@ -31,7 +31,6 @@ t_doctor_full_after_setup() {
   assert_contains "$out" "Makefile 有 check / dev / deploy"
   assert_contains "$out" "规则集生效：必须走 PR、1 个审批、必需检查 check"
   assert_contains "$out" "secret MULTICA_DEPLOY_HOOK 已设置"
-  assert_contains "$out" "自定义状态齐全：shipping"
   assert_contains "$out" "agent planner（planner）指令一致"
   assert_contains "$out" "agent rev-codex 的 runtime 不在线"
   assert_contains "$out" "autopilot「部署结果」已启用"

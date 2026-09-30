@@ -40,7 +40,7 @@ App 不能用 API 创建和安装，这一步只能由人做。三个 App 各做
 ## Multica
 
 1. 每台机器装 Multica daemon（桌面端自带，或 `multica setup cloud`），确认对应的 agent CLI（Claude Code、Codex 等）已登录各自的订阅账号，runtime 在线：`autoteam runtimes`。
-2. 运行 `autoteam multica --apply` 的人要是工作区 owner 或 admin（自定义状态只有他们能建）。
+2. 旧工作区若有 `shipping` 状态，运行 `autoteam multica --apply --only statuses` 的人要是工作区 owner 或 admin（迁移任务后归档状态）；agent、项目、autopilot 和 webhook 同步不要求这个角色。
 3. 可选：Settings → GitHub 连接仓库，任务卡片上就能看到关联的 PR 和 CI 状态。
 4. 按量计费的 agent：在厂商控制台设好消费上限，把 key 写进 `.autoteam/local/<agent>.json`（`{"ANTHROPIC_API_KEY": "..."}`，不要提交），registry.yaml 里用 `env_file` 指向它。
 

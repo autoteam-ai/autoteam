@@ -401,26 +401,11 @@ doctor_runtime_label() {
 }
 
 doctor_multica() {
-  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want catalog list f title id project last notes note_count
+  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want list f title id project last notes note_count
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "$ws"
   info "工作区 $MC_WS_NAME（profile ${MC_PROFILE:-默认}）"
-
-  mc_resolve_api
-  if [ -n "$MC_TOKEN" ] && mc_api GET /api/issue-statuses; then
-    catalog=$MC_API_OUT
-    local key missing=""
-    while IFS=$'\t' read -r key _; do
-      [ -n "$key" ] || continue
-      jq -e --arg k "$key" '.statuses[] | select(.key == $k)' <<<"$catalog" >/dev/null || missing="$missing $key"
-    done <<EOF
-$(autoteam_statuses)
-EOF
-    if [ -z "$missing" ]; then ok "自定义状态齐全：shipping"; else fail "缺少自定义状态：$missing（autoteam multica --apply）"; fi
-  else
-    warn "读不到状态列表，没法检查自定义状态"
-  fi
 
   runtimes="" agents=""
   doctor_mc_read "runtime 列表" runtime list && runtimes=$MC_READ_OUT

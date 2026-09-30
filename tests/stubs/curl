@@ -65,5 +65,13 @@ case "$method ${url#https://api.multica.test}" in
     mv "$statuses.tmp" "$statuses"
     jq '. + {id: "st-1"}' <<<"$data" > "$out"
     printf 201 ;;
+  "DELETE /api/issue-statuses/status-shipping")
+    if [ "$(jq length "$state/mc-issues-shipping.json" 2>/dev/null)" != 0 ]; then
+      echo '{"error":"status still in use"}' > "$out"; printf 409
+    else
+      jq 'map(if .key == "shipping" then .archived_at = "2026-09-30T00:00:00Z" else . end)' "$statuses" > "$statuses.tmp"
+      mv "$statuses.tmp" "$statuses"
+      echo '{"ok":true}' > "$out"; printf 200
+    fi ;;
   *) echo '{"error":"not found"}' > "$out"; printf 404 ;;
 esac

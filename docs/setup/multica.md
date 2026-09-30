@@ -15,13 +15,9 @@ autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_M
 
 ## 状态
 
-建 1 个自定义状态（需要工作区 owner 或 admin）。其余流程用到的状态都是 Multica 内置的（`backlog`、`todo`、`in_progress`、`in_review`、`blocked`、`done`、`cancelled`），不用建。Multica CLI 没有建状态的命令，autoteam 直接调 Multica 的 `/api/issue-statuses` 接口，token 从 profile 的配置文件里读，通过 stdin 交给 curl，不会出现在进程参数里。
+流程使用 Multica 内置状态（`backlog`、`todo`、`in_progress`、`in_review`、`blocked`、`done`、`cancelled`）。升级旧工作区时，`autoteam multica --apply` 会先将现有 `shipping` 任务迁回 `in_review`（不启动 agent），全部成功后归档旧状态。预览只列出待迁移任务和归档动作。`--only statuses` 可单独执行这一步；新工作区没有 `shipping` 时无需处理。
 
-| key | 名称 | 类别 |
-|---|---|---|
-| `shipping` | 待上线 | started |
-
-接口调用失败（没有权限、接口变了）时，autoteam 会列出手工步骤：Settings → Issue Statuses 里按上表添加，key 必须一致。类别建好后不能改。为什么只保留 `shipping`、以及自定义状态为什么不负责唤醒，见[任务状态和唤醒](../concepts/lifecycle.md)。
+归档状态调用 `/api/issue-statuses` 接口，需要工作区 owner 或 admin；agent、项目、autopilot 和 webhook 同步不要求此角色，可用 `--only agents,project,autopilots` 跳过迁移。token 从 multica profile 读取，通过 stdin 交给 curl，不出现在进程参数里。
 
 ## agent 和计费注册表
 
