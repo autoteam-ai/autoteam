@@ -6,7 +6,7 @@
 AUTOTEAM_INSTRUCTIONS_REL=$AUTOTEAM_DIR/instructions
 
 # 指令文件的实际路径：instructions_path <kind> <name>
-# kind 是 roles / autopilots，或空串（planner-mcp.json 直接放在 instructions/ 下）
+# kind 是 roles / autopilots / runbooks，或空串（planner-mcp.json 直接放在 instructions/ 下）
 instructions_path() {
   local rel=${1:+$1/}$2
   if [ -f "$AUTOTEAM_INSTRUCTIONS_REL/$rel" ]; then
@@ -60,8 +60,13 @@ instructions_resolve_target() {
     planner|implementer|reviewer|auditor) printf 'roles %s.md\n' "$1" ;;
     planner-mcp.json) printf ' planner-mcp.json\n' ;;
     *)
-      [ -f "$AUTOTEAM_HOME/instructions/autopilots/${1%.md}.md" ] || return 1
-      printf 'autopilots %s.md\n' "${1%.md}" ;;
+      if [ -f "$AUTOTEAM_HOME/instructions/autopilots/${1%.md}.md" ]; then
+        printf 'autopilots %s.md\n' "${1%.md}"
+      elif [ -f "$AUTOTEAM_HOME/instructions/runbooks/${1%.md}.md" ]; then
+        printf 'runbooks %s.md\n' "${1%.md}"
+      else
+        return 1
+      fi ;;
   esac
 }
 
@@ -69,6 +74,11 @@ instructions_all_targets() {
   local f
   printf '%s\n' planner implementer reviewer auditor planner-mcp.json
   for f in "$AUTOTEAM_HOME"/instructions/autopilots/*.md; do
+    [ -f "$f" ] || continue
+    f=${f##*/}
+    printf '%s\n' "${f%.md}"
+  done
+  for f in "$AUTOTEAM_HOME"/instructions/runbooks/*.md; do
     [ -f "$f" ] || continue
     f=${f##*/}
     printf '%s\n' "${f%.md}"
@@ -84,7 +94,7 @@ eject_usage() {
 autoteam multica 优先读这里的文件，没有才用包内的那份。
 
 <目标>：角色名（planner / implementer / reviewer / auditor）、autopilot 名（如 patrol）、
-       planner-mcp.json。
+       runbook 名（autoteam runbook --list）、planner-mcp.json。
 
 选项：
   --all    对全部指令文件操作
@@ -115,7 +125,7 @@ EOF
   root=$(repo_root)
   cd "$root" || die "进不去 $root"
   for a in "${targets[@]}"; do
-    spec=$(instructions_resolve_target "$a") || die "不认识的目标：$a（角色名、autopilot 名或 planner-mcp.json）"
+    spec=$(instructions_resolve_target "$a") || die "不认识的目标：$a（角色名、autopilot 名、runbook 名或 planner-mcp.json）"
     kind=${spec%% *} name=${spec#* }
     src=$AUTOTEAM_HOME/instructions/${kind:+$kind/}$name
     dst=$AUTOTEAM_INSTRUCTIONS_REL/${kind:+$kind/}$name
@@ -134,4 +144,51 @@ EOF
     fi
   done
   [ "$diff_only" = 1 ] || hint "此后由你维护，升级不会覆盖；autoteam eject --diff 可对比包内新版本"
+}
+
+runbook_usage() {
+  cat <<'EOF'
+用法：autoteam runbook <名字>
+      autoteam runbook --list
+
+只读：输出一份 runbook 的正文（去掉 front matter）。有 .autoteam/instructions/runbooks/ 下 eject 的
+就用它，没有才用 autoteam 包内的。runbook 不同步到 Multica，由 agent 运行时按需读取。
+
+选项：
+  --list   列出可用的名字和一句话说明（front matter 的 description）
+EOF
+}
+
+runbook_names() {
+  local f
+  instructions_list runbooks | while IFS= read -r f; do
+    f=${f##*/}
+    printf '%s\n' "${f%.md}"
+  done
+}
+
+runbook_list() {
+  local name
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    printf '%s\t%s\n' "$name" "$(fm_get "$(instructions_path runbooks "$name.md")" description)"
+  done <<EOF
+$(runbook_names)
+EOF
+}
+
+cmd_runbook() {
+  case ${1:-} in
+    -h|--help) runbook_usage; return 0 ;;
+    --list) [ $# -eq 1 ] || { runbook_usage >&2; die "--list 不带参数"; }; runbook_list; return 0 ;;
+    -*|'') runbook_usage >&2; die "需要一个 runbook 名字或 --list" ;;
+  esac
+  [ $# -eq 1 ] || { runbook_usage >&2; die "只能指定一个 runbook"; }
+  local name=${1%.md} f
+  if [[ ! $name =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || ! f=$(instructions_path runbooks "$name.md"); then
+    printf '没有名为 %s 的 runbook。可用的：\n' "$1" >&2
+    runbook_list >&2
+    return 1
+  fi
+  if [ "$(sed -n 1p "$f")" = "---" ]; then fm_body "$f"; else cat "$f"; fi
 }

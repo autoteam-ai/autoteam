@@ -30,3 +30,16 @@ t_instruction_budget_template_checks_ejected_instructions() {
   out=$(bash .autoteam/scripts/check-instruction-budget.sh 2>&1)
   assert_contains "$out" '指令缺少预算：.autoteam/instructions/roles/new-role.md'
 }
+
+t_instruction_budget_covers_runbooks() {
+  new_repo
+  mkdir -p skills/autoteam/instructions/runbooks
+  printf 'one\n' > skills/autoteam/instructions/runbooks/foo.md
+  : > budget
+  if out=$(bash "$ROOT/.autoteam/scripts/check-instruction-budget.sh" budget 2>&1); then
+    tfail "包内 runbook 缺预算行应失败"
+  fi
+  assert_contains "$out" '指令缺少预算：skills/autoteam/instructions/runbooks/foo.md'
+  printf '5 skills/autoteam/instructions/runbooks/foo.md\n' > budget
+  bash "$ROOT/.autoteam/scripts/check-instruction-budget.sh" budget || tfail "补上预算行后应通过"
+}

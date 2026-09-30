@@ -632,3 +632,13 @@ t_doctor_warns_retired_cron_keys() {
   assert_contains "$out" "AUTOTEAM_CRON_SCORECARD 已合并到 AUTOTEAM_CRON_HEALTH，旧键被忽略"
   assert_contains "$out" "AUTOTEAM_CRON_FRONTIER 已合并到 AUTOTEAM_CRON_DIRECTION，旧键被忽略"
 }
+
+t_doctor_warns_orphan_ejected_runbook() {
+  setup_ready_repo
+  autoteam_stub eject example >/dev/null
+  out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_not_contains "$out" "在 autoteam 包内已不存在"
+  cp .autoteam/instructions/runbooks/example.md .autoteam/instructions/runbooks/gone.md
+  out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_contains "$out" ".autoteam/instructions/runbooks/gone.md 在 autoteam 包内已不存在"
+}

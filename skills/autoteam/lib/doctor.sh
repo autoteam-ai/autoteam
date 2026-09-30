@@ -111,6 +111,16 @@ $(autoteam_conf_retired)
 EOF
 }
 
+# runbook 不同步到 Multica，不做漂移对比；只提示 eject 了但包内已经没有的那份
+doctor_runbooks() {
+  local f name
+  for f in "$AUTOTEAM_INSTRUCTIONS_REL"/runbooks/*.md; do
+    [ -f "$f" ] || continue
+    name=${f##*/}
+    [ -f "$AUTOTEAM_HOME/instructions/runbooks/$name" ] || warn "$f 在 autoteam 包内已不存在，确认还要不要保留"
+  done
+}
+
 doctor_files() {
   local tpl target mode missing="" t start
   while read -r tpl target mode; do
@@ -136,6 +146,7 @@ EOF
   fi
 
   doctor_lock
+  doctor_runbooks
   if [ -f Makefile ]; then
     for t in check dev deploy; do
       grep -Eq "^${t}[[:space:]]*:" Makefile || fail "Makefile 缺少 $t 目标"
