@@ -10,6 +10,34 @@ autoteam_version() {
   sed -n 's/^  "version": "\(.*\)",$/\1/p' "$AUTOTEAM_HOME/package.json" | head -n 1
 }
 
+# 根入口必须固定到当前 CLI 的源码提交。发布包带 source-ref；源码 checkout 读自身提交；
+# npx skills add 复制的目录没有 git 元数据时，只接受与远端 main 完全一致的 CLI。
+autoteam_source_ref() {
+  local ref source_root tmp
+  if [ -f "$AUTOTEAM_HOME/source-ref" ]; then
+    ref=$(cat "$AUTOTEAM_HOME/source-ref")
+  else
+    source_root=$(git -C "$AUTOTEAM_HOME" rev-parse --show-toplevel 2>/dev/null || true)
+    if [ -n "$source_root" ] && [ "$AUTOTEAM_HOME" = "$source_root/skills/autoteam" ]; then
+      ref=$(git -C "$source_root" rev-parse HEAD)
+    else
+      need_cmd curl
+      ref=$(git ls-remote https://github.com/autoteam-ai/autoteam.git HEAD | cut -f1)
+      [[ $ref =~ ^[0-9a-f]{40}$ ]] || die "无法确定 autoteam 源码提交：检查 GitHub 网络连接"
+      tmp=$(autoteam_tmpdir)/source-ref-check
+      mkdir -p "$tmp"
+      curl -fsSL "https://codeload.github.com/autoteam-ai/autoteam/tar.gz/$ref" |
+        tar -xz -C "$tmp" --strip-components=1 || die "下载 autoteam $ref 失败"
+      for source_root in bin lib templates; do
+        diff -qr "$AUTOTEAM_HOME/$source_root" "$tmp/skills/autoteam/$source_root" >/dev/null ||
+          die "本机 skill 与 GitHub main 不一致：先运行 npx skills update autoteam，再运行 autoteam init / upgrade"
+      done
+    fi
+  fi
+  [[ $ref =~ ^[0-9a-f]{40}$ ]] || die "autoteam source-ref 不是 40 位提交 SHA：$ref"
+  printf '%s' "$ref"
+}
+
 # 预览模式：github / multica 默认只打印将要做的改动，--apply 才执行
 AUTOTEAM_APPLY=${AUTOTEAM_APPLY:-0}
 AUTOTEAM_WARNINGS=0

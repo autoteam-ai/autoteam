@@ -137,6 +137,7 @@ init_detect() {
 
 # 只在渲染时用的派生变量
 init_derived_vars() {
+  AUTOTEAM_SOURCE_REF=$(autoteam_source_ref)
   AUTOTEAM_REPO_NAME=${AUTOTEAM_REPO##*/}
   if [ -n "$AUTOTEAM_DEPLOY_ENVIRONMENT" ]; then
     AUTOTEAM_DEPLOY_ENVIRONMENT_LINE="environment: $AUTOTEAM_DEPLOY_ENVIRONMENT"

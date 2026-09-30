@@ -26,7 +26,7 @@ case ${1:-} in
   *) die "未知参数：$1" ;;
 esac
 
-for release_cmd in node npm jq tar; do
+for release_cmd in node npm jq tar git curl diff; do
   command -v "$release_cmd" >/dev/null 2>&1 || die "没有 $release_cmd"
 done
 info "Node $(node --version)"
@@ -42,25 +42,43 @@ grep -q "^## $version" CHANGELOG.md ||
 
 # 打一个真包出来跑一遍：包目录漏了实现的话，装完的 autoteam 是个空壳
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/autoteam-release.XXXXXX")
+source_ref_file=skills/autoteam/source-ref
 trap 'rm -rf "$tmp"' EXIT
+git diff --quiet HEAD -- skills/autoteam || die "skill 有未提交改动，不能固定到当前提交"
+git diff --cached --quiet -- skills/autoteam || die "skill 有未提交改动，不能固定到当前提交"
+[ ! -e "$source_ref_file" ] || die "$source_ref_file 已存在，先清理上次打包残留"
+source_ref=$(git rev-parse HEAD)
+printf '%s\n' "$source_ref" > "$source_ref_file"
+trap 'rm -f "$source_ref_file"; rm -rf "$tmp"' EXIT
 # dist/ 是文档站的构建输出（会发布到 autoteam.hdgcs.com），包不能放那里
 mkdir -p build/pkg
 
 tarball=$(npm pack --silent --pack-destination "$tmp" -w "$name") || die "npm pack 失败"
+rm -f "$source_ref_file"
 tar -xzf "$tmp/$tarball" -C "$tmp" || die "解包失败：$tarball"
-for f in bin/autoteam SKILL.md lib/common.sh templates/root/Makefile; do
+for f in bin/autoteam SKILL.md lib/common.sh templates/root/Makefile source-ref; do
   [ -f "$tmp/package/$f" ] || die "包里少了 $f"
+done
+[ "$(cat "$tmp/package/source-ref")" = "$source_ref" ] || die "包里的 source-ref 不等于构建提交"
+mkdir -p "$tmp/source"
+curl -fsSL "https://codeload.github.com/autoteam-ai/autoteam/tar.gz/$source_ref" -o "$tmp/source.tar.gz" ||
+  die "codeload 下载不到构建提交 $source_ref"
+tar -xzf "$tmp/source.tar.gz" -C "$tmp/source" --strip-components=1 || die "codeload 解包失败"
+for f in bin lib; do
+  diff -qr "$tmp/package/$f" "$tmp/source/skills/autoteam/$f" >/dev/null ||
+    die "包里的 $f 与构建提交 $source_ref 不一致"
 done
 packed=$(bash "$tmp/package/bin/autoteam" version) || die "包里的 autoteam 跑不起来"
 [ "$packed" = "autoteam $version" ] || die "包里的 autoteam 报的版本是「$packed」"
 
 # 再往前一步：用这个包在一个干净仓库里真的装一遍，确认装出来的东西是完整的。
-# 只验证包能用，不碰网络、不碰用户的 GitHub 和 Multica
+# codeload 已验证；这里不碰用户的 GitHub 设置和 Multica 工作区。
 sandbox=$tmp/sandbox
 mkdir -p "$sandbox" && cd "$sandbox"
 git init -q -b main . && git remote add origin https://github.com/acme/smoke.git
 NO_COLOR=1 bash "$tmp/package/bin/autoteam" init --owner smoke-owner >/dev/null ||
   die "用打出来的包跑 autoteam init 失败"
+grep -qx "AUTOTEAM_REF=$source_ref" autoteam || die "生成入口没有固定到包的构建提交"
 for f in .autoteam/playbook.md .autoteam/scripts/gh-app-token.sh .github/workflows/gate.yml; do
   [ -f "$f" ] || die "装出来的项目缺 $f"
 done
