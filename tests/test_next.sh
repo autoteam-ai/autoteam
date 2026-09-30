@@ -17,13 +17,11 @@ case "$1 $2" in
   'issue list')
     [ "${NEXT_FAIL:-}" != list ] || exit 1
     case " $* " in
-      *' --status todo '*)
-        if [ "${NEXT_EMPTY:-0}" = 1 ]; then echo '{"issues":[],"has_more":false,"limit":100,"offset":0,"total":0}'
-        else echo '{"issues":[{"id":"ready","identifier":"HDGCS-1","status":"todo","assignee_type":"agent","assignee_id":"planner-1","parent_issue_id":"parent","stage":1},{"id":"blocked","identifier":"HDGCS-2","status":"todo","assignee_type":"agent","assignee_id":"planner-1","parent_issue_id":"parent","stage":2},{"id":"failed","identifier":"HDGCS-3","status":"todo","assignee_type":"agent","assignee_id":"impl-1","parent_issue_id":null,"stage":null}],"has_more":false,"limit":100,"offset":0,"total":3}'; fi ;;
-      *' --status in_progress '*)
-        if [ "${NEXT_EMPTY:-0}" = 1 ]; then echo '{"issues":[],"has_more":false,"limit":100,"offset":0,"total":0}'
-        else echo '{"issues":[{"id":"running","identifier":"HDGCS-4","status":"in_progress","assignee_type":"agent","assignee_id":"impl-1","parent_issue_id":null,"stage":null}],"has_more":false,"limit":100,"offset":0,"total":1}'; fi ;;
+      *)
+        if [ "${NEXT_EMPTY:-0}" = 1 ]; then echo '{"issues":[],"has_more":false}'
+        else echo '{"issues":[{"id":"ready","identifier":"HDGCS-1","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":1},{"id":"blocked","identifier":"HDGCS-2","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":2},{"id":"failed","identifier":"HDGCS-3","status":"todo","assignee_id":"impl-1"},{"id":"running","identifier":"HDGCS-4","status":"in_progress","assignee_id":"impl-1"}],"has_more":false}'; fi ;;
     esac ;;
+  'issue comment') echo '[]' ;;
   'issue children')
     echo '{"stages":[{"stage":1,"total":1,"done":0,"issues":[{"id":"ready","status":"todo"}]},{"stage":2,"total":1,"done":0,"issues":[{"id":"blocked","status":"todo"}]}],"total":2,"unstaged":[]}' ;;
   'issue runs')
@@ -42,10 +40,12 @@ EOF
 }
 
 next_cmd() {
-  env -u MULTICA_SERVER_URL -u MULTICA_TOKEN PATH="$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
+  env -u MULTICA_SERVER_URL -u MULTICA_TOKEN PATH="$WORK:$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
     HOME="$WORK/.home" NO_COLOR=1 STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" \
     STUB_FIXTURES="$TESTS_DIR/fixtures" AUTOTEAM_MULTICA_BIN="$WORK/next-multica" \
-    NEXT_LOG="$NEXT_LOG" NEXT_EMPTY="${NEXT_EMPTY:-0}" NEXT_FAIL="${NEXT_FAIL:-}" bash "$AUTOTEAM" next "$@"
+    NEXT_LOG="$NEXT_LOG" NEXT_EMPTY="${NEXT_EMPTY:-0}" NEXT_FAIL="${NEXT_FAIL:-}" \
+    NEXT_GH_LOG="${NEXT_GH_LOG:-}" NEXT_GH_FAIL="${NEXT_GH_FAIL:-}" NEXT_GH_LOOP="${NEXT_GH_LOOP:-}" \
+    AUTOTEAM_ISSUE_PREFIX=HDGCS bash "$AUTOTEAM" next "$@"
 }
 
 t_next_items_and_stage_barrier() {
@@ -73,4 +73,36 @@ t_next_empty_and_read_failure() {
   NEXT_EMPTY=0; NEXT_FAIL=runs; export NEXT_EMPTY NEXT_FAIL
   if next_cmd --check > "$WORK/next.out" 2> "$WORK/next.err"; then tfail '运行读取失败不应成功'; else rc=$?; assert_eq "$rc" 2; fi
   assert_not_contains "$(cat "$WORK/next.out")" 'HDGCS-1'
+}
+
+t_next_github_categories_and_failure() {
+  next_fixture
+  cat > "$WORK/gh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$NEXT_GH_LOG"
+[ "${NEXT_GH_FAIL:-}" != 1 ] || exit 1
+case " $* " in
+  *' --state merged '*)
+    echo '[{"number":11,"title":"HDGCS-4 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":12,"title":"HDGCS-3 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":10,"title":"HDGCS-4 older","mergedAt":"2020-01-01T00:00:00Z"}]' ;;
+  *' --state open '*)
+    echo '[{"number":13,"title":"HDGCS-4 conflict","reviewDecision":"REVIEW_REQUIRED","mergeable":"CONFLICTING","statusCheckRollup":[]},{"number":14,"title":"HDGCS-3 approved","reviewDecision":"APPROVED","mergeable":"MERGEABLE","statusCheckRollup":[{"status":"COMPLETED","conclusion":"SUCCESS"}]}]' ;;
+  *' --state all '*)
+    if [ "${NEXT_GH_LOOP:-}" = 1 ]; then echo '[{"number":13,"title":"HDGCS-4 loop","state":"OPEN","url":"https://github.com/acme/shop/pull/13","reviews":[{"state":"CHANGES_REQUESTED"},{"state":"CHANGES_REQUESTED"}]}]'
+    else echo '[]'; fi ;;
+  *'api graphql'*) echo '{"data":{"repository":{"pullRequest":{"state":"OPEN","isInMergeQueue":false,"autoMergeRequest":null}}}}' ;;
+  *) exit 2 ;;
+esac
+EOF
+  chmod +x "$WORK/gh"
+  NEXT_GH_LOG=$WORK/.next-gh-log; export NEXT_GH_LOG
+  out=$(next_cmd --output json)
+  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted")] | length' <<<"$out")" 2
+  assert_eq "$(jq '[.[] | select(.category == "pr_remediation")] | length' <<<"$out")" 2
+  assert_contains "$(cat "$NEXT_GH_LOG")" 'api graphql'
+  NEXT_GH_LOOP=1; export NEXT_GH_LOOP
+  out=$(next_cmd --output json)
+  assert_eq "$(jq '[.[] | select(.category == "loop_limit")] | length' <<<"$out")" 1
+  NEXT_GH_FAIL=1; export NEXT_GH_FAIL
+  if next_cmd --check > "$WORK/next.out" 2> "$WORK/next.err"; then tfail 'GitHub 读取失败不应成功'; else rc=$?; assert_eq "$rc" 2; fi
+  assert_not_contains "$(cat "$WORK/next.out")" '无事可做'
 }

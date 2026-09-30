@@ -83,9 +83,9 @@ autoteam [-C <目录>] <命令> [选项]
 
 ## autoteam next
 
-只读列出本项目下一轮巡检需要处理的 Multica 事项：指派给 Planner、前置批次均已 `done` 的 `todo`，以及最近一次运行失败的 `todo` / `in_progress`。每行显示任务编号、类别（`dispatchable` 或 `failed_run`）和原因。`--output json` 返回包含 `id`、`identifier`、`category`、`reason` 的数组；`--profile <名字>` 选择 Multica profile。
+只读列出本项目下一轮巡检事项：可派发的 `todo`（`dispatchable`）、最近一次运行失败的 `todo` / `in_progress`（`failed_run`）、最近合并 PR 对应的未完成任务超过 `AUTOTEAM_ACCEPT_RECHECK_HOURS`（`merged_unaccepted`）、需补开自动合并或有冲突的 PR（`pr_remediation`），以及 `in_progress` / `in_review` 打转次数达到上限的任务（`loop_limit`）。GitHub 查询使用运行者当前的 `gh` 身份，不执行补救动作。每行显示任务编号、类别和原因。`--output json` 返回包含 `id`、`identifier`、`category`、`reason` 的数组；`--profile <名字>` 选择 Multica profile。
 
-`autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 失败时返回 2。此阶段只覆盖 Multica；GitHub PR 和合并状态由后续扩展加入。
+`autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 或 GitHub 失败时返回 2。
 
 ## autoteam approve
 
