@@ -29,6 +29,10 @@ gate.yml 在 `make check` 之前还有两道检查：
 
 在 GitHub Actions 里部署当前提交：deploy.yml 在合并到默认分支后调它，rollback.yml 用旧提交调它。凭据从 secrets 传进 `env:`。先部署后验收，所以建议新功能放在功能开关后面，验收通过再全量打开。
 
+**约定：`make deploy` 要等线上版本接口返回本次 `GITHUB_SHA` 再返回，带超时，超时退出非 0。** deploy.yml 在 `make deploy` 返回后就通知 Planner；如果它只是触发平台部署就返回，Planner 验收时线上还是旧版本，会误判验收不通过。轮询示例（bash 3.2 兼容）见 [adapt-make.md](https://github.com/autoteam-ai/autoteam/blob/main/skills/autoteam/references/adapt-make.md) 的「等线上就绪」。
+
+给自己的服务加一个返回 sha 的接口：构建时把提交 sha 写进镜像或产物（例如 `--build-arg GIT_SHA=$GITHUB_SHA`，或构建脚本写入 `version.txt`），服务启动时读出来，在 `/version`（或 `/healthz` 的响应里）原样返回，例如 `{"sha":"<40 位提交>"}`。接口无需鉴权、不含敏感信息。
+
 各技术栈的例子见 skill 里的 [adapt-make.md](https://github.com/autoteam-ai/autoteam/blob/main/skills/autoteam/references/adapt-make.md)。
 
 ## AGENTS.md

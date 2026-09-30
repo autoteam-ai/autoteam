@@ -49,7 +49,7 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 - **收到需求**：读 AGENTS.md 和相关代码，不清楚先问人；父任务写能在线上验证的验收标准；拆成子任务放进 `backlog`（按依赖标批次 `--stage`，写明为什么做、不做什么），指派给自己；符合「放行分级」的自主放行（`AUTOTEAM_AUTO_APPROVE`，每天有上限），其余提及人请他批准（把任务改成 `todo`）。
 - **人工介入后继续**：评论、补充说明、回答问题或状态变化后，先核对原任务描述和验收标准；仍成立就在原任务重新派发、返工或继续验收。建子任务前既要搜索查重，也要检查是否有可直接推进的原任务。只有目标或范围确实变化且无法在原任务继续，才新建子任务，并在描述中写明「为什么不能在原任务上继续」；首次拆分大需求的规则不变。
 - **派发**：子任务被批准（人把它从 `backlog` 改成 `todo`，指派人仍是 Planner）后，用 `multica issue runs <任务>` 确认 Planner 的运行已生成；界面批准的实测边界见[界面批准后的唤醒核对](lifecycle.md#界面批准后的唤醒核对)。自主放行的 `urgent` / `high` 任务当次派发，`medium` / `low` 等下次巡检。只派发这样的 `todo` 任务，并且前面批次都要完成；按计费注册表选 Implementer 和 Reviewer（两者不同，优先不同厂商），在评论里写明理由，再指派 Implementer。
-- **验收**：部署通知叫醒它，对 `shipping` 的任务逐条在线上验证、贴证据；通过设 `done`，不通过在原任务改回 `in_progress` 并提及 Implementer，评审打回和人工反馈也回原任务处理；父任务整体验收失败回到对应原子任务返工，不另拆补充任务；线上故障先回滚再升级。
+- **验收**：部署通知叫醒它，对部署通知 `issues` 里的任务（或巡检补查到的已合并未 `done` 的任务）逐条在线上验证、贴证据；通过设 `done`，不通过在原任务改回 `in_progress` 并提及 Implementer，评审打回和人工反馈也回原任务处理；父任务整体验收失败回到对应原子任务返工，不另拆补充任务；线上故障先回滚再升级。
 - **升级**：打回满两次、验收失败满两次、换人后仍失败时，设 `blocked` 并提及人，说明卡点、选项和建议。
 - **定时**：每 2 小时推进巡检、每天 9:00 摘要、每周一 10:00 路线图对账（含不变量对账）、每周一 12:00 规则复盘。
 - **记忆**：`.autoteam/playbook.md` 是人批准过的经验（每次开工必读），Multica 里的「运营笔记」任务是它自己随手记的观察。两者的区别是：前者约束行为，后者是素材。
@@ -66,7 +66,7 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 
 可以配多个，但必须和本任务的 Implementer 是不同的 agent，最好是不同厂商的模型，避免模型评审自己的思路。
 
-先看自动检查，有失败直接打回；只看三件事：正确性（边界、错误路径、并发）、有没有重复实现、跨服务数据有没有校验。无阻塞项就在 PR 上批准、未命中人工 CODEOWNERS 时任务改为 `shipping`（降级模式下再等检查通过后由它合并）；有阻塞项就要求修改并提及 Implementer，Implementer 被提及后把任务改回 `in_progress`；同一个 PR 打回满两次，不再打回，提及 Planner 说明分歧。
+先看自动检查，有失败直接打回；只看三件事：正确性（边界、错误路径、并发）、有没有重复实现、跨服务数据有没有校验。无阻塞项就在 PR 上批准、任务保持 `in_review`（降级模式下再等检查通过后由它合并）；有阻塞项就要求修改并提及 Implementer，Implementer 被提及后把任务改回 `in_progress`；同一个 PR 打回满两次，不再打回，提及 Planner 说明分歧。
 
 ## Auditor
 
@@ -84,4 +84,4 @@ Implementer 和 Reviewer 不设定时触发：它们的每次运行都要对应�
 
 每条建议都要能变成一个独立的小任务，不提“整体重构”。
 
-改动命中 PR 目标分支 CODEOWNERS 的人工负责路径时，Implementer 提 PR 后就把任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN`，列出文件并提及人和 Reviewer；Reviewer 照常评审，批准后保持 `blocked` 并提醒人批准，不转 `shipping`。不命中时保持原流程。`AUTOTEAM_CODEOWNERS_GATE=off` 时跳过上述 CODEOWNERS 升级流程。人批准并合并后回复 @Planner，由 Planner 转回 `shipping` 并验收。
+改动命中 PR 目标分支 CODEOWNERS 的人工负责路径时，Implementer 提 PR 后就把任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN`，列出文件并提及人和 Reviewer；Reviewer 照常评审，批准后保持 `blocked` 并提醒人批准。不命中时保持原流程。`AUTOTEAM_CODEOWNERS_GATE=off` 时跳过上述 CODEOWNERS 升级流程。人批准并合并后回复 @Planner，由 Planner 确认已合并后直接验收。

@@ -17,8 +17,7 @@ flowchart TD
     I -->|"⑤ 提交 PR，@Reviewer"| CR["审核中 in_review"]
     CR --> R["Reviewer"]
     R -->|"有阻塞项，@Implementer 改回 in_progress"| I
-    R -->|"⑥ 批准，检查通过后自动合并、部署"| SH["待上线 shipping"]
-    SH -->|"⑦ 部署 webhook"| P2["Planner 线上验收"]
+    R -->|"⑥ 批准，任务仍是 in_review，检查通过后自动合并、部署"| P2["⑦ 部署 webhook，Planner 线上验收"]
     P2 -->|"通过"| DONE["完成 done"]
     P2 -->|"不通过，改回 in_progress"| I
 ```

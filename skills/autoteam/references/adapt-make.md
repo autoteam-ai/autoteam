@@ -9,6 +9,7 @@
 - **失败就退出非 0**，不要 `|| true`，不要吞错误。
 - **`make dev` 可以重复执行**：已经起来了就跳过或重启，不要报错；需要的依赖、数据库、迁移都在里面做完。项目有 docker compose 就优先用容器。
 - **`make deploy` 在 GitHub Actions 里执行**，凭据从 secrets 来（deploy.yml 里给 `env:`），不要依赖本机状态。
+- **`make deploy` 要等线上版本接口返回本次 `GITHUB_SHA` 再返回**（带超时，超时退出非 0）。deploy.yml 在它返回后就通知 Planner，只是触发平台部署就返回的话，Planner 验收时线上还是旧版本，会误判验收不通过。轮询示例见下文「等线上就绪」。
 - 不知道项目怎么部署，就问用户，不要编一个。
 
 ## 识别技术栈
@@ -84,6 +85,30 @@ check:
 ```
 
 需要数据库的，用 `services:` 起 Postgres / Redis。deploy.yml 同理，另外把部署凭据从 secrets 传进 `make deploy` 的 `env:`。
+
+## 等线上就绪
+
+`make deploy` 触发部署后，轮询线上的版本接口（如 `/version`、`/healthz`，返回当前运行的 sha），等于 `GITHUB_SHA` 才返回。通用示例（bash 3.2 兼容，`VERSION_URL` 换成自己的地址）：
+
+```bash
+#!/usr/bin/env bash
+# scripts/wait-for-sha.sh：等线上版本接口的当前运行版本等于本次提交，超时退出 1
+# 接口约定返回 {"sha":"<40 位提交>"}；只取 sha 字段并完整比较，不要用「响应里包含」判断
+set -eu
+url="${VERSION_URL:?}"; want="${GITHUB_SHA:?}"; timeout="${DEPLOY_WAIT_SECONDS:-600}"
+start=$(date +%s)
+while :; do
+  body=$(curl -fsS --max-time 10 "$url" 2>/dev/null || true)
+  got=$(printf '%s' "$body" | sed -n 's/.*"sha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+  if [ "$got" = "$want" ]; then echo "线上已是 $want"; exit 0; fi
+  if [ $(( $(date +%s) - start )) -ge "$timeout" ]; then
+    echo "超时：$url 当前 sha '$got'，期望 $want" >&2; exit 1
+  fi
+  sleep 10
+done
+```
+
+Makefile 里：`deploy:` 先执行部署命令，再 `bash scripts/wait-for-sha.sh`。服务还没有返回 sha 的接口时，见 [repo.md](https://github.com/autoteam-ai/autoteam/blob/main/docs/setup/repo.md) 的 make deploy 一节。
 
 ## 验证
 

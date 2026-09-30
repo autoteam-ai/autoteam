@@ -29,13 +29,29 @@ t_init_fresh_repo_creates_everything() {
   [ -x .autoteam/scripts/loop-guard.sh ] || tfail "loop-guard.sh 应可执行"
   [ -x autoteam ] || tfail "根目录 autoteam 应可执行"
   assert_file_contains .github/CODEOWNERS "/autoteam         @alice"
+  [ -x .autoteam/scripts/deployed-issues.sh ] || tfail "deployed-issues.sh 应安装且可执行"
   assert_file_contains .github/CODEOWNERS "/.autoteam/     @alice"
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_REPO=acme/shop"
   assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_ISSUE_PREFIX=SHOP"
   assert_file_contains AGENTS.md "SHOP-123"
+  assert_file_contains AGENTS.md "SHOP-123 修复登录页空白"
+  assert_file_contains .github/pull_request_template.md "SHOP-123 修复登录页空白"
+  assert_file_contains .gitignore "/.claude/skills/"
+  assert_file_contains .gitignore "/.agents/skills/"
+  mkdir -p .claude/skills/x .agents/skills/x
+  touch .claude/skills/x/a.sh .agents/skills/x/a.sh
+  git check-ignore -q .claude/skills/x/a.sh || tfail ".claude/skills/ 应被忽略"
+  git check-ignore -q .agents/skills/x/a.sh || tfail ".agents/skills/ 应被忽略"
   assert_file_contains .github/workflows/deploy.yml "branches: [main]"
   assert_file_contains .github/workflows/deploy.yml "    environment: production"
   assert_file_contains .github/workflows/deploy.yml '${{ secrets.MULTICA_DEPLOY_HOOK }}'
+  assert_file_contains .github/workflows/deploy.yml 'bash .autoteam/scripts/deployed-issues.sh deploy "$SHA"'
+  assert_file_contains .github/workflows/deploy.yml 'if [ "$issues" = '\''[]'\'' ]; then'
+  for workflow in deploy rollback; do
+    for permission in 'deployments: read' 'actions: read' 'pull-requests: read'; do
+      assert_file_contains ".github/workflows/$workflow.yml" "$permission"
+    done
+  done
   if grep -rq '{{AUTOTEAM_' --include='*' . 2>/dev/null; then tfail "还有没替换的占位符：$(grep -rl '{{AUTOTEAM_' .)"; fi
   [ -z "$(tail -c 1 .github/CODEOWNERS)" ] || tfail "CODEOWNERS 应以换行结尾"
 }

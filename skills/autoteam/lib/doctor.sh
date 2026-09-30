@@ -401,7 +401,7 @@ doctor_runtime_label() {
 }
 
 doctor_multica() {
-  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want catalog list f title id project last
+  local profile=$1 ws=$2 rows=$3 runtimes agents cur name role runtime model max rid want catalog list f title id project last notes note_count
   mc_resolve_bin
   mc_resolve_profile "$profile"
   mc_resolve_workspace "$ws"
@@ -461,27 +461,37 @@ EOF
   project=""
   if doctor_mc_read "项目列表" project list; then
     project=$(jq -r --arg t "${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}}" '[.[] | select(.title == $t)][0].id // empty' <<<"$MC_READ_OUT")
-    if [ -n "$project" ]; then ok "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 存在"; else fail "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 不存在（autoteam multica --apply）"; fi
+    if [ -n "$project" ]; then
+      ok "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 存在"
+      if notes=$(mc_project_note_ids "$project"); then
+        note_count=$(grep -c . <<<"$notes" || true)
+        case $note_count in
+          0) fail "项目缺少运营笔记（autoteam multica --apply --only project）" ;;
+          1) ok "项目有且只有一条运营笔记" ;;
+          *) fail "项目有 $note_count 条运营笔记，应只有一条；请人工处理重复任务" ;;
+        esac
+      else
+        fail "读取项目运营笔记失败"
+      fi
+    else
+      fail "项目 ${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}} 不存在（autoteam multica --apply）"
+    fi
   fi
 
   doctor_mc_read "autopilot 列表" autopilot list || return 0
   list=$MC_READ_OUT
   while IFS= read -r f; do
     title=$(fm_get "$f" title)
-    cur=$(jq -c --arg t "$title" '[.autopilots[]? | select(.title == $t)][0] // empty' <<<"$list")
-    if [ -z "$cur" ]; then fail "autopilot「$title」不存在（autoteam multica --apply）"; continue; fi
-    id=$(jq -r '.id' <<<"$cur")
-    local ntrig status bound triggers
+    # 同一工作区的别的项目也会有同名 autopilot，只认绑在本项目上的
+    id=$(mc_autopilot_id "$list" "$title" "$project")
+    if [ -z "$id" ]; then fail "本项目没有 autopilot「$title」（autoteam multica --apply）"; continue; fi
+    local ntrig status triggers
     doctor_mc_read "autopilot「$title」的触发器" autopilot get "$id" || continue
     triggers=$(jq -c '.triggers // (.autopilot.triggers // [])' <<<"$MC_READ_OUT")
     ntrig=$(jq 'length' <<<"$triggers")
-    status=$(jq -r '.status' <<<"$cur")
-    bound=$(jq -r '.project_id // ""' <<<"$cur")
+    status=$(jq -r --arg id "$id" '.autopilots[] | select(.id == $id) | .status' <<<"$list")
     if [ "$ntrig" = 0 ]; then
       fail "autopilot「$title」没有触发器"
-    elif [ -n "$project" ] && [ "$bound" != "$project" ]; then
-      # 绑错项目时 autopilot 照常运行，只是在别的项目里找任务，什么都找不到
-      fail "autopilot「$title」绑的是别的项目（autoteam multica --apply --only autopilots）"
     elif [ "$status" != active ]; then
       warn "autopilot「$title」是 $status 状态"
     else

@@ -35,8 +35,22 @@ t_doctor_full_after_setup() {
   assert_contains "$out" "agent planner（planner）指令一致"
   assert_contains "$out" "agent rev-codex 的 runtime 不在线"
   assert_contains "$out" "autopilot「部署结果」已启用"
+  assert_contains "$out" "项目有且只有一条运营笔记"
   assert_not_contains "$out" "与 registry 不一致" "刚同步完，runtime / 模型 / 并发都应一致"
   assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
+}
+
+t_doctor_checks_note_count() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  echo '[]' > "$STUB_STATE/mc-issues-project.json"
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 1
+  assert_contains "$out" '项目缺少运营笔记（autoteam multica --apply --only project）'
+  jq -n '[{id:"note-1",title:"运营笔记"},{id:"note-2",title:"运营笔记"}]' > "$STUB_STATE/mc-issues-project.json"
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 1
+  assert_contains "$out" '项目有 2 条运营笔记，应只有一条'
 }
 
 t_doctor_warns_when_codeowners_gate_off() {
@@ -48,22 +62,22 @@ t_doctor_warns_when_codeowners_gate_off() {
   assert_contains "$out" "AUTOTEAM_CODEOWNERS_GATE=off：规则集不要求 Code Owner 审批"
 }
 
-t_doctor_detects_autopilot_bound_to_other_project() {
+t_doctor_ignores_other_project_autopilots() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
-  # 项目改名后会新建一个项目，老的 autopilot 还绑在旧项目上：它照常运行，
-  # 只是在旧项目里找任务，什么都找不到，Planner 一直报"无待验收任务"
-  jq 'map(.autopilot.project_id = "旧项目")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
+  # 同一工作区的别的项目有同名 autopilot，本项目的还没建：doctor 不能把别人的当成本项目的
+  jq 'map(.autopilot.project_id = "proj-other")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
   mv "$STUB_STATE/mc-autopilots.tmp" "$STUB_STATE/mc-autopilots.json"
   out=$(autoteam_stub doctor --skip-github)
   rc=$?
-  assert_contains "$out" "autopilot「部署结果」绑的是别的项目"
-  assert_eq "$rc" 1 "绑错项目应该算错误"
+  assert_contains "$out" "本项目没有 autopilot「部署结果」"
+  assert_eq "$rc" 1 "本项目缺 autopilot 应该算错误"
 
-  # 再 apply 一次要能改回来
+  # apply 给本项目另建一套后，别的项目排在前面的同名 autopilot 不影响判断
   autoteam_stub multica --apply >/dev/null
   out=$(autoteam_stub doctor --skip-github)
   assert_contains "$out" "autopilot「部署结果」已启用"
+  assert_not_contains "$out" "本项目没有 autopilot"
 }
 
 t_doctor_detects_instruction_drift() {

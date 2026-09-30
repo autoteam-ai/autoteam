@@ -29,12 +29,13 @@ title: 配置文件
 | `AUTOTEAM_MAX_REVIEW_REJECTIONS` | 2 | 同一个 PR 打回上限 |
 | `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` | 2 | 同一个任务验收不通过上限 |
 | `AUTOTEAM_MAX_IMPLEMENTER_SWITCHES` | 1 | 同一个任务换几次 Implementer 之后升级 |
-| `AUTOTEAM_SHIPPING_RECHECK_HOURS` | 1 | shipping 超过几小时没验收，巡检补查 |
+| `AUTOTEAM_ACCEPT_RECHECK_HOURS` | 1 | 已合并的任务超过几小时没验收，巡检补查 |
 | `AUTOTEAM_METRICS_DAYS` | 30 | health-metrics 默认窗口 |
 | `AUTOTEAM_PR_SIZE_EXCLUDE` | lock 文件、Markdown、`.github/**`、`.autoteam/**` | 不计入 PR 行数上限的路径，逗号分隔。上限管的是**代码**改动量，文档和由人批准的规则文件不占 agent 的预算 |
 | `AUTOTEAM_CRON_*` | 见模板 | 9 个 autopilot 各自的 cron，见下 |
 | `AUTOTEAM_DEPLOY_ENVIRONMENT` | production（Free 私有仓库为空） | 部署用的 GitHub environment |
 | `AUTOTEAM_TIMEZONE` | Asia/Shanghai | autopilot 定时触发的时区 |
+| `AUTOTEAM_LANGUAGE` | zh-CN | agent 评论、PR 标题和描述、提交信息、任务描述的语言（代码标识符、命令、日志原文除外），如 zh-CN、en。渲染进指令前言，改完跑 `autoteam multica --apply` |
 
 ## registry.yaml
 

@@ -56,6 +56,7 @@ autoteam/README.md                    $AUTOTEAM_DIR/README.md                   
 autoteam/playbook.md                  $AUTOTEAM_DIR/playbook.md                  file
 autoteam/instruction-budget           $AUTOTEAM_DIR/instruction-budget           file
 autoteam/scripts/check-instruction-budget.sh $AUTOTEAM_DIR/scripts/check-instruction-budget.sh exec
+autoteam/scripts/deployed-issues.sh     $AUTOTEAM_DIR/scripts/deployed-issues.sh     exec
 autoteam/scripts/gh-app-token.sh      $AUTOTEAM_DIR/scripts/gh-app-token.sh      exec
 autoteam/scripts/loop-guard.sh        $AUTOTEAM_DIR/scripts/loop-guard.sh        exec
 autoteam/scripts/merge-mode.sh        $AUTOTEAM_DIR/scripts/merge-mode.sh        exec

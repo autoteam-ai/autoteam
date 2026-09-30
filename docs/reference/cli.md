@@ -54,7 +54,7 @@ autoteam [-C <目录>] <命令> [选项]
 
 ## autoteam multica
 
-配置自定义状态、agent、项目、autopilot 和部署 webhook。默认只预览。
+配置自定义状态、agent、项目、运营笔记、autopilot 和部署 webhook。默认只预览。项目没有「运营笔记」时，`--apply` 会创建并指派 Planner、设为 `in_progress`，全程使用不启动运行的命令；已有则跳过。
 
 | 选项 | 说明 |
 |---|---|
@@ -69,7 +69,7 @@ autoteam [-C <目录>] <命令> [选项]
 
 ## autoteam stop / resume / status
 
-紧急开关只影响 `AUTOTEAM_MULTICA_PROJECT` 指定的项目，暂停标记保存在该项目「运营笔记」任务的 `autoteam.paused` metadata 中，记录 UTC 时间、操作人、停止前 active 的 autopilot ID。执行 `stop --apply` 前须有「运营笔记」；没有该任务时 `status` 报未暂停，Planner 可照常创建它。
+紧急开关只影响 `AUTOTEAM_MULTICA_PROJECT` 指定的项目，暂停标记保存在该项目「运营笔记」任务的 `autoteam.paused` metadata 中，记录 UTC 时间、操作人、停止前 active 的 autopilot ID。`autoteam multica --apply` 在接入时创建「运营笔记」；已有任务不改内容或 metadata。执行 `stop --apply` 前须有该任务；缺失时运行 `autoteam multica --apply --only project`。
 
 | 命令 | 效果 |
 |---|---|
@@ -81,6 +81,33 @@ autoteam [-C <目录>] <命令> [选项]
 
 这三个命令均支持 `--profile <名字>`。连续 stop 保留首次标记里的恢复列表；原来就 paused 的 autopilot 不会被 resume 启动。预览不会写 Multica。
 
+## autoteam next
+
+只读列出本项目下一轮巡检需要处理的 Multica 事项：指派给 Planner、前置批次均已 `done` 的 `todo`，以及最近一次运行失败的 `todo` / `in_progress`。每行显示任务编号、类别（`dispatchable` 或 `failed_run`）和原因。`--output json` 返回包含 `id`、`identifier`、`category`、`reason` 的数组；`--profile <名字>` 选择 Multica profile。
+
+`autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 失败时返回 2。此阶段只覆盖 Multica；GitHub PR 和合并状态由后续扩展加入。
+
+## autoteam approve
+
+`autoteam approve <父任务> [--apply] [--profile <名字>]`：一次放行整个拆分。列出父任务下所有指派给 Planner、状态为 `backlog` 的子任务并按批次预览，`--apply` 才把它们改成 `todo`。
+
+- 第一个可派发的批次（前面批次的任务都已 `done`）：只有其中一个任务的状态变更会叫醒 Planner（最后改），其余带 `--no-start`；
+- 后续批次一律带 `--no-start`，由批次屏障在前一批全部完成后叫醒 Planner；
+- 逐条输出放行结果（成功或失败原因），并用 `multica issue runs` 核对 Planner 那次运行已生成；没生成会报错并提示在该任务下评论 @Planner 补一次，其余任务不必重做；
+- 有任务放行失败或运行没生成时退出码为 1。
+
+不改 `AUTOTEAM_AUTO_APPROVE`：新项目仍默认由人批准，这个命令只是把批准变成一次操作。
+
+## autoteam propose
+
+`autoteam propose [--title <PR 标题>] [--apply]`：把你本地的改动用 Implementer App 身份推到新分支并开 PR，你只负责批准。规则集开了 `require_last_push_approval` 后，你自己推的规则文件改动没法自己批准，这个命令代替「另开 clone、`--setup-git implementer`、换身份推送」这一串手工步骤。默认只预览（分支名 `propose/<UTC 时间戳>`、PR 标题、改动文件），`--apply` 才执行。
+
+- 改动来源：工作区未提交的改动（含未跟踪文件，遵守 `.gitignore`），加上当前分支相对 `origin/<默认分支>` 的提交；两者都没有时报错；
+- PR 标题默认取分支上最新提交的标题，没有提交就按改动文件生成；标题需要任务编号时用 `--title` 传入；
+- 不改你的全局或仓库 git 配置、remote、工作区、暂存区和当前分支：改动快照用临时索引生成，提交作者是 App（`gh-app-token.sh --identity implementer`）；`git push` 直接推到 `https://github.com/<AUTOTEAM_REPO>.git`，凭据只通过这次 push 的 `-c credential.helper` 传入（先清空继承来的钥匙串助手），token 不落盘、不打印。你的 git 配置用 `url.*.insteadOf` 或 `pushInsteadOf` 改写了 push 实际地址时会拒绝执行（按 `git config` 里所有 insteadOf 规则逐条匹配），因为 push 会绕过 App 身份；
+- 开 PR 在临时 worktree 里跑 `.autoteam/scripts/open-pr.sh`（合并模式、自动合并、核对都按它的约定），输出原样打印；执行后移除临时 worktree 和临时本地分支，远端分支留给 PR，不删除任何已有分支；
+- open-pr.sh 失败时分支已在远端，命令返回 1 并提示；不替你批准或合并。
+
 ## autoteam doctor
 
 只读检查，逐项给出 ✅ / ⚠️ / ❌，有 ❌ 时退出码为 1。
@@ -91,7 +118,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--skip-multica` | 不检查 Multica |
 | `--profile`、`--workspace` | 同 autoteam multica |
 
-检查项：工作流文件和受管块、`.lock.json` 的版本、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的自定义状态、agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目、autopilot 和触发器；以及 registry 里每个 agent 的 runtime 上有没有它角色的 App 私钥（按 `gh-app-token.sh --find-key` 的顺序查）——runtime 就是本机（本机 daemon 管着它）而缺私钥报 ❌，远端 runtime 从这里看不到磁盘，只提示到那台机器上跑 doctor。
+检查项：工作流文件和受管块、`.lock.json` 的版本、Makefile 目标是否还是桩、CODEOWNERS、registry 是否合法；GitHub 的仓库设置、规则集、secret、CODEOWNERS 错误、机器账号、最近一次 gate；Multica 的自定义状态、agent（存在、runtime 在线、指令和仓库文件一致、最近一次运行有没有失败）、项目及其唯一的「运营笔记」、autopilot 和触发器；以及 registry 里每个 agent 的 runtime 上有没有它角色的 App 私钥（按 `gh-app-token.sh --find-key` 的顺序查）——runtime 就是本机（本机 daemon 管着它）而缺私钥报 ❌，远端 runtime 从这里看不到磁盘，只提示到那台机器上跑 doctor。
 
 ## autoteam runtimes
 

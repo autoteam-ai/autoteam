@@ -11,6 +11,8 @@ t_multica_preview_makes_no_writes() {
   assert_contains "$out" "[预览] 新建 agent rev-codex（reviewer，runtime rt-b-cod，模型 gpt-5.5，并发 2）"
   assert_contains "$out" "runtime codex@machine-b 现在不在线"
   assert_contains "$out" "[预览] 新建项目 shop"
+  assert_contains "$out" "[预览] 新建运营笔记"
+  assert_no_log "issue create"
   assert_contains "$out" "[预览] 新建 autopilot「推进巡检」（planner，run_only，0 */2 * * *）"
   assert_no_log "agent create"
   assert_no_log "curl POST"
@@ -25,6 +27,11 @@ t_multica_apply_creates_everything() {
   assert_log 'BODY POST /api/issue-statuses {"key":"shipping","name":"待上线","category":"started","color":"#14b8a6"'
   assert_log "curl POST https://api.multica.test/api/issue-statuses auth=ok"
   assert_eq "$(jq length "$STUB_STATE/mc-agents.json")" 4
+  assert_eq "$(jq length "$STUB_STATE/mc-issues-project.json")" 1
+  assert_eq "$(jq -r '.[0] | [.title,.project_id,.assignee_id,.status] | join("|")' "$STUB_STATE/mc-issues-project.json")" '运营笔记|proj-1|agent-planner|in_progress'
+  assert_log 'issue create --title 运营笔记 --project proj-1 --status backlog'
+  assert_log 'issue assign note-1 --to-id agent-planner --no-start'
+  assert_log 'issue status note-1 in_progress --no-start'
   assert_eq "$(jq -r '.[] | select(.name == "impl-claude") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-a-claude-0000
   assert_eq "$(jq -r '.[] | select(.name == "auditor") | .runtime_id' "$STUB_STATE/mc-agents.json")" rt-c-claude-0000
   assert_eq "$(jq -r '.[] | select(.name == "rev-codex") | .instructions' "$STUB_STATE/mc-agents.json" | sed -n 3p)" "$(head -n 1 "$ROOT/skills/autoteam/instructions/roles/reviewer.md")" "没 eject 时取包内指令（前言之后）"
@@ -50,6 +57,9 @@ t_multica_second_apply_is_noop() {
   out=$(autoteam_stub multica --apply)
   assert_contains "$out" "状态 shipping（待上线）已存在"
   assert_contains "$out" "agent planner 已是最新"
+  assert_contains "$out" "运营笔记已存在（1 条）"
+  assert_eq "$(jq length "$STUB_STATE/mc-issues-project.json")" 1
+  assert_no_log 'issue create'
   assert_contains "$out" "autopilot「推进巡检」已是最新"
   assert_contains "$out" "定时触发已是 0 */2 * * *（Asia/Shanghai）"
   assert_contains "$out" "部署 webhook 已存在，GitHub secret MULTICA_DEPLOY_HOOK 已设置"
@@ -57,6 +67,19 @@ t_multica_second_apply_is_noop() {
   assert_no_log "autopilot create"
   assert_no_log "trigger-add"
   assert_no_log "curl POST"
+}
+
+t_multica_note_lookup_pages_and_keeps_existing_note() {
+  setup_ready_repo
+  autoteam_stub multica --apply --only agents >/dev/null
+  autoteam_stub multica --apply --only project >/dev/null
+  jq -n '[range(0; 100) | {id:("other-" + tostring),title:"other",project_id:"proj-1"}] + [{id:"existing-note",title:"运营笔记",project_id:"proj-1",status:"in_progress",metadata:{"autoteam.paused":"keep"}}]' > "$STUB_STATE/mc-issues-project.json"
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica --apply --only project)
+  assert_contains "$out" '运营笔记已存在（1 条）'
+  assert_log 'issue list --project proj-1 --limit 100 --offset 100'
+  assert_no_log 'issue create'
+  assert_eq "$(jq -r '.[-1].metadata["autoteam.paused"]' "$STUB_STATE/mc-issues-project.json")" keep
 }
 
 t_multica_rewrites_env_file_every_apply() {
@@ -111,8 +134,9 @@ t_multica_updates_changed_instructions() {
 # 暂停检查前言只在包内 _preamble.md 维护一份，同步时加到每份角色指令和 autopilot 正文最前面
 t_multica_prepends_preamble() {
   local pre name
-  pre=$(cat "$ROOT/skills/autoteam/instructions/_preamble.md")
+  pre=$(sed 's/{{AUTOTEAM_LANGUAGE}}/zh-CN/' "$ROOT/skills/autoteam/instructions/_preamble.md")
   assert_contains "$pre" "开工先检查暂停"
+  assert_contains "$pre" '使用 `zh-CN` 对应的语言'
   assert_eq "$(grep -rl "开工先检查暂停" "$ROOT/skills/autoteam/instructions")" "$ROOT/skills/autoteam/instructions/_preamble.md" "前言只能有一份来源"
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
@@ -197,6 +221,7 @@ t_multica_resource_read_failure_does_not_attach() {
 
 t_multica_resource_conflict_is_current() {
   setup_ready_repo
+  autoteam_stub multica --apply --only agents >/dev/null
   autoteam_stub multica --apply --only project >/dev/null
   touch "$STUB_STATE/mc-resource-empty" "$STUB_STATE/mc-resource-conflict"
   out=$(autoteam_stub multica --apply --only project)
@@ -274,6 +299,50 @@ t_multica_autopilot_read_failure_does_not_update() {
   assert_no_log 'autopilot trigger-add ap-1 '
   assert_no_log 'autopilot trigger-update ap-1 '
   assert_eq "$(grep -c 'autopilot get ap-1 ' "$STUB_LOG")" 3
+}
+
+# 同一工作区接第二个项目：别的项目的同名 autopilot 预览和 --apply 都不动，本项目另建一套
+t_multica_leaves_other_project_autopilots() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  jq 'map(.autopilot.project_id = "proj-other" | .autopilot.description = "别的项目的 runbook")' \
+    "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
+  mv "$STUB_STATE/mc-autopilots.tmp" "$STUB_STATE/mc-autopilots.json"
+  cp "$STUB_STATE/mc-autopilots.json" "$WORK/other.json"
+  : > "$STUB_LOG"
+
+  out=$(autoteam_stub multica --only autopilots)
+  assert_contains "$out" "工作区里另有同名 autopilot「推进巡检」不属于本项目，不改动它"
+  assert_contains "$out" "[预览] 新建 autopilot「推进巡检」"
+  assert_not_contains "$out" "更新 autopilot"
+  assert_no_log "autopilot update"
+
+  out=$(autoteam_stub multica --apply --only autopilots)
+  assert_not_contains "$out" "更新 autopilot"
+  assert_no_log "autopilot update"
+  assert_no_log "trigger-update"
+  assert_eq "$(jq -c '[.[] | select(.autopilot.project_id == "proj-other")]' "$STUB_STATE/mc-autopilots.json")" \
+    "$(jq -c . "$WORK/other.json")" "别的项目的 autopilot 和触发器原样保留"
+  assert_eq "$(jq '[.[] | select(.autopilot.project_id == "proj-1")] | length' "$STUB_STATE/mc-autopilots.json")" 10
+
+  out=$(autoteam_stub multica --apply --only autopilots)
+  assert_contains "$out" "autopilot「推进巡检」已是最新"
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 20 "再跑不重复建"
+}
+
+# 列表里还是本项目的，读详情时已被改绑到别的项目：不更新、不同步触发器、不暂停
+t_multica_skips_autopilot_rebound_after_list() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  echo proj-other > "$STUB_STATE/mc-autopilot-get-project"
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica --apply --paused --only autopilots 2>&1) && tfail "改绑的 autopilot 应算失败"
+  assert_contains "$out" "autopilot「推进巡检」（ap-6）已不属于本项目，未执行该项"
+  assert_no_log "autopilot update"
+  assert_no_log "autopilot create"
+  assert_no_log "trigger-add"
+  assert_no_log "trigger-update"
+  assert_no_log "trigger-rotate-url"
 }
 
 t_multica_api_failure_keeps_independent_steps() {
@@ -356,9 +425,11 @@ t_instructions_list_merges_and_dedupes() {
 }
 
 t_instructions_have_no_placeholders() {
-  if grep -rq '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions"; then
-    tfail "instructions/ 里不该再有占位符：$(grep -rl '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions")"
-  fi
+  # 只有 _preamble.md 的 {{AUTOTEAM_LANGUAGE}} 会在同步时渲染，其余文件不渲染
+  local found
+  found=$(grep -rl '{{AUTOTEAM_' "$ROOT/skills/autoteam/instructions" | grep -v '/_preamble\.md$' || true)
+  [ -z "$found" ] || tfail "instructions/ 里不该再有占位符：$found"
+  assert_eq "$(grep -o '{{AUTOTEAM_[A-Z_]*}}' "$ROOT/skills/autoteam/instructions/_preamble.md")" '{{AUTOTEAM_LANGUAGE}}' "前言只有语言一个占位符"
 }
 
 t_multica_autopilot_cron_comes_from_conf() {
@@ -377,4 +448,21 @@ t_multica_uses_ejected_autopilot() {
   autoteam_stub multica --apply >/dev/null
   assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 10 "同名以 eject 的为准，不重复建"
   assert_contains "$(jq -r '.[] | select(.autopilot.title == "推进巡检") | .autopilot.description' "$STUB_STATE/mc-autopilots.json")" "自定义巡检 runbook"
+}
+
+# 前言里的输出语言取自 AUTOTEAM_LANGUAGE：缺省 zh-CN，配置后同步到 agent 和 autopilot
+t_multica_preamble_renders_language() {
+  setup_ready_repo
+  assert_file_contains .autoteam/autoteam.conf "AUTOTEAM_LANGUAGE=zh-CN"
+  sed -i '/^AUTOTEAM_LANGUAGE=/d' .autoteam/autoteam.conf
+  autoteam_stub multica --apply >/dev/null
+  assert_contains "$(jq -r '.[] | select(.name == "planner") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" '使用 `zh-CN` 对应的语言'
+  echo "AUTOTEAM_LANGUAGE=en" >> .autoteam/autoteam.conf
+  autoteam_stub multica --apply --only agents,autopilots >/dev/null
+  out=$(jq -r '.[] | select(.name == "impl-claude") | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)
+  assert_contains "$out" '使用 `en` 对应的语言'
+  assert_not_contains "$out" "{{AUTOTEAM_LANGUAGE}}"
+  assert_contains "$(jq -r '.[0].autopilot.description' "$STUB_STATE/mc-autopilots.json" | head -n 1)" '使用 `en` 对应的语言'
+  out=$(autoteam_stub doctor --skip-github)
+  assert_not_contains "$out" "指令漂移" "渲染后的前言和同步文本一致"
 }

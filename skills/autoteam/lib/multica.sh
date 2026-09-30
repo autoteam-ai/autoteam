@@ -19,7 +19,7 @@ multica_usage() {
   1. 自定义状态 shipping（调 Multica API，需要工作区 owner 或 admin）
   2. 按 registry.yaml 创建或更新 agent，指令优先取 .autoteam/instructions/roles/<角色>.md
      （autoteam eject 落盘的那份），没有就用 autoteam 包内的
-  3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源
+  3. 项目（AUTOTEAM_MULTICA_PROJECT），挂上 GitHub 仓库资源并创建运营笔记
   4. 按 autopilot 指令（包内的，加上 .autoteam/instructions/autopilots/ 里 eject 的，同名以后者为准）
      创建或更新 autopilot 和触发器，定时频率取 autoteam.conf 的 AUTOTEAM_CRON_*；
      部署 webhook 地址写进 GitHub secret MULTICA_DEPLOY_HOOK
@@ -543,30 +543,69 @@ multica_project() {
   MC_PROJECT_ID=$(jq -r --arg t "$title" '[.[] | select(.title == $t)][0].id // empty' <<<"$projects")
   if [ -z "$MC_PROJECT_ID" ]; then
     planned "新建项目 $title（挂上仓库 $url）"
-    [ "$AUTOTEAM_APPLY" = 1 ] || return 0
+    [ "$AUTOTEAM_APPLY" = 1 ] || { planned "新建运营笔记（指派 Planner，不触发运行）"; return 0; }
     if out=$(mc project create --title "$title" --repo "$url" --description "autoteam 管理的项目，仓库 $AUTOTEAM_REPO" --output json 2>&1); then
       MC_PROJECT_ID=$(jq -r '.id' <<<"$out")
       ok "已新建项目 $title（${MC_PROJECT_ID:0:8}）"
     else
       die "新建项目失败：$out"
     fi
-    return 0
-  fi
-  res=$(mc project resource list "$MC_PROJECT_ID" --output json) || die "读取项目仓库资源失败"
-  if jq -e --arg u "$url" '.[] | select(.resource_type == "github_repo" and ((.resource_ref.url // "") | sub("\\.git$"; "") | ascii_downcase) == ($u | ascii_downcase))' <<<"$res" >/dev/null; then
-    ok "项目 $title 已存在，已挂仓库"
   else
-    planned "给项目 $title 挂上仓库 $url"
-    [ "$AUTOTEAM_APPLY" = 1 ] || return 0
-    if out=$(mc project resource add "$MC_PROJECT_ID" --type github_repo --url "$url" --output json 2>&1); then
-      ok "已挂上仓库"
+    res=$(mc project resource list "$MC_PROJECT_ID" --output json) || die "读取项目仓库资源失败"
+    if jq -e --arg u "$url" '.[] | select(.resource_type == "github_repo" and ((.resource_ref.url // "") | sub("\\.git$"; "") | ascii_downcase) == ($u | ascii_downcase))' <<<"$res" >/dev/null; then
+      ok "项目 $title 已存在，已挂仓库"
     else
-      case $out in
-        *"Request conflict: this resource is already attached"*) ok "项目 $title 仓库已是最新" ;;
-        *) fail "挂仓库失败：$out" ;;
-      esac
+      planned "给项目 $title 挂上仓库 $url"
+      if [ "$AUTOTEAM_APPLY" = 1 ]; then
+        if out=$(mc project resource add "$MC_PROJECT_ID" --type github_repo --url "$url" --output json 2>&1); then
+          ok "已挂上仓库"
+        else
+          case $out in
+            *"Request conflict: this resource is already attached"*) ok "项目 $title 仓库已是最新" ;;
+            *) fail "挂仓库失败：$out" ;;
+          esac
+        fi
+      fi
     fi
   fi
+  multica_project_note
+}
+
+# issue list 的真实 JSON 是 {issues:[...],has_more:bool}，每页最多 100 条。
+mc_project_note_ids() {
+  local project=$1 offset=0 page size more
+  while :; do
+    page=$(mc issue list --project "$project" --limit 100 --offset "$offset" --fields id,title --output json) || return 1
+    jq -e '.issues | type == "array"' <<<"$page" >/dev/null || return 1
+    jq -r '.issues[] | select(.title == "运营笔记") | .id' <<<"$page"
+    more=$(jq -r '.has_more' <<<"$page")
+    [ "$more" = true ] || break
+    size=$(jq '.issues | length' <<<"$page")
+    [ "$size" -gt 0 ] || return 1
+    offset=$((offset + size))
+  done
+}
+
+multica_project_note() {
+  local ids count planner out id
+  ids=$(mc_project_note_ids "$MC_PROJECT_ID") || die "读取项目运营笔记失败"
+  count=$(grep -c . <<<"$ids" || true)
+  if [ "$count" -gt 0 ]; then
+    ok "运营笔记已存在（$count 条）"
+    return 0
+  fi
+  planned "新建运营笔记（指派 Planner，不触发运行）"
+  [ "$AUTOTEAM_APPLY" = 1 ] || return 0
+  planner=$(registry_agent_by_role "$(registry_agents)" planner)
+  [ -n "$planner" ] || die "registry.yaml 缺少 Planner agent"
+  planner=$(mc_agent_id "$planner") || die "读取 Planner agent 失败"
+  [ -n "$planner" ] || die "Planner agent 尚未创建；先运行 autoteam multica --apply --only agents"
+  out=$(mc issue create --title "运营笔记" --project "$MC_PROJECT_ID" --status backlog --output json) || die "新建运营笔记失败：$out"
+  id=$(jq -r '.id // empty' <<<"$out")
+  [ -n "$id" ] || die "新建运营笔记未返回 ID"
+  mc issue assign "$id" --to-id "$planner" --no-start --output json >/dev/null || die "运营笔记已创建，但指派 Planner 失败：$id"
+  mc issue status "$id" in_progress --no-start --output json >/dev/null || die "运营笔记已指派，但设置 in_progress 失败：$id"
+  ok "已新建运营笔记（${id:0:8}），指派 Planner、状态 in_progress；未触发运行"
 }
 
 # ---------- autopilot ----------
@@ -606,6 +645,12 @@ multica_autopilots() {
   done <<EOF
 $(instructions_list autopilots)
 EOF
+}
+
+# autopilot 列表 $1 里绑在项目 $3 上、标题为 $2 的 autopilot ID。项目还没建（$3 为空）时没有
+mc_autopilot_id() {
+  jq -r --arg t "$2" --arg p "$3" \
+    '[.autopilots[]? | select($p != "" and .title == $t and .project_id == $p)][0].id // empty' <<<"$1"
 }
 
 # agent 名字 -> ID。精确匹配，避免 Multica 的模糊解析把 planner 匹配到 ex-planner
@@ -649,8 +694,13 @@ multica_autopilot() {
     [ -n "$subscriber" ] && args+=(--subscriber "$subscriber")
   fi
 
-  id=$(jq -r --arg t "$title" '[.autopilots[]? | select(.title == $t)][0].id // empty' <<<"$list")
+  # 按 (标题, 项目) 找：Multica 允许同一工作区里 autopilot 重名，同一工作区的别的项目
+  # 也会有「推进巡检」等同名 autopilot，只按标题找会把别人的改成本项目的配置
+  id=$(mc_autopilot_id "$list" "$title" "$MC_PROJECT_ID")
   if [ -z "$id" ]; then
+    if jq -e --arg t "$title" '.autopilots[]? | select(.title == $t)' <<<"$list" >/dev/null; then
+      info "工作区里另有同名 autopilot「$title」不属于本项目，不改动它"
+    fi
     planned "新建 autopilot「$title」（$agent，$mode，${cron:-$trigger}）"
     if [ "$AUTOTEAM_APPLY" = 1 ]; then
       if out=$(mc autopilot create --title "$title" "${args[@]}" --output json 2>&1); then
@@ -665,6 +715,9 @@ multica_autopilot() {
     multica_autopilot_same "$id" "$agent" "$mode" "$body" || same_rc=$?
     if [ "$same_rc" = 2 ]; then
       fail "读取 autopilot「$title」失败，未执行更新"
+      return 0
+    elif [ "$same_rc" = 3 ]; then
+      fail "autopilot「$title」（$id）已不属于本项目，未执行该项；重新运行同步"
       return 0
     elif [ "$same_rc" = 0 ]; then
       ok "autopilot「$title」已是最新"
@@ -695,18 +748,17 @@ multica_autopilot() {
   fi
 }
 
-# 已有 autopilot 的指派、模式、runbook 是否和文件一致
+# 已有 autopilot 的指派、模式、runbook 是否和文件一致：0 一致，1 不一致，2 读取失败，
+# 3 已不属于本项目（列表和详情是两次请求，其间可能被改绑，改绑后的不能再动）
 multica_autopilot_same() {
   local id=$1 agent=$2 mode=$3 body=$4 json agent_id
   json=$(mc autopilot get "$id" --output json) || return 2
+  jq -e --arg p "$MC_PROJECT_ID" '((.autopilot // .).project_id // "") == $p' <<<"$json" >/dev/null 2>&1 || return 3
   agent_id=$(mc_agent_id "$agent") || return 2
-  # 项目也要比：项目改名或重建后会有新的 project_id，autopilot 还绑在旧项目上的话，
-  # Planner 会在旧项目里找任务，查不到就报"无待验收任务"，整条链路悄悄断掉。
-  jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" --arg p "$MC_PROJECT_ID" '
+  jq -e --arg a "$agent_id" --arg m "$mode" --arg b "$body" '
     (.autopilot // .) as $ap
     | ($ap.assignee_id == $a)
       and ($ap.execution_mode == $m)
-      and (($ap.project_id // "") == $p)
       and ((($ap.description // "") | rtrimstr("\n")) == ($b | rtrimstr("\n")))
   ' <<<"$json" >/dev/null 2>&1
 }

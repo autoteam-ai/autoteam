@@ -8,6 +8,7 @@ title: 第 4–6 步：Multica
 autoteam multica                   # 预览
 autoteam multica --apply           # 执行；加 --paused 让新建的 autopilot 先暂停
 autoteam multica --apply --only agents   # 只同步 agent（改了角色指令之后）
+autoteam multica --apply --only project  # 补建缺失的运营笔记
 ```
 
 autoteam 用的 multica profile：先看 `--profile` 或环境变量 `AUTOTEAM_MULTICA_PROFILE`；默认 profile 没配置服务器时，自动用 `~/.multica/profiles` 下唯一的那个（比如桌面端的 `desktop-api.multica.ai`）。工作区取 autoteam.conf 的 `AUTOTEAM_MULTICA_WORKSPACE`。
@@ -37,7 +38,7 @@ agent 名在工作区内唯一。一个工作区里放多个项目时，给名�
 
 ## 项目
 
-建一个标题为 `AUTOTEAM_MULTICA_PROJECT`（默认仓库名）的项目，挂上 GitHub 仓库资源。agent 运行时 Multica 会给每个任务一个独立的 worktree，同一仓库上的任务可以并发。
+建一个标题为 `AUTOTEAM_MULTICA_PROJECT`（默认仓库名）的项目，挂上 GitHub 仓库资源。项目没有「运营笔记」时，`--apply` 新建一条：先建未指派的 backlog 任务，再用 `assign --no-start` 指派 Planner、`status --no-start` 设为 `in_progress`，不会触发 Planner 运行。再次同步跳过已有笔记，不改其内容或 metadata。`autoteam doctor` 检查本项目恰好有一条运营笔记；缺失时运行 `autoteam multica --apply --only project`。agent 运行时 Multica 会给每个任务一个独立的 worktree，同一仓库上的任务可以并发。
 
 ## 触发配置
 
@@ -74,6 +75,7 @@ Multica 0.5.1 起还可在单个任务上用 `multica issue wakeup create <任�
 - Auditor 的报告要留档，所以用 create_issue。每日摘要也用 create_issue（研究文档里是 run_only），因为 run_only 的结果只在运行历史里，人收不到通知。
 - 时区取 autoteam.conf 的 `AUTOTEAM_TIMEZONE`（默认 Asia/Shanghai）。
 - webhook 触发器新建时，autoteam 把地址直接写进 GitHub secret `MULTICA_DEPLOY_HOOK`，不在终端显示；已经有触发器时不会重复创建。地址泄露了用 `--rotate-webhook` 重新生成。
+- autopilot 按「标题 + 项目」认领：只创建、更新绑在 `AUTOTEAM_MULTICA_PROJECT` 项目上的，工作区里别的项目的同名 autopilot（Multica 允许重名）预览和 `--apply` 都不动，预览会提示一句；`autoteam doctor` 也只检查本项目的。所以一个工作区可以放多个 autoteam 项目，各自一套 autopilot。项目改名或重建后，旧项目上的 autopilot 不会被改到新项目，`--apply` 会给新项目另建一套，旧的请在 Multica 界面里暂停或删除。
 
 ## GitHub 集成（可选）
 

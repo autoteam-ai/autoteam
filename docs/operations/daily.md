@@ -8,7 +8,9 @@ title: 日常操作
 
 ## 紧急停止
 
-在 Multica Chat 对 Planner 说「停止 autoteam」或「暂停 autoteam」。Planner 会运行 `autoteam stop --apply --keep-run <当前 Chat run ID>`，暂停本项目 autopilot、取消 registry agent 正在运行和排队的任务，并回复清单；它自己的这次 Chat 不被取消。你也可在项目仓库先运行 `autoteam stop` 预览，再运行 `autoteam stop --apply`。用 `autoteam status` 查看状态。
+在 Multica Chat 对 Planner 说「停止 autoteam」或「暂停 autoteam」。Planner 会运行 `autoteam stop --apply --keep-run <当前 Chat run ID>`，暂停本项目 autopilot、取消 registry agent 正在运行和排队的任务，并回复清单；它自己的这次 Chat 不被取消。你也可在项目仓库先运行 `autoteam stop` 预览，再运行 `autoteam stop --apply`。`autoteam status` 会列出本项目每个 autopilot 的状态和最后运行时间；`status --check` 只简短检查是否暂停，已暂停时退出码为 1。
+
+暂停的 autopilot 不会按计划运行，即使 Multica 列表仍显示下次运行时间，也可以忽略。暂停期间的部署通知会丢失；恢复后巡检会补查。
 
 恢复时在 Chat 说「恢复 autoteam」，或运行 `autoteam resume --apply`。只有停止前 active 的 autopilot 会恢复；取消的运行不会自动重跑，下次巡检照常推进。暂停期间被手动触发的 autopilot 仍可能叫醒 agent，agent 开工检查会让它立即结束。
 
@@ -70,7 +72,7 @@ Planner 把任务设为 blocked 时，会在父任务评论里提及你，说明
 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` 受 CODEOWNERS 保护，改动必须由你批准：
 
 - 推荐让 Implementer 改：给 Planner 提需求，走正常流程，最后由你作为 Code Owner 批准 PR；
-- 你自己开 PR 改：没有别的 Code Owner 能批准，需要临时把规则集改成 disabled，合并后恢复（会记在审计日志里）；
+- 你自己改：在本地改好（可以不提交），跑 `autoteam propose` 预览，确认后 `autoteam propose --apply`（标题要带任务编号就加 `--title`）。PR 由 Implementer App 身份开出，你只是批准人，不会撞上「最后推送者不能批准」，也不用临时关规则集；
 - 改了 `.autoteam/`，或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`），合并后要同步到 Multica 才生效；升级 autoteam 版本（角色指令、autopilot 跟着包走）同理——这一步 Planner 在验收时自己做（`autoteam multica --apply` + `autoteam doctor`），你不用管。它跑不起来会在运营笔记里提及你。
 
 ## 每周
