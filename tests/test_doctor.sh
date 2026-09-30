@@ -120,6 +120,15 @@ t_doctor_detects_instruction_drift() {
   assert_not_contains "$out" "指令漂移"
 }
 
+t_doctor_detects_autopilot_instruction_drift() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  autoteam_stub eject patrol >/dev/null
+  echo '尚未同步的新规则' >> .autoteam/instructions/autopilots/patrol.md
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" 'autopilot「推进巡检」的指令和生效文本不一致（指令漂移）'
+}
+
 # doctor 按「前言 + 角色文件」比对：刚同步完不报漂移；Multica 上是不带前言的旧文本则报漂移
 t_doctor_compares_instructions_with_preamble() {
   setup_ready_repo

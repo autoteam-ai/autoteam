@@ -33,6 +33,9 @@ cmd_upgrade() {
   cd "$root" || die "进不去 $root"
   conf_exists "$root" || die "还没有 $AUTOTEAM_CONF_REL，先运行 autoteam init"
   conf_load "$root"
+  if [ "$AUTOTEAM_AUTOPILOTS_CONFIGURED" = 0 ]; then
+    warn "$AUTOTEAM_CONF_REL 没有 AUTOTEAM_AUTOPILOTS：请写入当前要保留的 autopilot 文件名，逗号分隔；未写入前会保留并更新现有实例"
+  fi
   init_derived_vars
   lock_load
 
