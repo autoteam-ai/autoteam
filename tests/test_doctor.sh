@@ -622,3 +622,13 @@ t_doctor_auditor_remote_runtime_hints() {
   assert_contains "$out" "agent auditor 的 runtime rt-c-claude-0000 不在本机：auditor 使用 planner 身份，planner 的私钥要到那台机器上检查"
   assert_eq "$rc" 0 "auditor runtime 不在本机时只提示：$(printf '%s' "$out" | grep '❌')"
 }
+
+t_doctor_warns_orphan_ejected_runbook() {
+  setup_ready_repo
+  autoteam_stub eject example >/dev/null
+  out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_not_contains "$out" "在 autoteam 包内已不存在"
+  cp .autoteam/instructions/runbooks/example.md .autoteam/instructions/runbooks/gone.md
+  out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_contains "$out" ".autoteam/instructions/runbooks/gone.md 在 autoteam 包内已不存在"
+}

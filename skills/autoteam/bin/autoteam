@@ -43,7 +43,8 @@ autoteam —— 把自管理 agent 团队流程装进你的项目
   doctor     逐项检查本地文件、GitHub、Multica 是否到位（只读）
   runtimes   列出 Multica runtime，帮你填 registry.yaml 的 runtime 字段
   diff       对比已安装文件和当前模板
-  eject      把包内的角色指令 / autopilot 复制到 .autoteam/instructions/ 自己维护
+  eject      把包内的角色指令 / autopilot / runbook 复制到 .autoteam/instructions/ 自己维护
+  runbook    按名字输出一份 runbook（eject 优先；--list 列出可用的）
   version    打印版本
 
 通用选项：
@@ -82,6 +83,7 @@ autoteam_main() {
     upgrade)  cmd_upgrade ${args[@]+"${args[@]}"} ;;
     diff)     cmd_diff ${args[@]+"${args[@]}"} ;;
     eject)    cmd_eject ${args[@]+"${args[@]}"} ;;
+    runbook)  cmd_runbook ${args[@]+"${args[@]}"} ;;
     version|--version|-v) echo "autoteam $(autoteam_version)" ;;
     help|--help|-h) autoteam_usage ;;
     *) autoteam_usage >&2; die "未知命令：$cmd" ;;

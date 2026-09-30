@@ -111,6 +111,8 @@ autoteam multica --apply --only autopilots   # 同步到 Multica
 
 planner、implementer、reviewer、auditor 四个角色指令的全文就是 Multica agent 的指令。默认不落盘，取 autoteam 包内的版本；要按本项目改，`autoteam eject <角色名>` 复制到 `.autoteam/instructions/roles/` 后再改，此后以这份为准，升级不会覆盖。同步后才生效，Planner 验收时自己跑 `autoteam multica --apply`；`autoteam doctor` 会拿 Multica 里的指令和生效文本（前言 + 角色文件）比对，报告指令漂移。
 
+除角色指令和 autopilot 外，还有一类 runbook（包内 `instructions/runbooks/*.md`）：按事件按需读取的指令片段，agent 运行时执行 `autoteam runbook <名字>` 取正文，不同步到 Multica。`autoteam eject <runbook 名>` 落到 `.autoteam/instructions/runbooks/`，同名以落盘的为准；`autoteam runbook --list` 列出可用名字。
+
 「开工先检查暂停」这段前言只在包内 `instructions/_preamble.md` 维护一份，不 eject；`autoteam multica` 同步时把它加在每份角色指令和 autopilot 正文的最前面，eject 出的文件里没有这段，也不要自己加。
 
 ## .lock.json
