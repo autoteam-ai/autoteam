@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 报告类 autopilot 由 6 个合成 2 个：「周度健康报告」（`AUTOTEAM_CRON_HEALTH`，整合审计、agent 成绩单、老代码巡检、规格对账四节）和「月度方向报告」（`AUTOTEAM_CRON_DIRECTION`，前沿扫描、路线图对账两节）；规则复盘不变。旧的六个 `AUTOTEAM_CRON_*` 键被忽略，`autoteam doctor` 提示已并入哪个新键；Multica 上已有的旧 autopilot 不会被删除，到界面手动处理。用量口径改为按 agent 汇总（`multica agent tasks`），并单列挂在 autopilot 名下的运行；每日摘要的额度一节同步。
 - 新增 `autoteam approve <父任务> [--apply]`：一次放行父任务下所有指派给 Planner 的 backlog 子任务，第一个可派发批次只有一个任务叫醒 Planner，其余和后续批次带 `--no-start`，并核对 Planner 的运行已生成。首次运行文档不再要求逐个核对唤醒。
 - 前沿扫描扩展为 A 类流程前提、B 类 AI 工程实践、C 类项目技术栈方向；B、C 类结论需写明「时机」。
 - 新增交付脚本 `.autoteam/scripts/open-pr.sh`：按 `merge-mode.sh` 开 PR（staged 开 draft、reviewer 绝不 `gh pr merge`），platform 时开自动合并并用 `merge-status.sh` 核对，none 重试一次仍失败返回非 0；已有 PR 时只核对、补开。Implementer 交付和返工改为调用它；自动合并漏开的兜底只保留巡检一处，Reviewer 的 platform 补开段和 Planner「验收」里的重复描述删掉。已装机的项目跑 `autoteam upgrade` 拿到新脚本。

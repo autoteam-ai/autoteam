@@ -285,7 +285,7 @@ t_eject_all() {
   autoteam_offline eject --all >/dev/null
   for f in planner implementer reviewer auditor; do assert_file ".autoteam/instructions/roles/$f.md"; done
   assert_file .autoteam/instructions/planner-mcp.json
-  assert_eq "$(find .autoteam/instructions/autopilots -name "*.md" | wc -l | tr -d " ")" 10
+  assert_eq "$(find .autoteam/instructions/autopilots -name "*.md" | wc -l | tr -d " ")" 6
 }
 
 t_eject_does_not_overwrite_existing() {

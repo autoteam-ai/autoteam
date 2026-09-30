@@ -41,6 +41,7 @@ cmd_doctor() {
   fi
   conf_load "$root"
   doctor_files
+  doctor_retired_keys "$root"
   doctor_launcher "$root"
   if rows=$(registry_agents 2>/dev/null) && registry_validate "$rows"; then
     ok "registry.yaml：$(printf '%s\n' "$rows" | grep -c .) 个 agent，角色齐全"
@@ -95,6 +96,19 @@ doctor_lock() {
   else
     ok "$AUTOTEAM_LOCK_REL 版本 $v，与当前 autoteam 一致"
   fi
+}
+
+# autoteam.conf 里已合并的旧配置项不再生效，提示并入了哪个新键
+doctor_retired_keys() {
+  local old new
+  while read -r old new; do
+    [ -n "$old" ] || continue
+    if grep -qE "^[[:space:]]*${old}[[:space:]]*=" "$1/$AUTOTEAM_CONF_REL"; then
+      warn "$AUTOTEAM_CONF_REL 里的 $old 已合并到 $new，旧键被忽略：改用 $new"
+    fi
+  done <<EOF
+$(autoteam_conf_retired)
+EOF
 }
 
 doctor_files() {

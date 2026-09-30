@@ -16,7 +16,7 @@ title: 第 7 步：跑通第一个需求
 6. **看评审**：Reviewer 等检查跑完，批准或打回。打回时 Reviewer 在 PR 上要求修改并 @Implementer，Implementer 把任务改回 in_progress 后修改。
 7. **看合并和部署**：检查通过后平台自动合并（降级模式下由 Reviewer 合并），deploy.yml 运行 `make deploy` 并通知 Planner。
 8. **看验收**：Planner 在线上验证，贴出证据，评论【验收通过】并设为 done；第 1 批全部完成后，它被叫醒并派发第 2 批。
-9. **看 Auditor**：在 Multica 里手动触发一次“整合审计”，确认报告任务生成、Planner 被 @ 后把建议拆进 backlog。
+9. **看 Auditor**：在 Multica 里手动触发一次“周度健康报告”，确认报告任务生成、Planner 被 @ 后把建议拆进 backlog。
 
 每一步卡住时，先看任务的运行记录（`multica issue runs <任务>`），再查[常见问题](../operations/troubleshooting.md)。
 
