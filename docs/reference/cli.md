@@ -156,6 +156,8 @@ autoteam upgrade .github/workflows/gate.yml
 
 升级 autoteam 的步骤：更新 autoteam（`npx skills update autoteam` 或 `git pull`）→ `autoteam upgrade` → 处理它列出的本地改过的文件 → 提交、合并 → `autoteam multica --apply`。角色指令和 autopilot 不在 `autoteam diff` 的范围内：没 eject 的直接跟着包走，eject 过的用 `autoteam eject --diff` 看差异。
 
+旧工作区若有 `shipping` 状态，`autoteam multica --apply` 会先把其中的任务迁回 `in_review`，全部成功后归档旧状态。执行迁移的人须是工作区 owner 或 admin；可用 `autoteam multica --apply --only statuses` 单独执行，新工作区无需处理。
+
 ## autoteam eject
 
 ```bash

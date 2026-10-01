@@ -18,6 +18,10 @@ t_init_fresh_repo_creates_everything() {
   new_repo acme/shop
   out=$(autoteam_offline init --owner alice --issue-prefix SHOP)
   assert_contains "$out" "新建 .github/workflows/gate.yml"
+  assert_contains "$out" "4. autoteam setup"
+  assert_not_contains "$out" "4. autoteam github"
+  assert_not_contains "$out" "5. autoteam multica"
+  assert_not_contains "$out" "6. autoteam doctor"
   for f in AGENTS.md autoteam Makefile .jscpd.json .gitignore .github/CODEOWNERS .github/workflows/deploy.yml \
            .github/workflows/rollback.yml .autoteam/autoteam.conf .autoteam/registry.yaml .autoteam/playbook.md; do
     assert_file "$f"

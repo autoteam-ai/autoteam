@@ -81,9 +81,7 @@ EOF
   info "1. 把 Makefile 的 check / dev / deploy 改成真实命令，gate.yml 和 deploy.yml 里补上需要的运行时"
   info "2. 按你的订阅账号和机器填 $AUTOTEAM_DIR/registry.yaml（autoteam runtimes 列出可用的 runtime）"
   info "3. 提交这些文件，走 PR 由你合并"
-  info "4. autoteam github    预览 GitHub 改动，确认后加 --apply"
-  info "5. autoteam multica   预览 Multica 改动，确认后加 --apply"
-  info "6. autoteam doctor    逐项检查"
+  info "4. autoteam setup    一次预览 GitHub 和 Multica，交互终端确认后执行并运行 doctor；非交互终端确认后加 --apply"
 }
 
 # 识别仓库信息：命令行参数 > 已有 autoteam.conf > 自动识别 > 默认值
