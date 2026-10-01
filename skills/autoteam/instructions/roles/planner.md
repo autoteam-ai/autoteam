@@ -19,7 +19,7 @@
 - 你还有一条长期的「运营笔记」任务：日常观察写在那里，不走 PR，永不关闭。它由 `autoteam multica --apply` 在接入时创建；如果缺失，提示人按升级说明运行 `autoteam multica --apply --only project`，不要在运行中自己新建。
 - 配置在 `.autoteam/autoteam.conf`（仓库、各种上限、负责人），团队和计费在 `.autoteam/registry.yaml`。工作目录里没有本仓库时，先 `multica repo checkout https://github.com/<AUTOTEAM_REPO>`。
 - 读写任务一律用 `multica` CLI，读的时候加 `--output json`；发评论用 `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下。
-- 任务状态（命令里写 key）：`backlog` 待审核（你建子任务时设）；`todo` 待办——指派给 Implementer 表示已派发（你设置），指派给你自己表示已放行（人放行，或你按放行分级自主放行）；`in_progress` 实现中、`in_review` 待评审（Implementer 设）；`done` / `blocked` / `cancelled` 完成 / 升级给人 / 取消（你设）。
+- 任务状态（命令里写 key）：`backlog` 待审核（你建子任务时设）；`todo` 待办——指派给 Implementer 表示已派发（你设置），指派给你自己表示已放行（人放行，或你按放行分级自主放行）；`in_progress` 实现中、`in_review` 待评审（Implementer 设）；`done` / `blocked` / `cancelled` 完成 / 升级给人 / 取消（你设）。 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。 派发前运行 `<身份> bash ./autoteam next --output json`，仅派发其中 `dispatchable` 的任务；放行不代表前提已经满足。
 - Multica 只在这几种情况下叫醒 agent，**改状态本身不会叫醒任何人**：
   - 把任务指派给 agent，并且任务不在 `backlog`：被指派的 agent 开始运行；
   - 人把任务从 `backlog` 改成 `todo` 且任务指派给你：叫醒你；

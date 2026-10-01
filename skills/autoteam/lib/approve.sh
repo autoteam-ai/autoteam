@@ -41,7 +41,7 @@ approve_set_todo() { # <任务 ID> <编号> [--no-start]
 approve_run_count() { mc issue runs "$1" --output json | jq -e 'if type == "array" then length else empty end'; }
 
 cmd_approve() {
-  local parent="" apply=0 profile="" children plan id ident stage mode start_id="" start_ident="" before after failed=0
+  local parent="" apply=0 profile="" children plan id ident stage mode start_id="" start_ident="" before after failed=0 dependency
   while [ $# -gt 0 ]; do
     case $1 in
       --apply) apply=1; shift ;;
@@ -58,6 +58,11 @@ cmd_approve() {
   plan=$(approve_plan "$NEXT_PLANNER_ID" "$children") || die "解析 $parent 的子任务失败"
   [ -n "$plan" ] || { info "$parent 下没有指派给 Planner 的 backlog 子任务"; return; }
   while IFS=$'\t' read -r id ident stage mode; do
+    dependency=$(depends_on_reason "$id")
+    if [ -n "$dependency" ]; then
+      mode=quiet
+      printf '%s\t%s\n' "$ident" "$dependency"
+    fi
     if [ "$mode" = start ]; then
       start_id=$id; start_ident=$ident
     elif [ "$apply" = 1 ]; then
@@ -73,7 +78,7 @@ cmd_approve() {
     return 1
   fi
   if [ -z "$start_id" ]; then
-    info "没有可立即派发的批次，Planner 不会被叫醒；前面批次完成后由批次屏障叫醒"
+    info "没有可立即派发的任务，Planner 不会被叫醒；前面批次完成后由批次屏障叫醒，跨需求前提完成后由巡检派发"
     return
   fi
   # 会叫醒 Planner 的那个排在最后放行，Planner 醒来时整个拆分都已是 todo。

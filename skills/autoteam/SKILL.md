@@ -92,3 +92,6 @@ CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 3
 判断受保护文件统一跑 `.autoteam/scripts/protected-paths.sh --files <文件...>`；已有 PR 可跑 `--pr <PR>`，后者读取 PR 目标分支的 CODEOWNERS。脚本输出命中路径，退出码 0 / 1 / 2 分别表示命中 / 未命中 / 出错。`AUTOTEAM_CODEOWNERS_GATE=off` 时，Implementer 和 Reviewer 跳过这项判断。
 
 项目有暂停标记时，doctor 将 paused autopilot 合成一条提醒，显示暂停时间、操作人和 `autoteam resume --apply`；没有标记时仍逐条提示。
+
+跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。
+`next --check` 排除前提未满足的待派发任务（等待原因输出到 stderr）；`approve` 预览显示等待原因，放行仍使用 `--no-start`。

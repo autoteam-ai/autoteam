@@ -18,6 +18,12 @@ case "$1 $2" in
         else echo '{"issues":[{"id":"ready","identifier":"HDGCS-1","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":1},{"id":"blocked","identifier":"HDGCS-2","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":2},{"id":"failed","identifier":"HDGCS-3","status":"todo","assignee_id":"impl-1"},{"id":"running","identifier":"HDGCS-4","status":"in_progress","assignee_id":"impl-1"}],"has_more":false}'; fi ;;
     esac ;;
   'issue comment') echo '[]' ;;
+  'issue get')
+    case $3 in
+      HDGCS-125) [ "${NEXT_DEP:-}" != missing ] || exit 1
+        jq -n --arg status "${NEXT_DEP_STATUS:-in_review}" '{id:"dep",identifier:"HDGCS-125",status:$status,metadata:{}}' ;;
+      *) jq -n --arg id "$3" --arg dep "${NEXT_DEP:-}" '{id:$id,metadata:(if $dep == "" then {} elif $dep == "invalid" then {"autoteam.depends_on":false} else {"autoteam.depends_on":"HDGCS-125"} end)}' ;;
+    esac ;;
   'issue children')
     echo '{"stages":[{"stage":1,"total":1,"done":0,"issues":[{"id":"ready","status":"todo"}]},{"stage":2,"total":1,"done":0,"issues":[{"id":"blocked","status":"todo"}]}],"total":2,"unstaged":[]}' ;;
   'issue runs')
@@ -39,6 +45,7 @@ next_cmd() {
   env -u MULTICA_SERVER_URL -u MULTICA_TOKEN PATH="$WORK:$TESTS_DIR/stubs:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" \
     HOME="$WORK/.home" NO_COLOR=1 STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" \
     STUB_FIXTURES="$TESTS_DIR/fixtures" AUTOTEAM_MULTICA_BIN="$WORK/next-multica" \
+    NEXT_DEP="${NEXT_DEP:-}" NEXT_DEP_STATUS="${NEXT_DEP_STATUS:-in_review}" \
     NEXT_LOG="$NEXT_LOG" NEXT_EMPTY="${NEXT_EMPTY:-0}" NEXT_FAIL="${NEXT_FAIL:-}" \
     NEXT_GH_LOG="${NEXT_GH_LOG:-}" NEXT_GH_FAIL="${NEXT_GH_FAIL:-}" NEXT_GH_LOOP="${NEXT_GH_LOOP:-}" \
     AUTOTEAM_ISSUE_PREFIX=HDGCS bash "$AUTOTEAM" next "$@"
@@ -113,4 +120,22 @@ t_next_merged_prs_same_issue_once() {
   out=$(next_cmd --output json)
   assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-4")] | length' <<<"$out")" 1
   assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-3")] | length' <<<"$out")" 1
+}
+
+
+t_next_cross_requirement_dependencies() {
+  next_fixture
+  NEXT_DEP=waiting; export NEXT_DEP
+  out=$(next_cmd --check --output json 2> "$WORK/deps.err") || true
+  assert_eq "$(jq '[.[] | select(.category == "dispatchable")] | length' <<<"$out")" 0
+  assert_contains "$(cat "$WORK/deps.err")" 'HDGCS-125（in_review）'
+  NEXT_DEP_STATUS=done; export NEXT_DEP_STATUS
+  out=$(next_cmd --check --output json) || true
+  assert_eq "$(jq '[.[] | select(.category == "dispatchable")] | length' <<<"$out")" 1
+  for NEXT_DEP in missing invalid; do
+    export NEXT_DEP
+    out=$(next_cmd --output json 2> "$WORK/deps.err")
+    assert_eq "$(jq '[.[] | select(.category == "dispatchable")] | length' <<<"$out")" 0
+    assert_contains "$(cat "$WORK/deps.err")" '前提'
+  done
 }

@@ -181,3 +181,9 @@ autoteam runbook <名字>       # 输出该 runbook 的正文
 ```
 
 只读。runbook 是按事件按需读取的指令片段（包内 `instructions/runbooks/*.md`，front matter 的 `description` 是一句话说明）：agent 运行时用它取自己要执行的那一份，而不是每次加载全部。有 `.autoteam/instructions/runbooks/` 下 eject 的就输出那份，没有才输出包内的；名字不存在时退出码非 0 并列出可用名字。runbook 不同步到 Multica，`autoteam doctor` 只提示 eject 了但包内已不存在的那份。
+
+### 跨需求开工前提
+
+跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。
+
+`next` 将等待原因写到 stderr，不把等待任务列入 `dispatchable`；`next --check` 只按可处理清单决定退出码。`approve` 预览显示等待的前提，放行时这些任务使用 `--no-start`；前提完成后由巡检派发。同一父任务的批次语义不变，无此字段或空字符串表示没有跨需求前提。

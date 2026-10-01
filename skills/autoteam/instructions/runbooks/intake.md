@@ -27,7 +27,7 @@ description: 收到需求、人在原任务上回复，或 Auditor 报告 / 范�
    - 描述包含四节：为什么做、要做什么、不做什么、验收标准（能在线上验证）；
    - **改 `.autoteam/` 或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`）的任务，验收标准里必须有一条「已 `autoteam multica --apply` 同步、`autoteam doctor` 无指令漂移」**；
    - 建之前用 `multica issue search` 查重，还要检查原任务及已有子任务是否可以直接推进；能继续原任务就不重复建；
-   - 批次按依赖排，先做的是第 1 批；互不依赖的放同一批。
+   - 批次按依赖排，先做的是第 1 批；互不依赖的放同一批。 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。 派发前运行 `<身份> bash ./autoteam next --output json`，仅派发其中 `dispatchable` 的任务；放行不代表前提已经满足。
 4. 读 `bash ./autoteam runbook release`，逐个判断子任务：符合条件的由你自主放行；其余留在 `backlog`，在父任务评论里列出这些子任务和批次，用成员链接提及人，请他批准。全部自主放行时不用提及人。
 
 ## 处理 Auditor 的报告

@@ -12,6 +12,29 @@ EOF
 
 next_read_error() { printf 'autoteam next：读取%s失败\n' "$1" >&2; return 2; }
 
+# 输出空串表示前提满足，否则输出等待原因；读取或解析失败一律阻止派发。
+depends_on_reason() {
+  local issue value keys key dependency status reasons=""
+  issue=$(mc issue get "$1" --output json) || { printf '读取任务前提失败'; return; }
+  if ! jq -e --arg id "$1" 'type == "object" and .id == $id and (.metadata | type == "object")' <<<"$issue" >/dev/null; then
+    printf '任务前提格式错误'; return
+  fi
+  value=$(jq -er 'if .metadata | has("autoteam.depends_on") then .metadata["autoteam.depends_on"] | if type == "string" then . else error("前提必须为字符串") end else "" end' <<<"$issue") || { printf 'autoteam.depends_on 必须为字符串'; return; }
+  [ -n "$value" ] || return 0
+  keys=$(jq -nr --arg value "$value" '$value | split(",") | map(gsub("^\\s+|\\s+$"; "")) | if all(.[]; test("^[A-Z][A-Z0-9]*-[1-9][0-9]*$")) then unique[] else error("无效编号") end') || { printf 'autoteam.depends_on 编号解析失败'; return; }
+  while IFS= read -r key; do
+    if dependency=$(mc issue get "$key" --output json) &&
+      jq -e --arg key "$key" 'type == "object" and .identifier == $key and (.status | type == "string")' <<<"$dependency" >/dev/null; then
+      status=$(jq -r '.status' <<<"$dependency")
+      [ "$status" != done ] || continue
+      reasons="${reasons}${key}（${status}）；"
+    else
+      reasons="${reasons}${key}（不存在或读取失败）；"
+    fi
+  done <<<"$keys"
+  [ -z "$reasons" ] || printf '等待前提：%s' "$reasons"
+}
+
 next_collect_page() {
   local offset=0 page count more
   while :; do
@@ -138,7 +161,12 @@ next_collect() {
       ready=$(jq -r --argjson stage "$stage" '[.stages[] | select(.stage < $stage) | .issues[] | select(.status != "done")] | length == 0' <<<"$children") || return 2
     fi
     [ "$ready" = true ] || continue
-    reason='已指派 Planner，前置批次全部完成'
+    reason=$(depends_on_reason "$id")
+    if [ -n "$reason" ]; then
+      printf '%s\t%s\n' "$identifier" "$reason" >&2
+      continue
+    fi
+    reason='已指派 Planner，前置批次及跨需求前提全部完成'
     jq -nc --arg id "$id" --arg identifier "$identifier" --arg reason "$reason" \
       '{id:$id,identifier:$identifier,category:"dispatchable",reason:$reason}' >> "$NEXT_ITEMS"
   done < "$NEXT_ISSUES"

@@ -21,4 +21,4 @@ Auditor 报告和前沿扫描的建议满足以上条件也可以自主放行，
 
 任何一步报错、翻页没翻完，或者结果不确定，就当名额已用完，本次不自主放行。达到 `AUTOTEAM_AUTO_APPROVE_MAX_PER_DAY` 就不再自主放行。候选多于剩余名额时按优先级从高到低放行，剩下的留在 `backlog`，不请人批准，下次有名额再放。
 
-**放行动作**：任务建的时候已设好 `--priority`。在任务上评论 `【自主放行】`，逐条写明满足哪几条条件和优先级，然后 `multica issue status <任务> todo --no-start`（`--no-start` 避免叫醒你自己，派发按 `dispatch` 里的优先级来）。
+**放行动作**：任务建的时候已设好 `--priority`。在任务上评论 `【自主放行】`，逐条写明满足哪几条条件和优先级，然后 `multica issue status <任务> todo --no-start`（`--no-start` 避免叫醒你自己，派发按 `dispatch` 里的优先级来）。 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。 派发前运行 `<身份> bash ./autoteam next --output json`，仅派发其中 `dispatchable` 的任务；放行不代表前提已经满足。
