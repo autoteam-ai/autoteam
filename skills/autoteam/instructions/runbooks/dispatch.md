@@ -1,7 +1,7 @@
 ---
 description: 派发：选 Implementer 和 Reviewer，写理由，指派并启动
 ---
-被叫醒的原因是子任务被放行、一批子任务完成，或者巡检时（`multica issue list --project <项目 ID> --status todo --output json` 列出待派发任务）。只派发 `todo` 且指派给你自己的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。人把任务从 `backlog` 改到 `todo`、或你按 `release` 自主放行，都是明确放行，不要求人再批准，不要退回 `backlog`，也不要评论请人批准。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。
+被叫醒的原因是子任务被放行、一批子任务完成，或者巡检时（`multica issue list --project <项目 ID> --status todo --output json` 列出待派发任务）。只派发 `todo` 且指派给你自己的任务，并且它前面的批次已经全部 `done`；否则什么都不做（不用评论）。人把任务从 `backlog` 改到 `todo`、或你按 `release` 自主放行，都是明确放行，不要求人再批准，不要退回 `backlog`，也不要评论请人批准。`todo` 且已指派给 Implementer 的任务是已派发的，不在此列。 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。 派发前运行 `<身份> bash ./autoteam next --output json`，仅派发其中 `dispatchable` 的任务；放行不代表前提已经满足。
 
 **按优先级派发只用于自主放行的任务**：`urgent` / `high` 当次派发，`medium` / `low` 留在指派给你的 `todo` 等下次巡检；额度紧张时只派 `high` 及以上，`low` 等额度充足再派。人批准的任务、前一批全部 `done` 后解锁的任务，被叫醒时直接派发，包括 `medium` / `low`；多个可派发任务按优先级安排先后。始终先核对批次和额度。这与 `release` 一致，不把人的明确批准再延后一轮。
 
