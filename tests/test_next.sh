@@ -110,6 +110,9 @@ t_next_github_categories_and_failure() {
   out=$(next_cmd --output json)
   assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted")] | length' <<<"$out")" 2
   assert_eq "$(jq '[.[] | select(.category == "pr_remediation")] | length' <<<"$out")" 2
+  # 同一个事项的多个已合并 PR 只算一次
+  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-4")] | length' <<<"$out")" 1
+  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-3")] | length' <<<"$out")" 1
   assert_contains "$(cat "$NEXT_GH_LOG")" 'api graphql'
   NEXT_GH_LOOP=1; export NEXT_GH_LOOP
   out=$(next_cmd --output json)
@@ -117,14 +120,6 @@ t_next_github_categories_and_failure() {
   NEXT_GH_FAIL=1; export NEXT_GH_FAIL
   if next_cmd --check > "$WORK/next.out" 2> "$WORK/next.err"; then tfail 'GitHub 读取失败不应成功'; else rc=$?; assert_eq "$rc" 2; fi
   assert_not_contains "$(cat "$WORK/next.out")" '无事可做'
-}
-
-
-t_next_merged_prs_same_issue_once() {
-  next_github_fixture
-  out=$(next_cmd --output json)
-  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-4")] | length' <<<"$out")" 1
-  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-3")] | length' <<<"$out")" 1
 }
 
 

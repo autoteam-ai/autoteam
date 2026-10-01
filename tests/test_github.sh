@@ -1,25 +1,23 @@
 # shellcheck shell=bash
 # autoteam github：预览不写、三种套餐、试用模式、已有规则集、GitHub App
 
+# 套餐只影响 github 命令本身，init 用同一份仓库模板；只有 free-private 要在 init 时就带上套餐
 github_ready_repo() {
-  new_repo acme/shop
-  STUB_SCENARIO=${1:-user-public} autoteam_stub init --owner alice >/dev/null
+  STUB_SCENARIO=${1:-user-public} setup_ready_repo acme/shop
   : > "$STUB_LOG"
 }
 
-t_github_preview_makes_no_writes() {
+# 预览不写；同一个仓库上接着 --apply，再跑一次确认幂等
+t_github_preview_then_user_public_apply() {
   github_ready_repo
   out=$(autoteam_stub github)
   assert_contains "$out" "[预览] PATCH repos/acme/shop"
   assert_contains "$out" "[预览] POST repos/acme/shop/rulesets"
   assert_contains "$out" "以上是预览"
+  assert_contains "$out" "还没有配置 GitHub App"
   assert_no_log "-X PATCH"
   assert_no_log "-X POST"
   assert_no_log "-X PUT"
-}
-
-t_github_user_public_apply() {
-  github_ready_repo
   out=$(autoteam_stub github --apply)
   assert_contains "$out" "仓库设置已更新"
   assert_contains "$out" "规则集已写入"
@@ -52,7 +50,7 @@ t_github_codeowners_gate_off_preserves_review_approval() {
 }
 
 t_github_org_public_adds_merge_queue() {
-  github_ready_repo org-public
+  github_ready_repo
   out=$(STUB_SCENARIO=org-public autoteam_stub github --apply)
   assert_contains "$out" "合并队列都可用"
   assert_eq "$(jq -r '.rules[-1].type' "$STUB_STATE/ruleset.json")" merge_queue
@@ -60,7 +58,7 @@ t_github_org_public_adds_merge_queue() {
 }
 
 t_github_org_retries_without_merge_queue() {
-  github_ready_repo org-no-mq
+  github_ready_repo
   out=$(STUB_SCENARIO=org-no-mq autoteam_stub github --apply)
   assert_contains "$out" "不支持合并队列，去掉后重试"
   assert_contains "$out" "规则集已写入（无合并队列"
@@ -87,7 +85,7 @@ t_github_trial_mode_drops_approvals() {
 }
 
 t_github_updates_outdated_ruleset() {
-  github_ready_repo has-ruleset
+  github_ready_repo
   out=$(STUB_SCENARIO=has-ruleset autoteam_stub github --apply)
   assert_contains "$out" "PUT repos/acme/shop/rulesets/7"
   assert_log "BODY PUT repos/acme/shop/rulesets/7"
@@ -120,12 +118,6 @@ t_github_rejects_same_app_for_impl_and_review() {
   out=$(autoteam_stub github --apply --apps impl=111,review=111)
   assert_contains "$out" "同一个 App"
   assert_contains "$out" "评审独立性"
-}
-
-t_github_warns_when_no_apps() {
-  setup_ready_repo
-  out=$(autoteam_stub github)
-  assert_contains "$out" "还没有配置 GitHub App"
 }
 
 # --- github --create-apps（App Manifest 流程）---

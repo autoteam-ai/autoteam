@@ -3,8 +3,8 @@
 
 t_runner_isolates_inherited_autoteam_vars() {
   for test in \
-    t_ghapp_rejects_bad_role_and_missing_config \
-    t_github_warns_when_no_apps; do
+    t_ghapp_rejects_bad_usage \
+    t_github_preview_then_user_public_apply; do
     out=$(env AUTOTEAM_IMPLEMENTER_APP_ID=1 AUTOTEAM_REVIEWER_APP_ID=2 \
       bash "$TESTS_DIR/run.sh" "$test" 2>&1)
     rc=$?

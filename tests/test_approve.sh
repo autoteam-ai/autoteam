@@ -47,16 +47,13 @@ approve_cmd() {
     APPROVE_FAIL="${APPROVE_FAIL:-}" APPROVE_NO_RUN="${APPROVE_NO_RUN:-0}" bash "$AUTOTEAM" approve "$@"
 }
 
-t_approve_preview_changes_nothing() {
+# 预览不动任何状态；同一个仓库接着 --apply，Planner 只被叫醒一次
+t_approve_preview_then_wakes_planner_once() {
   approve_fixture
   out=$(approve_cmd HDGCS-126)
   assert_contains "$out" 'H-1'
   assert_contains "$out" '第 2 批'
   assert_not_contains "$(cat "$APPROVE_LOG")" 'issue status'
-}
-
-t_approve_wakes_planner_once() {
-  approve_fixture
   out=$(approve_cmd HDGCS-126 --apply)
   log=$(cat "$APPROVE_LOG")
   assert_contains "$log" 'issue status a2 todo --no-start'

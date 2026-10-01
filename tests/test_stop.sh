@@ -54,7 +54,8 @@ stop_cmd() {
     AUTOTEAM_MULTICA_BIN="$WORK/stop-multica" bash "$AUTOTEAM" "$@"
 }
 
-t_stop_preview_and_apply() {
+# 一个仓库走完 stop 的生命周期：预览 → 执行 → 重复执行 → 恢复 → 没有运营笔记
+t_stop_lifecycle_preview_apply_repeat_resume() {
   stop_fixture
   : > "$STOP_LOG"
   out=$(stop_cmd stop --keep-run run-chat)
@@ -64,6 +65,7 @@ t_stop_preview_and_apply() {
   assert_not_contains "$out" 'run-chat'
   assert_no_file "$STOP_STATE/marker"
   assert_not_contains "$(cat "$STOP_LOG")" 'autopilot update'
+
   out=$(stop_cmd stop --apply --keep-run run-chat)
   assert_contains "$out" '已停止本项目'
   assert_contains "$out" '下次运行时间可以忽略'
@@ -73,16 +75,18 @@ t_stop_preview_and_apply() {
   assert_eq "$(jq -r '.[] | select(.id=="ap-active") | .status' "$STOP_STATE/autopilots")" paused
   assert_contains "$(cat "$STOP_LOG")" 'issue cancel-task run-work'
   assert_not_contains "$(cat "$STOP_LOG")" 'issue cancel-task run-chat'
-  assert_contains "$(stop_cmd status)" '已暂停'
-  assert_contains "$(stop_cmd status)" '推进巡检 (ap-active)：paused，最后运行 2026-09-29T04:00:00Z'
+  assert_eq "$(jq -r 'type' "$STOP_STATE/marker")" string 'CLI 将 JSON 对象存为字符串'
+  assert_contains "$(cat "$STOP_LOG")" 'metadata set note-1 --key autoteam.paused --type string'
+  out=$(stop_cmd status)
+  assert_contains "$out" '已暂停'
+  assert_contains "$out" '推进巡检 (ap-active)：paused，最后运行 2026-09-29T04:00:00Z'
   if stop_cmd status --check >/dev/null; then tfail '暂停时 --check 应失败'; fi
-}
 
-t_stop_repeat_preserves_original_and_resume() {
-  stop_fixture
-  stop_cmd stop --apply --keep-run run-chat >/dev/null
+  # 暂停期间再 stop：预览提示保留原始恢复列表，执行也不覆盖它
+  assert_contains "$(stop_cmd stop --keep-run run-chat)" '保留原始恢复列表'
   stop_cmd stop --apply --keep-run run-chat >/dev/null
   assert_eq "$(jq -r 'fromjson | .active_autopilots | join(",")' "$STOP_STATE/marker")" ap-active
+
   out=$(stop_cmd resume)
   assert_contains "$out" '巡检'
   assert_file "$STOP_STATE/marker"
@@ -91,28 +95,16 @@ t_stop_repeat_preserves_original_and_resume() {
   assert_eq "$(jq -r '.[] | select(.id=="ap-active") | .status' "$STOP_STATE/autopilots")" active
   assert_eq "$(jq -r '.[] | select(.id=="ap-old-paused") | .status' "$STOP_STATE/autopilots")" paused
   assert_eq "$(jq -r '.[] | select(.id=="ap-other") | .status' "$STOP_STATE/autopilots")" active
-  assert_contains "$(stop_cmd status --check)" '未暂停'
+  out=$(stop_cmd status --check)
+  assert_contains "$out" '未暂停'
+  assert_not_contains "$out" 'autopilot：'
   out=$(stop_cmd status)
   assert_contains "$out" '推进巡检 (ap-active)：active，最后运行 2026-09-29T04:00:00Z'
   assert_contains "$out" '旧暂停 (ap-old-paused)：paused，最后运行 未运行'
   assert_not_contains "$out" '别的项目'
-  assert_not_contains "$(stop_cmd status --check)" 'autopilot：'
   assert_contains "$(stop_cmd resume --apply)" '无需恢复'
-}
 
-t_stop_string_marker_roundtrip() {
-  stop_fixture
-  stop_cmd stop --apply --keep-run run-chat >/dev/null
-  assert_eq "$(jq -r 'type' "$STOP_STATE/marker")" string 'CLI 将 JSON 对象存为字符串'
-  assert_contains "$(cat "$STOP_LOG")" 'metadata set note-1 --key autoteam.paused --type string'
-  assert_contains "$(stop_cmd status)" '已暂停'
-  assert_contains "$(stop_cmd stop --keep-run run-chat)" '保留原始恢复列表'
-  stop_cmd resume --apply >/dev/null
-  assert_no_file "$STOP_STATE/marker"
-}
-
-t_stop_status_without_operational_note() {
-  stop_fixture
+  # 项目里没有运营笔记：status 视为未暂停，stop 只能预览
   STOP_NO_NOTE=1; export STOP_NO_NOTE
   assert_contains "$(stop_cmd status --check)" '未暂停'
   assert_contains "$(stop_cmd stop)" '预览完成'
