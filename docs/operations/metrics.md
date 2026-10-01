@@ -41,7 +41,7 @@ Auditor 每周跑，你也可以随时在仓库里跑：
 | `approvals_7d.auto.review_rejected_pct` / `approvals_7d.human.review_rejected_pct` | 各组有 PR 被要求修改（`CHANGES_REQUESTED` 或 `【阻塞】`）的任务比例 |
 | `approvals_7d.auto.acceptance_failed_pct` / `approvals_7d.human.acceptance_failed_pct` | 各组出现 `【验收不通过】` 评论的任务比例 |
 
-比例的分母是相应组的批准任务数，同一任务多次打回只计一次；分母为零时是 `null`。Multica 不可用时整个 `approvals_7d` 为 `null`；GitHub 不可用时评审打回率为 `null`。脚本需要当前身份能读取本项目任务及其历史、评论。
+比例的分母是相应组的批准任务数，同一任务多次打回只计一次；分母为零时是 `null`。Multica 不可用时整个 `approvals_7d` 为 `null`；GitHub 不可用时评审打回率为 `null`。脚本需要当前身份能读取本项目任务及其历史、评论。任务历史、完整评论和 PR 评审数据通过临时文件传入 jq，避免超过命令行单参数大小上限；退出时清理临时文件。
 
 **收紧阈值：**任意连续 7 天，自主放行任务被人取消的比例 **超过 20%**，Planner 就提任务请人把 `AUTOTEAM_AUTO_APPROVE_MAX_PER_DAY` 调小，或关闭自主放行。对照同窗口人批准任务的取消率、打回率和验收失败率，查清偏差后再决定改动。
 

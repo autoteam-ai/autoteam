@@ -8,7 +8,7 @@
     ".autoteam/scripts/check-instruction-budget.sh": { "kind": "file", "sha256": "95844076e3c251ae5e4c9614e19d2a1c748ee45a0fcb70389aa2960f6dce3e9d" },
     ".autoteam/scripts/deployed-issues.sh": { "kind": "file", "sha256": "f609d7dde8a28d9bc9c15c2a365edcfed9f7181268d930ccef29c7f537cc7ae5" },
     ".autoteam/scripts/gh-app-token.sh": { "kind": "file", "sha256": "2a6ddfc77f5301f1129d7a33dffdef46935243d897b712669ff9cc4bc1ceb5e9" },
-    ".autoteam/scripts/health-metrics.sh": { "kind": "file", "sha256": "93dea04e2ac9dde6ad82eba0395e8d63bb0d6720993751d413587d18f617acfc" },
+    ".autoteam/scripts/health-metrics.sh": { "kind": "file", "sha256": "e164287e1511079792728a55313847d2ad610c05b1c52315a7f3cfadb997dd8b" },
     ".autoteam/scripts/loop-guard.sh": { "kind": "file", "sha256": "a4141976fceddc578b3c414f52216df46e4de1d4fd30f7bbe7497a374823a26c" },
     ".autoteam/scripts/merge-mode.sh": { "kind": "file", "sha256": "8add493689d2a51bea1803138ea70707d860ecc646a10f28ab41f5e1694da847" },
     ".autoteam/scripts/merge-status.sh": { "kind": "file", "sha256": "630c037a6f983260842f7fec794ca964990f89ce613ac03f5689fb172c78f30a" },

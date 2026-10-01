@@ -97,3 +97,5 @@ CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 3
 
 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。
 `next --check` 排除前提未满足的待派发任务（等待原因输出到 stderr）；`approve` 预览显示等待原因，放行仍使用 `--no-start`。
+
+健康指标：`health-metrics.sh` 用临时文件向 jq 传入任务历史、完整评论和 PR 评审数据，支持超过命令行单参数上限的数据；指标口径和 JSON / Markdown 格式不变，见 `docs/operations/metrics.md`。

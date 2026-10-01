@@ -126,7 +126,10 @@ if [ -n "$project_name" ] && command -v "$mc" >/dev/null 2>&1; then
              ! comments=$("$mc" issue comment list "$id" --full --output json 2>/dev/null); then
             approvals_ok=0; break
           fi
-          jq -cn --arg key "$key" --arg since "$since7" --argjson history "$history" --argjson comments "$comments" '
+          printf '%s\n' "$history" > "$tmp/history.json"
+          printf '%s\n' "$comments" > "$tmp/comments.json"
+          jq -cn --arg key "$key" --arg since "$since7" --slurpfile history_data "$tmp/history.json" --slurpfile comments_data "$tmp/comments.json" '
+            $history_data[0] as $history | $comments_data[0] as $comments |
             ($comments | if type == "array" then . else .comments // [] end) as $notes
             | [ $history[] | select(.action == "status_changed" and .details.from == "backlog" and .details.to == "todo" and .created_at >= $since) ]
             | .[] as $approval
@@ -151,7 +154,9 @@ if [ -n "$project_name" ] && command -v "$mc" >/dev/null 2>&1; then
         else
           reviews='null'
         fi
-        approvals=$(jq -s --argjson reviews "$reviews" '
+        printf '%s\n' "$reviews" > "$tmp/reviews.json"
+        approvals=$(jq -s --slurpfile reviews_data "$tmp/reviews.json" '
+          $reviews_data[0] as $reviews |
           def rate($rows; $field): if ($rows | length) == 0 then null else (([$rows[] | select(.[$field])] | length) * 1000 / ($rows | length) | round / 10) end;
           [ .[] | . as $issue | .review_rejected = (if $reviews == null then null else any($reviews[];
               (.title | startswith($issue.key + " ")) and
