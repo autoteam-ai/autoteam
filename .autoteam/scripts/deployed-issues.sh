@@ -38,12 +38,15 @@ fi
 
 if [ "$mode" = rules ]; then
   # Same boundary as deploy; the first deployment only counts its head commit.
+  # The API lists at most 300 files and pagination cannot complete it, so a full list
+  # is treated as truncated and conservatively counts as touching the rules.
+  list='if (.files | length) >= 300 then ".autoteam/(file list truncated)" else .files[].filename end'
   if [ -z "$base" ]; then
-    files=$(gh api "repos/$AUTOTEAM_REPO/commits/$sha" --jq '.files[].filename')
+    files=$(gh api "repos/$AUTOTEAM_REPO/commits/$sha" --jq "$list")
   elif [ "$base" = "$sha" ]; then
     files=''
   else
-    files=$(gh api --paginate "repos/$AUTOTEAM_REPO/compare/$base...$sha?per_page=100" --jq '.files[].filename')
+    files=$(gh api "repos/$AUTOTEAM_REPO/compare/$base...$sha?per_page=1" --jq "$list")
   fi
   if printf '%s\n' "$files" | grep -Eq '^(\.autoteam/|skills/autoteam/instructions/)'; then echo true; else echo false; fi
   exit 0

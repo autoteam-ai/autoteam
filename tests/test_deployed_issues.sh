@@ -13,6 +13,11 @@ EOF
   cat > "$WORK/bin/gh" <<'EOF'
 #!/usr/bin/env bash
 set -eu
+rules_files() {
+  while [ "$1" != --jq ]; do shift; done
+  jq -nr --arg files "$RULES_FILES" --argjson extra "${RULES_EXTRA:-0}" \
+    '{files: ($files | split("\n") | map({filename: .}) + [range($extra) | {filename: "pad/\(.)"}])}' | jq -r "$2"
+}
 endpoint=''
 for arg in "$@"; do case $arg in repos/*) endpoint=$arg ;; esac; done
 printf '%s\n' "$endpoint" >> "$STUB_LOG"
@@ -29,8 +34,8 @@ case "$endpoint" in
   */commits/merge1/pulls\?*) printf 'SHOP-12 Add first\nSHOP-12 Another association\n' ;;
   */commits/merge2/pulls\?*) printf 'SHOP-13 Add second\nOther PR\n' ;;
   */commits/head/pulls\?*) echo 'SHOP-14 First deployment' ;;
-  */compare/base...rules\?*) case "$*" in *.files*) printf '%s\n' "$RULES_FILES" ;; *) : ;; esac ;;
-  */commits/rules) printf '%s\n' "$RULES_FILES" ;;
+  */compare/base...rules\?*) case "$*" in *.files*) rules_files "$@" ;; *) : ;; esac ;;
+  */commits/rules) rules_files "$@" ;;
   *) echo "unexpected endpoint: $endpoint" >&2; exit 1 ;;
 esac
 EOF
@@ -79,6 +84,17 @@ t_deployed_issues_rules_detects_rule_files() {
   out=$(DEPLOY_CASE=cancelled RULES_FILES="src/a.sh"$'\n'"docs/.autoteam/x.md" PATH="$WORK/bin:$PATH" bash "$script" rules rules)
   assert_eq "$out" false
   out=$(DEPLOY_CASE=first RULES_FILES=".autoteam/autoteam.conf" PATH="$WORK/bin:$PATH" bash "$script" rules rules)
+  assert_eq "$out" true
+}
+
+t_deployed_issues_rules_truncated_file_list_syncs() {
+  setup_deployed_issues
+  local script="$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh"
+  out=$(DEPLOY_CASE=cancelled RULES_FILES="src/a.sh" RULES_EXTRA=299 PATH="$WORK/bin:$PATH" bash "$script" rules rules)
+  assert_eq "$out" true
+  out=$(DEPLOY_CASE=cancelled RULES_FILES="src/a.sh" RULES_EXTRA=298 PATH="$WORK/bin:$PATH" bash "$script" rules rules)
+  assert_eq "$out" false
+  out=$(DEPLOY_CASE=first RULES_FILES="src/a.sh" RULES_EXTRA=299 PATH="$WORK/bin:$PATH" bash "$script" rules rules)
   assert_eq "$out" true
 }
 
