@@ -95,6 +95,19 @@ else
   info "在开发镜像 $image 里执行（docker cp：daemon 看不到本机目录，把仓库拷进容器）：$*"
   docker create "${opts[@]}" -w /w "$image" "$@" >/dev/null
   docker cp -a "$ROOT/." "$name:/w" || die "把仓库拷进容器失败"
+  # git worktree 的 .git 是指向宿主机路径的文件，容器里读不到，git 全部失效（autoteam_source_ref 读不到提交）。
+  # 把公共 git 目录拷到 /gitcommon，并把 .git 改指向它里面这个 worktree 的目录（commondir 是相对路径 ../..）
+  if [ -f "$ROOT/.git" ]; then
+    gitdir=$(git -C "$ROOT" rev-parse --path-format=absolute --git-dir) ||
+      die "$ROOT 是 git worktree，但找不到它的 git 目录"
+    common=$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir) ||
+      die "$ROOT 是 git worktree，但找不到它的公共 git 目录"
+    docker cp -a "$common" "$name:/gitcommon" || die "把公共 git 目录拷进容器失败"
+    gitfile=$(mktemp "${TMPDIR:-/tmp}/autoteam-gitfile.XXXXXX")
+    printf 'gitdir: /gitcommon/%s\n' "${gitdir#"$common"/}" > "$gitfile"
+    docker cp "$gitfile" "$name:/w/.git" || die "改写容器里的 .git 失败"
+    rm -f "$gitfile"
+  fi
   docker start -a "$name" || rc=$?
   # 约定的产物只有 build/pkg/（make deploy 打的包）
   back=$(mktemp -d "${TMPDIR:-/tmp}/autoteam-dev.XXXXXX")
