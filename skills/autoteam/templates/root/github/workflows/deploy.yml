@@ -32,7 +32,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # 有新上线任务才通知 Planner，避免空部署唤醒 Planner
+      # 有新上线任务或触及规则文件才通知 Planner，避免空部署唤醒 Planner
       - name: notify planner
         if: always()
         env:
@@ -53,12 +53,16 @@ jobs:
             exit 1
           fi
           echo "部署任务清单: $issues"
-          if [ "$issues" = '[]' ]; then
+          if ! sync=$(bash .autoteam/scripts/deployed-issues.sh rules "$SHA"); then
+            echo "::warning::判断规则文件改动失败"
+            exit 1
+          fi
+          if [ "$issues" = '[]' ] && [ "$sync" != true ]; then
             echo "没有相关任务，跳过通知 Planner"
             exit 0
           fi
-          jq -n --arg kind deploy --arg sha "$SHA" --arg result "$RESULT" --arg repo "$REPO" --arg run_url "$RUN_URL" --argjson issues "$issues" \
-            '{kind: $kind, sha: $sha, result: $result, repo: $repo, run_url: $run_url, issues: $issues}' \
+          jq -n --arg kind deploy --arg sha "$SHA" --arg result "$RESULT" --arg repo "$REPO" --arg run_url "$RUN_URL" --argjson issues "$issues" --argjson sync "$sync" \
+            '{kind: $kind, sha: $sha, result: $result, repo: $repo, run_url: $run_url, issues: $issues, sync_instructions: $sync}' \
             | curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' \
                 -H "Idempotency-Key: $KEY" --data-binary @- \
             || echo "::warning::通知 Planner 失败，巡检会补查待上线的任务"
