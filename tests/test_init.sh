@@ -252,6 +252,51 @@ t_upgrade_updates_launcher_to_package_ref() {
   assert_file_contains .autoteam/.lock.json '"autoteam"'
 }
 
+# 入口只用版本与 AUTOTEAM_REF 一致的本机 skill；HOME 下别的版本不用，改用固定版本
+launcher_fake_skill() {
+  mkdir -p "$1/bin"
+  printf '#!/usr/bin/env bash\necho "%s"\n' "$2" > "$1/bin/autoteam"
+  [ -z "$3" ] || printf '%s\n' "$3" > "$1/source-ref"
+}
+
+t_launcher_ignores_home_skill_with_other_version() {
+  local ref out
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  ref=$(sed -n 's/^AUTOTEAM_REF=//p' autoteam)
+  launcher_fake_skill "$WORK/.home/.claude/skills/autoteam" OTHER 4519627303be7b76fe058b4857d1d4a5e058295f
+  launcher_fake_skill "$WORK/.home/.agents/skills/autoteam" UNKNOWN ""
+  launcher_fake_skill "$WORK/.home/.cache/autoteam/cli/$ref/skills/autoteam" PINNED "$ref"
+  out=$(env HOME="$WORK/.home" XDG_CACHE_HOME="$WORK/.home/.cache" bash ./autoteam 2>"$WORK/err")
+  assert_eq "$out" PINNED "别的版本的本机 skill 不该被用"
+  assert_file_contains "$WORK/err" "忽略 $WORK/.home/.claude/skills/autoteam（版本 4519627303be7b76fe058b4857d1d4a5e058295f"
+  assert_file_contains "$WORK/err" "忽略 $WORK/.home/.agents/skills/autoteam（版本 未知"
+}
+
+t_launcher_uses_home_skill_with_pinned_version() {
+  local ref out
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  ref=$(sed -n 's/^AUTOTEAM_REF=//p' autoteam)
+  launcher_fake_skill "$WORK/.home/.claude/skills/autoteam" LOCAL "$ref"
+  out=$(env HOME="$WORK/.home" XDG_CACHE_HOME="$WORK/.home/.cache" bash ./autoteam 2>"$WORK/err")
+  assert_eq "$out" LOCAL "版本一致的本机 skill 应被使用"
+  assert_eq "$(cat "$WORK/err")" "" "版本一致时不该有提示"
+}
+
+t_launcher_trusts_bootstrap_skill_symlink() {
+  local ref out
+  new_repo
+  autoteam_offline init --owner alice >/dev/null
+  ref=$(sed -n 's/^AUTOTEAM_REF=//p' autoteam)
+  launcher_fake_skill "$WORK/skills/autoteam" BOOTSTRAP ""
+  mkdir -p .claude
+  ln -s ../skills .claude/skills
+  launcher_fake_skill "$WORK/.home/.cache/autoteam/cli/$ref/skills/autoteam" PINNED "$ref"
+  out=$(env HOME="$WORK/.home" XDG_CACHE_HOME="$WORK/.home/.cache" bash ./autoteam 2>&1)
+  assert_eq "$out" BOOTSTRAP "自举仓库的 .claude/skills 软链保持现状"
+}
+
 # autoteam diff --check：CI 用来挡住"改了模板但没同步到本仓库"的漂移
 t_diff_check_uses_lock() {
   setup_ready_repo

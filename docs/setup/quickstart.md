@@ -28,7 +28,7 @@ git clone https://github.com/autoteam-ai/autoteam ~/.autoteam
 autoteam init --workspace <Multica 工作区 slug>
 ```
 
-`init` 还会在根目录生成可执行的 `./autoteam`，agent 用 `bash ./autoteam status --check` 检查暂停状态。入口优先使用本机安装的 skill；新 checkout 没有 skill 时，从固定的 GitHub 提交下载 CLI 到 `~/.cache/autoteam/cli/`。把入口和其他生成文件一起提交。已有的文件不会被覆盖，AGENTS.md、CODEOWNERS、.gitignore 只追加一个受管块。被跳过的文件用 `autoteam diff <文件>` 看差异，手动合并。清单见[生成的文件](../reference/files.md)；角色指令不落盘，随 autoteam 包走。
+`init` 还会在根目录生成可执行的 `./autoteam`，agent 用 `bash ./autoteam status --check` 检查暂停状态。入口只使用版本与固定提交一致的本机 skill（HOME 下别的版本会被忽略并提示）；没有一致版本时，从固定的 GitHub 提交下载 CLI 到 `~/.cache/autoteam/cli/`。把入口和其他生成文件一起提交。已有的文件不会被覆盖，AGENTS.md、CODEOWNERS、.gitignore 只追加一个受管块。被跳过的文件用 `autoteam diff <文件>` 看差异，手动合并。清单见[生成的文件](../reference/files.md)；角色指令不落盘，随 autoteam 包走。
 
 
 ## 3. 适配
