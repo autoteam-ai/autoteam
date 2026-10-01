@@ -486,6 +486,7 @@ EOF
     [ -z "$runtimes" ] || doctor_app_keys "$rows" "$runtimes"
   fi
 
+  local pause_marker="" pause_reported=0
   project=""
   if doctor_mc_read "项目列表" project list; then
     project=$(jq -r --arg t "${AUTOTEAM_MULTICA_PROJECT:-${AUTOTEAM_REPO##*/}}" '[.[] | select(.title == $t)][0].id // empty' <<<"$MC_READ_OUT")
@@ -495,7 +496,15 @@ EOF
         note_count=$(grep -c . <<<"$notes" || true)
         case $note_count in
           0) fail "项目缺少运营笔记（autoteam multica --apply --only project）" ;;
-          1) ok "项目有且只有一条运营笔记" ;;
+          1)
+            ok "项目有且只有一条运营笔记"
+            if doctor_mc_read "运营笔记暂停标记" issue get "$notes"; then
+              pause_marker=$(stop_parse_marker "$MC_READ_OUT") || {
+                fail "暂停标记格式错误"
+                pause_marker=""
+              }
+            fi
+            ;;
           *) fail "项目有 $note_count 条运营笔记，应只有一条；请人工处理重复任务" ;;
         esac
       else
@@ -532,6 +541,11 @@ EOF
     status=$(jq -r --arg id "$id" '.autopilots[] | select(.id == $id) | .status' <<<"$list")
     if [ "$ntrig" = 0 ]; then
       fail "autopilot「$title」没有触发器"
+    elif [ "$status" = paused ] && [ -n "$pause_marker" ]; then
+      if [ "$pause_reported" = 0 ]; then
+        warn "项目已暂停（时间：$(jq -r '.at' <<<"$pause_marker")，操作人：$(jq -r '.operator.name // .operator.id' <<<"$pause_marker")）：paused 的 autopilot 均为暂停状态；恢复用 autoteam resume --apply"
+        pause_reported=1
+      fi
     elif [ "$status" != active ]; then
       warn "autopilot「$title」是 $status 状态"
     else

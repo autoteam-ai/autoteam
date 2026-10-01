@@ -57,3 +57,5 @@ title: 常见问题
 | agent 推上去的提交显示成你本人 | 那台机器上没跑过 `gh-app-token.sh --setup-git <角色>`，git 用了系统钥匙串里你登录 `gh` 留下的凭据。跑一次 setup-git，它会先清掉继承来的凭据助手 |
 | `gh-app-token：GitHub 拒绝了 App 的身份（401）` | App ID 和私钥对不上，或本机时钟偏差过大（JWT 的 iat 已经往前挪了 60 秒）|
 | `gh-app-token：App 没有装在 <仓库> 上（404）` | App 建好了但没装，到 App 的 Install App 页面装到这个仓库 |
+
+项目有暂停标记时，doctor 将 paused autopilot 合成一条提醒，显示暂停时间、操作人和 `autoteam resume --apply`；没有标记时仍逐条提示。
