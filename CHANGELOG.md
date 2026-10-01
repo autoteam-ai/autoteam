@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 根入口 `./autoteam` 只使用版本（`source-ref`）与 `AUTOTEAM_REF` 一致的本机 skill；HOME 或仓库下别的版本（含没有 `source-ref` 的）被忽略并在 stderr 提示，改用固定版本。自举仓库的 skill 不受影响。`autoteam doctor` 在检查 Multica 指令前核对本机 CLI 与 `./autoteam` 固定的版本，不一致报错。已装机项目跑 `autoteam upgrade autoteam` 拿到新入口。
 - Planner 指令拆分：`planner.md` 从 214 行降到 72 行，只留身份、原则、停止与恢复和「事件 → runbook」表；收到需求、放行分级、派发、换人、验收、升级搬进 `instructions/runbooks/`（`intake` / `release` / `dispatch` / `reassign` / `accept` / `escalate`），用 `autoteam runbook <名字>` 按需读取。规则语义不变；常用命令表分放进各 runbook。
 
 - 新增 `autoteam github --create-apps [--apply] [--app-prefix <前缀>]`：用 GitHub App Manifest 流程一次创建 planner / implementer / reviewer 三个 App（权限与文档一致，预填）。你在浏览器里各点一次确认，把跳转后的 URL 粘回终端（不起本地监听，兼容 macOS bash 3.2 和无浏览器的远端机器）；私钥写进 `AUTOTEAM_KEYS_DIR/<角色>.pem`（600，已有私钥不覆盖），App ID 写回 `autoteam.conf`，密钥不打印。只创建、不安装；手工建 App 的方式保留为备选。

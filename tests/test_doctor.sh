@@ -23,6 +23,23 @@ t_doctor_reports_missing_root_launcher() {
   assert_eq "$rc" 1 "缺少根目录入口时 doctor 应失败"
 }
 
+t_doctor_reports_cli_version_other_than_pinned() {
+  local pkg
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" "与 ./autoteam 固定的版本一致"
+  pkg=$(mktemp -d "$TEST_BASE/package.XXXXXX")
+  cp -R "$ROOT/skills/autoteam/." "$pkg/"
+  printf '%s\n' 4519627303be7b76fe058b4857d1d4a5e058295f > "$pkg/source-ref"
+  AUTOTEAM=$pkg/bin/autoteam
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "与 ./autoteam 固定的版本"
+  assert_contains "$out" "不一致：指令漂移的比对结果不代表"
+  assert_eq "$rc" 1 "版本不一致时 doctor 应失败"
+}
+
 t_doctor_full_after_setup() {
   setup_ready_repo
   autoteam_stub github --apply >/dev/null

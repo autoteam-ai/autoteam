@@ -28,7 +28,7 @@ title: 生成的文件
 | 文件 | 作用 | 谁会改 | 受保护 |
 |---|---|---|---|
 | `AGENTS.md`（受管块） | 四条全局规则：怎么跑检查、不谎报验证、PR 标题、规则文件 | 模板 | |
-| `autoteam` | agent 开工和部署后使用的根目录入口；优先调用本机 skill，否则下载当前包构建提交的 CLI | 模板 | ✅ |
+| `autoteam` | agent 开工和部署后使用的根目录入口；只调用版本与固定提交一致的本机 skill（别的版本忽略并在 stderr 提示），否则下载当前包构建提交的 CLI | 模板 | ✅ |
 | `Makefile` | `check` / `dev` / `deploy`（只在不存在时创建） | 人 | ✅ |
 | `.jscpd.json` | 重复代码阈值 3%、忽略目录 | 人 | ✅ |
 | `.gitignore`（受管块） | 忽略 jscpd 报告目录、`.autoteam/local/`（App 私钥、按量计费的 key；跑 agent 的机器用 `AUTOTEAM_KEYS_DIR`，见[配置](config.md)）和 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/` | 模板 | |

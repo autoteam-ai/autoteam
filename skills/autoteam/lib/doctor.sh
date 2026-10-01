@@ -213,6 +213,23 @@ doctor_launcher() {
     warn "清理 doctor 的临时 worktree 失败：运行 git worktree prune"
 }
 
+# 指令漂移是拿本机 CLI 的指令文本和 Multica 上的对比；入口固定的版本不是本机 CLI 时，
+# 对比的就不是 agent 实际会读到的版本，结论不可信。
+doctor_pinned_version() {
+  local pinned local_ref
+  pinned=$(sed -n 's/^AUTOTEAM_REF=\([0-9a-f]\{40\}\)$/\1/p' autoteam 2>/dev/null | head -n 1)
+  [ -n "$pinned" ] || return 0   # 入口缺失或格式不对，doctor_launcher 已报
+  local_ref=$(autoteam_local_ref)
+  if [ -z "$local_ref" ]; then
+    warn "本机 autoteam 没有 source-ref，无法核对它与 ./autoteam 固定的版本 ${pinned:0:12} 是否一致"
+  elif [ "$local_ref" != "$pinned" ]; then
+    fail "本机 autoteam（${local_ref:0:12}）与 ./autoteam 固定的版本（${pinned:0:12}）不一致：指令漂移的比对结果不代表 agent 读到的版本"
+    hint "用固定版本的 CLI 重跑：bash ./autoteam doctor；要升级固定版本先 autoteam upgrade autoteam 并合并"
+  else
+    ok "本机 autoteam 与 ./autoteam 固定的版本一致（${pinned:0:12}）"
+  fi
+}
+
 doctor_github() {
   if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
     fail "gh 没安装或没登录，跳过 GitHub 检查"
@@ -450,6 +467,7 @@ doctor_multica() {
   mc_require_login
   mc_resolve_workspace "$ws"
   info "工作区 $MC_WS_NAME（profile ${MC_PROFILE:-默认}）"
+  doctor_pinned_version
 
   runtimes="" agents=""
   doctor_mc_read "runtime 列表" runtime list && runtimes=$MC_READ_OUT

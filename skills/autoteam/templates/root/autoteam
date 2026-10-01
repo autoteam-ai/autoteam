@@ -6,6 +6,8 @@ set -euo pipefail
 AUTOTEAM_REF={{AUTOTEAM_SOURCE_REF}}
 root=$(cd "$(dirname "$0")" && pwd)
 
+# 本机 skill 只有版本与 AUTOTEAM_REF 一致才用：HOME 下装过别的版本时，CLI、角色指令和
+# runbook 会各取各的版本。自举仓库（skill 就是本仓库的 skills/autoteam）不受影响。
 for skill in \
   "$root/.claude/skills/autoteam" \
   "$root/.agents/skills/autoteam" \
@@ -13,9 +15,15 @@ for skill in \
   "$HOME/.claude/skills/autoteam" \
   "$HOME/.agents/skills/autoteam" \
   "$HOME/.codex/skills/autoteam"; do
-  if [ -f "$skill/bin/autoteam" ]; then
+  [ -f "$skill/bin/autoteam" ] || continue
+  if [ "$(cd -P "$skill" && pwd)" = "$(cd -P "$root" && pwd)/skills/autoteam" ]; then
     exec bash "$skill/bin/autoteam" "$@"
   fi
+  skill_ref=$(cat "$skill/source-ref" 2>/dev/null || true)
+  if [ "$skill_ref" = "$AUTOTEAM_REF" ]; then
+    exec bash "$skill/bin/autoteam" "$@"
+  fi
+  echo "autoteam：忽略 $skill（版本 ${skill_ref:-未知}，入口固定 $AUTOTEAM_REF），改用固定版本" >&2
 done
 
 cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/autoteam/cli
