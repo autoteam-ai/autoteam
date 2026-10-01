@@ -2,8 +2,7 @@
 # autoteam doctor 和装进目标仓库的两个脚本
 
 t_doctor_flags_todo_makefile() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   out=$(autoteam_offline doctor --skip-github --skip-multica)
   rc=$?
   assert_eq "$rc" 1 "Makefile 还是桩时应失败"
@@ -14,8 +13,7 @@ t_doctor_flags_todo_makefile() {
 }
 
 t_doctor_reports_missing_root_launcher() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   rm autoteam
   out=$(autoteam_offline doctor --skip-github --skip-multica)
   rc=$?
@@ -25,8 +23,7 @@ t_doctor_reports_missing_root_launcher() {
 
 t_doctor_reports_cli_version_other_than_pinned() {
   local pkg
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   out=$(autoteam_stub doctor --skip-github)
   assert_contains "$out" "与 ./autoteam 固定的版本一致"
   pkg=$(mktemp -d "$TEST_BASE/package.XXXXXX")
@@ -41,9 +38,8 @@ t_doctor_reports_cli_version_other_than_pinned() {
 }
 
 t_doctor_full_after_setup() {
-  setup_ready_repo
+  setup_applied_repo
   autoteam_stub github --apply >/dev/null
-  autoteam_stub multica --apply >/dev/null
   out=$(autoteam_stub doctor)
   rc=$?
   assert_contains "$out" "Makefile 有 check / dev / deploy"
@@ -61,8 +57,7 @@ t_doctor_full_after_setup() {
 }
 
 t_doctor_links_use_configured_app_url() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   out=$(STUB_APP_URL=https://app.example.test autoteam_stub doctor --skip-github)
   assert_contains "$out" "https://app.example.test/test/agents"
   assert_not_contains "$out" "https://multica.test/test/agents"
@@ -84,8 +79,7 @@ t_doctor_distinguishes_login_and_server_setup() {
 }
 
 t_doctor_checks_note_count() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   echo '[]' > "$STUB_STATE/mc-issues-project.json"
   out=$(autoteam_stub doctor --skip-github)
   assert_eq "$?" 1
@@ -106,8 +100,7 @@ t_doctor_warns_when_codeowners_gate_off() {
 }
 
 t_doctor_ignores_other_project_autopilots() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   # 同一工作区的别的项目有同名 autopilot，本项目的还没建：doctor 不能把别人的当成本项目的
   jq 'map(.autopilot.project_id = "proj-other")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
   mv "$STUB_STATE/mc-autopilots.tmp" "$STUB_STATE/mc-autopilots.json"
@@ -124,8 +117,7 @@ t_doctor_ignores_other_project_autopilots() {
 }
 
 t_doctor_detects_instruction_drift() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   autoteam_stub eject reviewer >/dev/null
   out=$(autoteam_stub doctor --skip-github)
   assert_not_contains "$out" "指令漂移" "eject 后文本没变，不算漂移"
@@ -139,8 +131,7 @@ t_doctor_detects_instruction_drift() {
 }
 
 t_doctor_detects_autopilot_instruction_drift() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   autoteam_stub eject patrol >/dev/null
   echo '尚未同步的新规则' >> .autoteam/instructions/autopilots/patrol.md
   out=$(autoteam_stub doctor --skip-github)
@@ -149,8 +140,7 @@ t_doctor_detects_autopilot_instruction_drift() {
 
 # doctor 按「前言 + 角色文件」比对：刚同步完不报漂移；Multica 上是不带前言的旧文本则报漂移
 t_doctor_compares_instructions_with_preamble() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   out=$(autoteam_stub doctor --skip-github)
   assert_not_contains "$out" "指令漂移" "同步后的指令带前言，不算漂移"
   assert_contains "$out" "agent impl-claude（implementer）指令一致"
@@ -169,8 +159,7 @@ doctor_edit_agent() {
 }
 
 t_doctor_detects_runtime_drift() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   # 指令没变，只换了 runtime：以前 doctor 照样报"指令一致，runtime 在线"
   doctor_edit_agent impl-claude '.runtime_id = "rt-b-claude-0000"'
   out=$(autoteam_stub doctor --skip-github)
@@ -188,8 +177,7 @@ t_doctor_detects_runtime_drift() {
 }
 
 t_doctor_reports_unbound_runtime() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   # 实际值为空时比对输出里有相邻的 tab，不能把要求值错读成实际值
   for v in '""' null; do
     doctor_edit_agent impl-claude ".runtime_id = $v"
@@ -201,8 +189,7 @@ t_doctor_reports_unbound_runtime() {
 }
 
 t_doctor_detects_model_and_concurrency_drift() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   doctor_edit_agent rev-codex '.model = "gpt-5"'
   doctor_edit_agent impl-claude '.model = "claude-opus" | .max_concurrent_tasks = 5'
   out=$(autoteam_stub doctor --skip-github)
@@ -223,8 +210,7 @@ t_doctor_detects_model_and_concurrency_drift() {
 }
 
 t_doctor_reports_read_failure_not_drift() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   for mode in fail garbage; do
     out=$(STUB_AGENT_GET=$mode autoteam_stub doctor --skip-github)
     rc=$?
@@ -237,8 +223,7 @@ t_doctor_reports_read_failure_not_drift() {
 }
 
 t_doctor_reports_autopilot_read_failure_with_valid_json() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   # 退出码非 0 但输出是合法 JSON：不能当成读取成功
   out=$(STUB_AUTOPILOT_GET=fail autoteam_stub doctor --skip-github)
   rc=$?
@@ -250,16 +235,14 @@ t_doctor_reports_autopilot_read_failure_with_valid_json() {
 }
 
 t_doctor_reports_failed_last_run() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   out=$(STUB_FAILED_RUN=1 autoteam_stub doctor --skip-github)
   assert_contains "$out" "agent rev-codex 最近一次运行失败：Failed to authenticate: OAuth session expired"
   assert_not_contains "$out" "agent planner 最近一次运行失败"
 }
 
 t_loop_guard_counts_rejections_and_markers() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   mkdir -p bin
   cat > bin/gh <<'EOF'
 #!/usr/bin/env bash
@@ -294,8 +277,7 @@ EOF
 }
 
 t_merge_mode_script() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   mkdir -p bin
   # gh 桩：按 GH_AUTO / GH_RULES 返回仓库设置和分支上生效的规则，并执行 --jq
   cat > bin/gh <<'EOF'
@@ -325,8 +307,7 @@ EOF
 }
 
 t_merge_status_script() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   echo 'AUTOTEAM_REPO=acme/shop' >> .autoteam/autoteam.conf
   mkdir -p bin
   # gh 桩：记下 graphql 的变量，返回 GH_PR 作为 pullRequest；GH_FAIL=1 模拟查询失败
@@ -358,8 +339,7 @@ EOF
 
 # open-pr.sh 用 tests/stubs/gh：准备一个在功能分支上的仓库，$1 是 allow_auto_merge，$2 是分支上生效的规则
 open_pr_repo() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   echo 'AUTOTEAM_REPO=acme/shop' >> .autoteam/autoteam.conf
   git checkout -q -b hdgcs-1-demo
   echo '正文' > body.md
@@ -482,8 +462,7 @@ t_instructions_single_auto_merge_fallback() {
 }
 
 t_health_metrics_outputs_json_and_markdown() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   old=$(( $(date +%s) - 400 * 86400 ))
   mid=$(( $(date +%s) - 20 * 86400 ))
   echo a > old.txt && git add old.txt && GIT_AUTHOR_DATE="@$old" GIT_COMMITTER_DATE="@$old" git commit -qm old
@@ -535,8 +514,7 @@ EOF
 }
 
 t_health_metrics_human_review_per_merged_pr_normal() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   git commit --allow-empty -qm seed
   stub_gh_pr_counts 5 4
   out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
@@ -548,8 +526,7 @@ t_health_metrics_human_review_per_merged_pr_normal() {
 }
 
 t_health_metrics_human_review_per_merged_pr_zero_denominator() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   git commit --allow-empty -qm seed
   stub_gh_pr_counts 0 3
   out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
@@ -561,8 +538,7 @@ t_health_metrics_human_review_per_merged_pr_zero_denominator() {
 }
 
 t_health_metrics_approval_comparison() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   git commit --allow-empty -qm seed
   mkdir -p "$WORK/approval-bin"
   cat > "$WORK/approval-bin/multica" <<'EOF'
@@ -710,8 +686,7 @@ t_doctor_warns_orphan_ejected_runbook() {
 
 # list 的真实 CLI 形状为 {autopilots:[{id,title,project_id,status,...}],total:N}。
 doctor_paused_fixture() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   jq 'map(.autopilot.status = "paused")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/paused.tmp"
   mv "$STUB_STATE/paused.tmp" "$STUB_STATE/mc-autopilots.json"
 }
