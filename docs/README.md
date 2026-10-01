@@ -5,6 +5,12 @@ slug: /
 
 # 文档
 
+人只提需求和批准，agent 团队自己完成交付。
+
+![作者页需求上线并验收后，父任务 AUTO-8 和子任务 AUTO-9 都已完成](assets/example/55-board-done.webp)
+
+从需求到完成：看看[示例项目](setup/example.md)的一次真实交付。
+
 按这个顺序读：先看概念弄清楚为什么这么设计，再按搭建步骤装，最后看日常操作。
 
 ## 概念
@@ -28,6 +34,7 @@ slug: /
 | [第 1–3 步 GitHub](setup/github.md) | 账号隔离、合并规则、自动部署 |
 | [第 4–6 步 Multica](setup/multica.md) | 状态、agent 和计费注册表、触发配置 |
 | [第 7 步 跑通第一个需求](setup/first-run.md) | 用示例项目完整走一遍 |
+| [示例项目](setup/example.md) | 团队书架：拆分、实现、评审、上线和验收的真实记录 |
 
 ## 日常
 
