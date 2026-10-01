@@ -9,7 +9,13 @@ while [ $# -gt 0 ]; do
     --max-time) printf 'curl max-time=%s\n' "$2" >> "$STUB_LOG"; shift 2 ;;
     -X) method=$2; shift 2 ;;
     -o) out=$2; shift 2 ;;
-    -H) case $2 in "Authorization: Bearer "*) bearer=${2#Authorization: Bearer } ;; esac; shift 2 ;;
+    --connect-timeout) printf 'curl connect-timeout=%s\n' "$2" >> "$STUB_LOG"; shift 2 ;;
+    -H) if [ "$2" = @- ]; then
+      header=$(cat)
+      bearer=${header#Authorization: Bearer }
+      printf 'curl auth-stdin\n' >> "$STUB_LOG"
+    fi
+    case $2 in "Authorization: Bearer "*) bearer=${2#Authorization: Bearer } ;; esac; shift 2 ;;
     -w) shift 2 ;;
     --data-binary) data=$(cat "${2#@}"); shift 2 ;;
     -*) shift ;;
