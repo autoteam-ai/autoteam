@@ -2,7 +2,8 @@
 
 t_multica_default_profile_survives_pipefail() {
   local i out
-  setup_ready_repo
+  # 只解析 CLI 的默认 profile，不读取仓库配置或调用 init。
+  new_repo
   for ((i=0; i<50; i++)); do
     if ! out=$(env -u MULTICA_SERVER_URL -u MULTICA_TOKEN STUB_CONFIG_SHOW_BULK=1 HOME="$WORK/.home" \
       bash -c 'set -eo pipefail; . "$1"; MC_BIN=$2; mc_resolve_profile ""; [ -z "$MC_PROFILE" ]' \

@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-t_protected_paths_directory_and_unmatched() {
+t_protected_paths_file_rules_and_errors() {
   new_repo
   mkdir -p .github
   printf '/.github/ @owner\n/skills/autoteam/ @owner\n' > .github/CODEOWNERS
@@ -9,36 +9,23 @@ t_protected_paths_directory_and_unmatched() {
   assert_eq "$out" "$(printf '.github/workflows/gate.yml\nskills/autoteam/SKILL.md')"
   bash "$script" --files docs/README.md >/dev/null
   assert_eq "$?" 1 "普通文档不应命中"
-}
 
-t_protected_paths_last_matching_rule() {
-  new_repo
-  mkdir -p .github
+  # 后续场景仅替换 CODEOWNERS，不需要重建 git 仓库。
   printf '/docs/ @owner\n/docs/public/\n' > .github/CODEOWNERS
-  script=$ROOT/skills/autoteam/templates/autoteam/scripts/protected-paths.sh
   out=$(bash "$script" --files docs/README.md docs/public/a.md)
   assert_eq "$out" 'docs/README.md' '最后一条无 owner 的规则应清除保护'
   bash "$script" --files docs/public/a.md >/dev/null
   assert_eq "$?" 1 '后续无 owner 规则应返回未命中'
-}
 
-t_protected_paths_ignores_global_gitignore() {
-  new_repo
-  mkdir -p .github "$WORK/.home/.config/git"
+  mkdir -p "$WORK/.home/.config/git"
   printf '/src/ @owner\n' > .github/CODEOWNERS
   printf 'docs/\n*.log\n' > "$WORK/.home/.config/git/ignore"
-  script=$ROOT/skills/autoteam/templates/autoteam/scripts/protected-paths.sh
   out=$(HOME="$WORK/.home" bash "$script" --files docs/README.md app.log src/app.ts)
   assert_eq "$out" 'src/app.ts' '机器全局 gitignore 不应影响判断'
   HOME="$WORK/.home" bash "$script" --files docs/README.md app.log >/dev/null
   assert_eq "$?" 1 '全局忽略的非受保护文件仍应未命中'
-}
 
-t_protected_paths_lock_and_error() {
-  new_repo
-  mkdir -p .github
   printf '/src/ @owner\n' > .github/CODEOWNERS
-  script=$ROOT/skills/autoteam/templates/autoteam/scripts/protected-paths.sh
   out=$(bash "$script" --files package-lock.json .autoteam/.lock.json)
   assert_eq "$out" "$(printf 'package-lock.json\n.autoteam/.lock.json')"
   bash "$script" --codeowners missing --files src/app.ts >/dev/null 2>&1

@@ -14,20 +14,19 @@ t_instruction_budget_checks_package_and_rejects_growth() {
 }
 
 t_instruction_budget_template_checks_ejected_instructions() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   assert_file .autoteam/instruction-budget
   assert_file .autoteam/scripts/check-instruction-budget.sh
   assert_file_contains Makefile 'bash .autoteam/scripts/check-instruction-budget.sh'
   bash .autoteam/scripts/check-instruction-budget.sh || tfail "未 eject 时应通过"
   mkdir -p .autoteam/instructions/roles
   awk 'BEGIN { for (i=0; i<401; i++) print "line" }' > .autoteam/instructions/roles/planner.md
+  # 同一次检查同时验证超预算与缺预算，保留两条独立诊断断言。
+  printf 'new\n' > .autoteam/instructions/roles/new-role.md
   if out=$(bash .autoteam/scripts/check-instruction-budget.sh 2>&1); then
     tfail "eject 后超预算应失败"
   fi
   assert_contains "$out" 'planner.md (401 > 400 行)'
-  printf 'new\n' > .autoteam/instructions/roles/new-role.md
-  out=$(bash .autoteam/scripts/check-instruction-budget.sh 2>&1)
   assert_contains "$out" '指令缺少预算：.autoteam/instructions/roles/new-role.md'
 }
 

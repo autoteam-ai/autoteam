@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # setup 复用两端预览和执行，并在执行后运行 doctor。
 
-t_setup_preview_only() {
+t_setup_preview_then_apply_and_doctor() {
   setup_ready_repo
   : > "$STUB_LOG"
   out=$(autoteam_stub setup)
@@ -13,10 +13,8 @@ t_setup_preview_only() {
   assert_no_log 'agent create'
   assert_no_log 'gh secret set'
   assert_no_log 'BODY PATCH'
-}
 
-t_setup_apply_and_doctor() {
-  setup_ready_repo
+  # 预览断言完成后，在同一份未写入的仓库执行 setup。
   : > "$STUB_LOG"
   out=$(autoteam_stub setup --apply)
   rc=$?

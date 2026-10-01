@@ -42,21 +42,23 @@ EOF
   chmod +x "$WORK/bin/gh"
 }
 
-t_deployed_issues_includes_merges_after_cancelled_deploy() {
+t_deployed_issues_deploy_and_rollback_history() {
   setup_deployed_issues
   out=$(DEPLOY_CASE=cancelled PATH="$WORK/bin:$PATH" bash "$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" deploy head)
   assert_eq "$(printf '%s' "$out" | jq -c .)" '["SHOP-12","SHOP-13"]'
   assert_log 'compare/base...head'
-}
 
-t_deployed_issues_first_deployment_only_uses_head_pr() {
-  setup_deployed_issues
+  : > "$STUB_LOG"
   out=$(DEPLOY_CASE=first PATH="$WORK/bin:$PATH" bash "$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" deploy head)
   assert_eq "$(printf '%s' "$out" | jq -c .)" '["SHOP-14"]'
   assert_no_log 'compare/'
+
+  : > "$STUB_LOG"
+  out=$(DEPLOY_CASE=cancelled PATH="$WORK/bin:$PATH" bash "$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" rollback target)
+  assert_eq "$(printf '%s' "$out" | jq -c .)" '["SHOP-12"]'
 }
 
-t_deployed_issues_empty_list_skips_notification() {
+t_deployed_issues_empty_list_notification_branches() {
   setup_deployed_issues
   mkdir -p .autoteam/scripts
   cp "$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" .autoteam/scripts/
@@ -72,6 +74,17 @@ EOF
     RESULT=success REPO=acme/shop RUN_URL=https://example.test/run KEY=deploy-1 bash "$WORK/notify.sh")
   assert_contains "$out" '没有相关任务，跳过通知 Planner'
   assert_no_log 'curl-called'
+
+  : > "$STUB_LOG"
+  cat > "$WORK/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+cat >> "$STUB_LOG"
+EOF
+  chmod +x "$WORK/bin/curl"
+  DEPLOY_CASE=cancelled RULES_FILES=".autoteam/playbook.md" PATH="$WORK/bin:$PATH" HOOK=https://example.test SHA=rules \
+    RESULT=success REPO=acme/shop RUN_URL=https://example.test/run KEY=deploy-1 bash "$WORK/notify.sh" > /dev/null
+  assert_log '"sync_instructions": true'
+  assert_log '"issues": []'
 }
 
 t_deployed_issues_rules_detects_rule_files() {
@@ -85,38 +98,12 @@ t_deployed_issues_rules_detects_rule_files() {
   assert_eq "$out" false
   out=$(DEPLOY_CASE=first RULES_FILES=".autoteam/autoteam.conf" PATH="$WORK/bin:$PATH" bash "$script" rules rules)
   assert_eq "$out" true
-}
 
-t_deployed_issues_rules_truncated_file_list_syncs() {
-  setup_deployed_issues
-  local script="$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh"
+  # 300 文件截断边界复用规则检测的仓库与脚本。
   out=$(DEPLOY_CASE=cancelled RULES_FILES="src/a.sh" RULES_EXTRA=299 PATH="$WORK/bin:$PATH" bash "$script" rules rules)
   assert_eq "$out" true
   out=$(DEPLOY_CASE=cancelled RULES_FILES="src/a.sh" RULES_EXTRA=298 PATH="$WORK/bin:$PATH" bash "$script" rules rules)
   assert_eq "$out" false
   out=$(DEPLOY_CASE=first RULES_FILES="src/a.sh" RULES_EXTRA=299 PATH="$WORK/bin:$PATH" bash "$script" rules rules)
   assert_eq "$out" true
-}
-
-t_deployed_issues_empty_list_with_rule_files_notifies_planner() {
-  setup_deployed_issues
-  mkdir -p .autoteam/scripts
-  cp "$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" .autoteam/scripts/
-  awk '/^        run: \|$/ {on=1; next} on {sub(/^          /, ""); print}' \
-    "$ROOT/skills/autoteam/templates/root/github/workflows/deploy.yml" > "$WORK/notify.sh"
-  cat > "$WORK/bin/curl" <<'EOF'
-#!/usr/bin/env bash
-cat >> "$STUB_LOG"
-EOF
-  chmod +x "$WORK/bin/curl"
-  DEPLOY_CASE=cancelled RULES_FILES=".autoteam/playbook.md" PATH="$WORK/bin:$PATH" HOOK=https://example.test SHA=rules \
-    RESULT=success REPO=acme/shop RUN_URL=https://example.test/run KEY=deploy-1 bash "$WORK/notify.sh" > /dev/null
-  assert_log '"sync_instructions": true'
-  assert_log '"issues": []'
-}
-
-t_deployed_issues_rollback_lists_removed_prs() {
-  setup_deployed_issues
-  out=$(DEPLOY_CASE=cancelled PATH="$WORK/bin:$PATH" bash "$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" rollback target)
-  assert_eq "$(printf '%s' "$out" | jq -c .)" '["SHOP-12"]'
 }
