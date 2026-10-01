@@ -148,12 +148,23 @@ signature=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$k
 jwt="$header.$payload.$signature"
 
 api() {  # 方法 路径 [凭据，默认用 App 的 JWT]
-  local out code cred=${3:-$jwt}
-  out=$(curl -sS -w '\n%{http_code}' -X "$1" \
-    -H "Authorization: Bearer $cred" \
+  local out code rc cred=${3:-$jwt}
+  # 凭据经 stdin 传入，避免出现在 curl 的进程参数里。
+  # 单位为秒，支持小数；curl 自己校验环境变量的取值。
+  local connect_timeout=${AUTOTEAM_GH_CONNECT_TIMEOUT:-10}
+  local max_time=${AUTOTEAM_GH_MAX_TIME:-60}
+  out=$(printf 'Authorization: Bearer %s\n' "$cred" | curl -sS -w '\n%{http_code}' -X "$1" \
+    --connect-timeout "$connect_timeout" --max-time "$max_time" \
+    -H @- \
     -H 'Accept: application/vnd.github+json' \
     -H 'X-GitHub-Api-Version: 2022-11-28' \
-    "https://api.github.com$2") || die "调用 GitHub 失败：$2"
+    "https://api.github.com$2")
+  rc=$?
+  case $rc in
+    0) ;;
+    28) die "调用 GitHub 超时：$2（连接超时 ${connect_timeout}s，总超时 ${max_time}s，curl 退出码 28）" ;;
+    *) die "调用 GitHub 失败：$2（curl 退出码 $rc）" ;;
+  esac
   code=$(printf '%s' "$out" | tail -n 1)
   API_BODY=$(printf '%s' "$out" | sed '$d')
   case $code in

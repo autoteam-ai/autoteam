@@ -141,3 +141,74 @@ t_ghapp_reports_all_searched_locations() {
   assert_contains "$out" ".autoteam/local/" "要说清两个位置都找过了"
   assert_contains "$out" "machine-keys"
 }
+
+t_ghapp_timeout_and_private_process_arguments() {
+  ghapp_repo
+  mkdir -p "$WORK/bin"
+  # 仅替换目的地址，真正的 curl 负责超时和 stdin 头处理。
+  cat > "$WORK/bin/curl" <<'SH'
+#!/usr/bin/env bash
+args=("${@:1:$#-1}")
+printf '%s' "$$" > "$STUB_STATE/curl-pid"
+exec /usr/bin/curl "${args[@]}" --noproxy '*' "http://127.0.0.1:$TEST_PORT"
+SH
+  chmod +x "$WORK/bin/curl"
+  out=$(python3 - <<'PY'
+import os
+import socket
+import subprocess
+import threading
+import time
+
+server = socket.socket()
+server.bind(('127.0.0.1', 0))
+server.listen()
+received = []
+
+def stall():
+    conn, _ = server.accept()
+    with conn:
+        received.append(conn.recv(8192))
+        time.sleep(1)
+
+thread = threading.Thread(target=stall, daemon=True)
+thread.start()
+env = dict(os.environ, PATH=os.getcwd() + '/bin:' + os.environ['PATH'],
+           XDG_CACHE_HOME=os.getcwd() + '/.cache',
+           TEST_PORT=str(server.getsockname()[1]),
+           AUTOTEAM_GH_CONNECT_TIMEOUT='0.2', AUTOTEAM_GH_MAX_TIME='0.5')
+start = time.monotonic()
+proc = subprocess.Popen(['bash', '.autoteam/scripts/gh-app-token.sh', 'implementer'],
+                        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+try:
+    deadline = start + 3
+    while not received and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert received, '本地服务器未收到请求'
+    pid = open(os.environ['STUB_STATE'] + '/curl-pid').read()
+    args = open('/proc/' + pid + '/cmdline', 'rb').read()
+    auth = received[0].split(b'Authorization: Bearer ')[1].split(b'\r\n')[0]
+    assert b'Authorization' not in args and auth not in args, '进程参数泄露凭据'
+    stdout, stderr = proc.communicate(timeout=3)
+    assert proc.returncode != 0 and not stdout
+    assert '调用 GitHub 超时'.encode() in stderr, stderr
+    assert time.monotonic() - start < 3, '未在规定时间内返回'
+    print('真实 curl 超时且进程参数无凭据')
+finally:
+    if proc.poll() is None:
+        proc.kill()
+    proc.communicate()
+    server.close()
+PY
+  ) ; rc=$?
+  assert_eq "$rc" 0 "$out"
+  assert_contains "$out" '真实 curl 超时且进程参数无凭据'
+}
+
+t_ghapp_all_requests_use_timeouts_and_stdin() {
+  ghapp_repo
+  AUTOTEAM_GH_CONNECT_TIMEOUT=2 AUTOTEAM_GH_MAX_TIME=3 ghapp --identity implementer >/dev/null
+  assert_eq "$(grep -c 'curl connect-timeout=2' "$STUB_LOG")" 3
+  assert_eq "$(grep -c 'curl max-time=3' "$STUB_LOG")" 3
+  assert_eq "$(grep -c 'curl auth-stdin' "$STUB_LOG")" 3
+}
