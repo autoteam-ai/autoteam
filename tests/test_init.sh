@@ -46,7 +46,7 @@ t_init_fresh_repo_creates_everything() {
   assert_file_contains .github/workflows/deploy.yml "    environment: production"
   assert_file_contains .github/workflows/deploy.yml '${{ secrets.MULTICA_DEPLOY_HOOK }}'
   assert_file_contains .github/workflows/deploy.yml 'bash .autoteam/scripts/deployed-issues.sh deploy "$SHA"'
-  assert_file_contains .github/workflows/deploy.yml 'if [ "$issues" = '\''[]'\'' ]; then'
+  assert_file_contains .github/workflows/deploy.yml 'if [ "$issues" = '\''[]'\'' ] && [ "$sync" != true ]; then'
   for workflow in deploy rollback; do
     for permission in 'deployments: read' 'actions: read' 'pull-requests: read'; do
       assert_file_contains ".github/workflows/$workflow.yml" "$permission"

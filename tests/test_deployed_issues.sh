@@ -29,6 +29,8 @@ case "$endpoint" in
   */commits/merge1/pulls\?*) printf 'SHOP-12 Add first\nSHOP-12 Another association\n' ;;
   */commits/merge2/pulls\?*) printf 'SHOP-13 Add second\nOther PR\n' ;;
   */commits/head/pulls\?*) echo 'SHOP-14 First deployment' ;;
+  */compare/base...rules\?*) case "$*" in *.files*) printf '%s\n' "$RULES_FILES" ;; *) : ;; esac ;;
+  */commits/rules) printf '%s\n' "$RULES_FILES" ;;
   *) echo "unexpected endpoint: $endpoint" >&2; exit 1 ;;
 esac
 EOF
@@ -65,6 +67,36 @@ EOF
     RESULT=success REPO=acme/shop RUN_URL=https://example.test/run KEY=deploy-1 bash "$WORK/notify.sh")
   assert_contains "$out" '没有相关任务，跳过通知 Planner'
   assert_no_log 'curl-called'
+}
+
+t_deployed_issues_rules_detects_rule_files() {
+  setup_deployed_issues
+  local script="$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" f
+  for f in .autoteam/playbook.md skills/autoteam/instructions/roles/planner.md; do
+    out=$(DEPLOY_CASE=cancelled RULES_FILES="src/a.sh"$'\n'"$f" PATH="$WORK/bin:$PATH" bash "$script" rules rules)
+    assert_eq "$out" true
+  done
+  out=$(DEPLOY_CASE=cancelled RULES_FILES="src/a.sh"$'\n'"docs/.autoteam/x.md" PATH="$WORK/bin:$PATH" bash "$script" rules rules)
+  assert_eq "$out" false
+  out=$(DEPLOY_CASE=first RULES_FILES=".autoteam/autoteam.conf" PATH="$WORK/bin:$PATH" bash "$script" rules rules)
+  assert_eq "$out" true
+}
+
+t_deployed_issues_empty_list_with_rule_files_notifies_planner() {
+  setup_deployed_issues
+  mkdir -p .autoteam/scripts
+  cp "$ROOT/skills/autoteam/templates/autoteam/scripts/deployed-issues.sh" .autoteam/scripts/
+  awk '/^        run: \|$/ {on=1; next} on {sub(/^          /, ""); print}' \
+    "$ROOT/skills/autoteam/templates/root/github/workflows/deploy.yml" > "$WORK/notify.sh"
+  cat > "$WORK/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+cat >> "$STUB_LOG"
+EOF
+  chmod +x "$WORK/bin/curl"
+  DEPLOY_CASE=cancelled RULES_FILES=".autoteam/playbook.md" PATH="$WORK/bin:$PATH" HOOK=https://example.test SHA=rules \
+    RESULT=success REPO=acme/shop RUN_URL=https://example.test/run KEY=deploy-1 bash "$WORK/notify.sh" > /dev/null
+  assert_log '"sync_instructions": true'
+  assert_log '"issues": []'
 }
 
 t_deployed_issues_rollback_lists_removed_prs() {
