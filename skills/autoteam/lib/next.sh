@@ -51,7 +51,7 @@ next_collect_page() {
 }
 
 next_collect_github() {
-  local merged open pr number identifier merged_at status reason hours id
+  local merged open pr number identifier merged_at status reason hours id wakeups
   local seen="|"
   command -v gh >/dev/null 2>&1 || { next_read_error 'gh 命令'; return 2; }
   [ -n "$AUTOTEAM_REPO" ] && [ -n "$AUTOTEAM_ISSUE_PREFIX" ] || { next_read_error 'GitHub 仓库或任务前缀配置'; return 2; }
@@ -70,6 +70,17 @@ next_collect_github() {
     merged_at=$(jq -r '.mergedAt' <<<"$pr")
     if ! jq -en --arg at "$merged_at" --argjson hours "$hours" '($at | fromdateiso8601) < (now - $hours * 3600)' >/dev/null; then
       jq -en --arg at "$merged_at" '$at | fromdateiso8601' >/dev/null || { next_read_error '合并时间格式'; return 2; }
+      continue
+    fi
+    if jq -e --arg id "$id" 'select(.id == $id) | .status == "blocked" and .assignee_type == "member"' "$NEXT_ISSUES" >/dev/null; then
+      continue
+    fi
+    wakeups=$(mc issue wakeup list "$id" --output json) || { next_read_error "$identifier 唤醒"; return 2; }
+    jq -e 'type == "array" and all(.[]; (.enabled | type == "boolean") and (.next_fire_at == null or (.next_fire_at | type == "string")))' <<<"$wakeups" >/dev/null || { next_read_error "$identifier 唤醒格式"; return 2; }
+    # Multica timestamps may include fractional seconds; jq fromdateiso8601 does not.
+    if ! jq -e '[.[] | select(.enabled and .next_fire_at != null) | .next_fire_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601] | any(. > now)' <<<"$wakeups" >/dev/null; then
+      jq -e '[.[] | select(.enabled and .next_fire_at != null) | .next_fire_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601]' <<<"$wakeups" >/dev/null || { next_read_error "$identifier 唤醒时间格式"; return 2; }
+    else
       continue
     fi
     number=$(jq -r '.number' <<<"$pr")

@@ -11,7 +11,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 `autoteam propose [--title <标题>] [--apply]` 把用户本地未提交的改动（或分支上的提交）用 Implementer App 身份推到新分支并开 PR（默认只预览）：用于用户自己改规则文件、又被 `require_last_push_approval` 拦住批准的场景。不改用户的 git 配置和 remote；先预览，把分支名、标题和改动文件讲给用户听，得到同意后才加 `--apply`；标题需要任务编号时让用户给。
 
-`autoteam next [--check] [--output json] [--profile <名字>]` 只读列出本项目指派给 Planner 且前置批次已完成的 `todo`，以及最近一次运行失败的 `todo` / `in_progress`。`--check` 在无事可做时返回 0，有事返回 1，Multica 读取失败返回 2；目前不检查 GitHub 侧事项。
+`autoteam next [--check] [--output json] [--profile <名字>]` 只读列出本项目指派给 Planner 且前置批次已完成的 `todo`，以及最近一次运行失败的 `todo` / `in_progress`。`--check` 在无事可做时返回 0，有事返回 1，Multica 读取失败返回 2；还列出 GitHub 已合并未验收、PR 补救及打转事项。`next` 的已合并未验收清单排除有启用且未到期的任务级唤醒（`next_fire_at`）的任务，以及 `blocked` 且指派给人的任务；已到期唤醒、指派给 agent 的 blocked 任务仍列出。其他类别规则不变。
 
 ## 硬约束
 
