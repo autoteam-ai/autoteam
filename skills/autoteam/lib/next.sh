@@ -29,7 +29,7 @@ next_collect_page() {
 
 next_collect_github() {
   local merged open pr number identifier merged_at status reason hours id
-  local -A seen=()
+  local seen="|"
   command -v gh >/dev/null 2>&1 || { next_read_error 'gh 命令'; return 2; }
   [ -n "$AUTOTEAM_REPO" ] && [ -n "$AUTOTEAM_ISSUE_PREFIX" ] || { next_read_error 'GitHub 仓库或任务前缀配置'; return 2; }
   hours=$AUTOTEAM_ACCEPT_RECHECK_HOURS
@@ -39,8 +39,8 @@ next_collect_github() {
   while IFS= read -r pr; do
     identifier=$(jq -r --arg prefix "$AUTOTEAM_ISSUE_PREFIX" '.title | (capture("^(?<key>" + $prefix + "-[0-9]+)([^0-9]|$)")? | .key) // empty' <<<"$pr")
     [ -n "$identifier" ] || continue
-    [ -z "${seen[$identifier]:-}" ] || continue
-    seen[$identifier]=1
+    case $seen in *"|$identifier|"*) continue ;; esac
+    seen="$seen$identifier|"
     status=$(jq -r --arg key "$identifier" 'select(.identifier == $key) | .status' "$NEXT_ISSUES")
     [ -n "$status" ] && [ "$status" != 'done' ] && [ "$status" != cancelled ] || continue
     id=$(jq -r --arg key "$identifier" 'select(.identifier == $key) | .id' "$NEXT_ISSUES")
