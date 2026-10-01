@@ -689,3 +689,32 @@ t_doctor_warns_orphan_ejected_runbook() {
   out=$(autoteam_stub doctor --skip-github --skip-multica)
   assert_contains "$out" ".autoteam/instructions/runbooks/gone.md 在 autoteam 包内已不存在"
 }
+
+# list 的真实 CLI 形状为 {autopilots:[{id,title,project_id,status,...}],total:N}。
+doctor_paused_fixture() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  jq 'map(.autopilot.status = "paused")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/paused.tmp"
+  mv "$STUB_STATE/paused.tmp" "$STUB_STATE/mc-autopilots.json"
+}
+
+t_doctor_aggregates_project_pause() {
+  doctor_paused_fixture
+  jq 'map(.metadata = {"autoteam.paused": ({at:"2026-09-29T04:00:00Z",operator:{id:"person-1",name:"Tester"},active_autopilots:[]} | tojson)})' "$STUB_STATE/mc-issues-project.json" > "$STUB_STATE/paused.tmp"
+  mv "$STUB_STATE/paused.tmp" "$STUB_STATE/mc-issues-project.json"
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 0
+  assert_eq "$(grep -c '项目已暂停' <<<"$out")" 1
+  assert_contains "$out" '2026-09-29T04:00:00Z'
+  assert_contains "$out" 'Tester'
+  assert_contains "$out" 'autoteam resume --apply'
+  assert_not_contains "$out" '是 paused 状态'
+}
+
+t_doctor_reports_each_pause_without_marker() {
+  doctor_paused_fixture
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 0
+  assert_eq "$(grep -c '是 paused 状态' <<<"$out")" "$(jq length "$STUB_STATE/mc-autopilots.json")"
+  assert_not_contains "$out" '项目已暂停'
+}

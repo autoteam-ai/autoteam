@@ -134,6 +134,8 @@ EOF
     jq --argjson limit "$limit" --argjson offset "$offset" \
       '{issues: .[$offset:($offset + $limit)], has_more: (length > ($offset + $limit)),
         limit: $limit, offset: $offset, total: length}' "$issues" ;;
+  "issue get")
+    jq --arg id "$3" ' .[] | select(.id == $id)' "$state/mc-issues-project.json" ;;
   "issue create")
     issues=$state/mc-issues-project.json
     [ -f "$issues" ] || echo '[]' > "$issues"
