@@ -638,3 +638,53 @@ t_doctor_reports_project_pause() {
   assert_contains "$out" 'autoteam resume --apply'
   assert_not_contains "$out" '是 paused 状态'
 }
+
+# 大对象分别越过 Linux 单参数上限，避免前一处失败掩盖后一处。
+t_health_metrics_large_payloads() {
+  local payload out rc md
+  setup_init_repo
+  git commit --allow-empty -qm seed
+  mkdir -p "$WORK/large-bin"
+  cat > "$WORK/large-bin/multica" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  'project list') echo '[{"id":"proj","title":"autoteam"}]' ;;
+  'issue list') echo '{"issues":[{"id":"a","identifier":"TST-1","updated_at":"2099-01-01T00:00:00Z"}],"has_more":false}' ;;
+  'issue timeline') cat "$METRICS_FIXTURES/history.json" ;;
+  'issue comment') cat "$METRICS_FIXTURES/comments.json" ;;
+esac
+EOF
+  cat > "$WORK/large-bin/gh" <<'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  'auth status') exit 0 ;;
+  'pr list')
+    case "$*" in
+      *title,reviews*) cat "$METRICS_FIXTURES/reviews.json" ;;
+      *) echo '[]' ;;
+    esac ;;
+esac
+EOF
+  chmod +x "$WORK/large-bin/gh" "$WORK/large-bin/multica"
+  sed -i 's/^AUTOTEAM_MULTICA_PROJECT=.*/AUTOTEAM_MULTICA_PROJECT=autoteam/' .autoteam/autoteam.conf
+  for payload in comments reviews history; do
+    jq -n '[{action:"status_changed", actor_id:"planner", actor_type:"agent", created_at:"2099-01-01T00:00:01Z", details:{from:"backlog",to:"todo"}}]' > history.json
+    jq -n '[{author_id:"planner",created_at:"2099-01-01T00:00:00Z",content:"【自主放行】"}]' > comments.json
+    jq -n '[{title:"TST-1 修改",reviews:[{state:"CHANGES_REQUESTED"}]}]' > reviews.json
+    jq --arg payload "$payload" '
+      ("x" * 140000) as $padding
+      | if $payload == "comments" then .[0].content += $padding
+        elif $payload == "reviews" then .[0].reviews[0].body = $padding
+        else .[0].details.padding = $padding end' "$payload.json" > large.json
+    cp large.json "$payload.json"
+    [ "$(wc -c < "$payload.json")" -gt 131072 ] || tfail "测试数据未超过 128KB"
+    out=$(env PATH="$WORK/large-bin:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" METRICS_FIXTURES="$WORK" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
+    rc=$?
+    assert_eq "$rc" 0 "$payload 大数据 JSON 退出码"
+    assert_eq "$(jq -r '.approvals_7d.auto.count' <<<"$out")" 1
+    assert_eq "$(jq -r '.approvals_7d.auto.review_rejected_pct' <<<"$out")" 100
+    md=$(env PATH="$WORK/large-bin:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" METRICS_FIXTURES="$WORK" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
+    assert_eq "$?" 0 "$payload 大数据 Markdown 退出码"
+    assert_contains "$md" '| 自主放行 / 人批准数（近 7 天） | 1 / 0 |'
+  done
+}
