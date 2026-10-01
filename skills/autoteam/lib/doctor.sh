@@ -182,9 +182,10 @@ doctor_launcher() {
     return 0
   fi
   if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
-    warn "还没有提交，无法从干净 checkout 预跑 ./autoteam；提交后重跑 autoteam doctor"
+    warn "还没有提交，无法预跑 ./autoteam：干净 checkout 只检查已提交的 HEAD，不包含未提交的改动；提交后重跑 autoteam doctor"
     return 0
   fi
+  info "干净 checkout 预跑只检查已提交的 HEAD，不包含未提交的改动"
   checkout=$(autoteam_tmpdir)/doctor-checkout
   home=$(autoteam_tmpdir)/doctor-home
   cache=$home/.cache

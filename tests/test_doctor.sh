@@ -9,6 +9,7 @@ t_doctor_flags_todo_makefile() {
   assert_eq "$rc" 1 "Makefile 还是桩时应失败"
   assert_contains "$out" "AUTOTEAM-TODO"
   assert_contains "$out" "工作流文件齐全"
+  assert_contains "$out" "干净 checkout 只检查已提交的 HEAD，不包含未提交的改动"
   assert_contains "$out" "registry.yaml：6 个 agent"
 }
 
@@ -717,4 +718,12 @@ t_doctor_reports_each_pause_without_marker() {
   assert_eq "$?" 0
   assert_eq "$(grep -c '是 paused 状态' <<<"$out")" "$(jq length "$STUB_STATE/mc-autopilots.json")"
   assert_not_contains "$out" '项目已暂停'
+}
+
+t_doctor_explains_committed_head_preflight() {
+  setup_ready_repo
+  git add .
+  git commit -qm "测试已提交的入口"
+  out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_contains "$out" "干净 checkout 预跑只检查已提交的 HEAD，不包含未提交的改动"
 }
