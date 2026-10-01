@@ -89,6 +89,8 @@ autoteam [-C <目录>] <命令> [选项]
 
 `autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 或 GitHub 失败时返回 2。
 
+`next` 的已合并未验收清单排除有启用且未到期的任务级唤醒（`next_fire_at`）的任务，以及 `blocked` 且指派给人的任务；已到期唤醒、指派给 agent 的 blocked 任务仍列出。其他类别规则不变。
+
 ## autoteam approve
 
 `autoteam approve <父任务> [--apply] [--profile <名字>]`：一次放行整个拆分。列出父任务下所有指派给 Planner、状态为 `backlog` 的子任务并按批次预览，`--apply` 才把它们改成 `todo`。
