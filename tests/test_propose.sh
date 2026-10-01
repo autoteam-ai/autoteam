@@ -88,29 +88,22 @@ t_propose_pr_failure_reports_pushed_branch() {
   assert_eq "$(git branch --list | tr -d ' *\n')" 'main' '失败后也要清理临时分支'
 }
 
-t_propose_refuses_rewritten_url() {
+# 本机 git 配置改写了远端地址，或覆盖的远端不是本地目录：都不能推
+t_propose_refuses_unsafe_remotes() {
   propose_fixture
   echo "rule" >> .autoteam/playbook.md
-  HOME="$WORK/.home" git config --global url.git@github.com:.insteadOf https://github.com/
+  global() { HOME="$WORK/.home" git config --global "$@"; }
   unset AUTOTEAM_PROPOSE_REMOTE
+  global url.git@github.com:.insteadOf https://github.com/
   out=$(autoteam_stub propose --apply 2>&1) && tfail 'URL 被改写时应失败'
   assert_contains "$out" 'insteadof'
   assert_eq "$(git -C "$REMOTE" branch --list)" ''
-}
-
-t_propose_refuses_push_instead_of() {
-  propose_fixture
-  echo "rule" >> .autoteam/playbook.md
-  unset AUTOTEAM_PROPOSE_REMOTE
-  HOME="$WORK/.home" git config --global url.https://evil.example/.pushInsteadOf https://github.com/
+  global --unset url.git@github.com:.insteadOf
+  global url.https://evil.example/.pushInsteadOf https://github.com/
   out=$(autoteam_stub propose --apply 2>&1) && tfail 'pushInsteadOf 改写时应失败'
   assert_contains "$out" 'pushinsteadof'
   assert_no_log 'gh pr create'
-}
-
-t_propose_remote_override_must_be_local_dir() {
-  propose_fixture
-  echo "rule" >> .autoteam/playbook.md
+  global --unset url.https://evil.example/.pushInsteadOf
   export AUTOTEAM_PROPOSE_REMOTE=https://evil.example/x.git
   out=$(autoteam_stub propose --apply 2>&1) && tfail '非本地目录的覆盖应失败'
   assert_contains "$out" '本地目录'

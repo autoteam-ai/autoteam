@@ -61,10 +61,11 @@ t_init_fresh_repo_creates_everything() {
 }
 
 t_init_is_idempotent() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
+  # 把 generated_at 改到过去：.lock.json 不能只因为 generated_at 变了就重写（不必真等一秒）
+  sed -i.bak 's/"generated_at": ".*"/"generated_at": "2000-01-01T00:00:00Z"/' .autoteam/.lock.json
+  rm -f .autoteam/.lock.json.bak
   before=$(find . -path ./.git -prune -o -type f -print0 | xargs -0 shasum | sort)
-  sleep 1 # 跨过一秒：.lock.json 不能只因为 generated_at 变了就重写
   out=$(autoteam_offline init --owner alice)
   after=$(find . -path ./.git -prune -o -type f -print0 | xargs -0 shasum | sort)
   assert_eq "$after" "$before" "第二次运行不应改动文件"
@@ -89,8 +90,7 @@ t_init_respects_existing_files() {
 }
 
 t_init_force_overwrites_templates_but_not_config() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   echo "# 本地改动" >> .github/workflows/gate.yml
   echo "AUTOTEAM_PR_MAX_LINES=999" >> .autoteam/autoteam.conf
   sed -i.bak 's#/Makefile        @alice#/Makefile        @carol#' .github/CODEOWNERS && rm -f .github/CODEOWNERS.bak
@@ -104,8 +104,7 @@ t_init_force_overwrites_templates_but_not_config() {
 }
 
 t_init_force_only_named_files() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   echo "# 本地改动" >> .github/workflows/gate.yml
   echo "# 本地改动" >> .autoteam/playbook.md
   out=$(autoteam_offline init --force .autoteam/playbook.md)
@@ -134,8 +133,7 @@ t_init_free_private_repo_drops_environment() {
 }
 
 t_diff_shows_block_changes() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   out=$(autoteam_offline diff)
   assert_contains "$out" "与模板一致"
   sed -i.bak 's#/Makefile        @alice#/Makefile        @carol#' .github/CODEOWNERS && rm -f .github/CODEOWNERS.bak
@@ -144,8 +142,7 @@ t_diff_shows_block_changes() {
 }
 
 t_registry_parsing_and_validation() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   rows=$(
     # shellcheck source=/dev/null
     for l in common registry; do . "$ROOT/skills/autoteam/lib/$l.sh"; done
@@ -174,8 +171,7 @@ fake_old_install() {
 }
 
 t_init_writes_lock() {
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   assert_eq "$(jq -r .version .autoteam/.lock.json)" "$(autoteam_offline version | cut -d' ' -f2)"
   assert_eq "$(jq -r '.files[".github/workflows/gate.yml"].sha256' .autoteam/.lock.json)" \
     "$(shasum -a 256 < .github/workflows/gate.yml | cut -d' ' -f1)"
@@ -246,8 +242,7 @@ t_upgrade_updates_launcher_to_package_ref() {
   new_ref=$(git -C "$ROOT" rev-parse HEAD)
   printf '%s\n' "$old_ref" > "$pkg/source-ref"
   AUTOTEAM=$pkg/bin/autoteam
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   assert_file_contains autoteam "AUTOTEAM_REF=$old_ref"
 
   printf '%s\n' "$new_ref" > "$pkg/source-ref"
@@ -265,8 +260,7 @@ launcher_fake_skill() {
 
 t_launcher_ignores_home_skill_with_other_version() {
   local ref out
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   ref=$(sed -n 's/^AUTOTEAM_REF=//p' autoteam)
   launcher_fake_skill "$WORK/.home/.claude/skills/autoteam" OTHER 4519627303be7b76fe058b4857d1d4a5e058295f
   launcher_fake_skill "$WORK/.home/.agents/skills/autoteam" UNKNOWN ""
@@ -279,8 +273,7 @@ t_launcher_ignores_home_skill_with_other_version() {
 
 t_launcher_uses_home_skill_with_pinned_version() {
   local ref out
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   ref=$(sed -n 's/^AUTOTEAM_REF=//p' autoteam)
   launcher_fake_skill "$WORK/.home/.claude/skills/autoteam" LOCAL "$ref"
   out=$(env HOME="$WORK/.home" XDG_CACHE_HOME="$WORK/.home/.cache" bash ./autoteam 2>"$WORK/err")
@@ -290,8 +283,7 @@ t_launcher_uses_home_skill_with_pinned_version() {
 
 t_launcher_trusts_bootstrap_skill_symlink() {
   local ref out
-  new_repo
-  autoteam_offline init --owner alice >/dev/null
+  setup_init_repo
   ref=$(sed -n 's/^AUTOTEAM_REF=//p' autoteam)
   launcher_fake_skill "$WORK/skills/autoteam" BOOTSTRAP ""
   mkdir -p .claude
@@ -331,6 +323,11 @@ t_eject_role_copies_package_file() {
   assert_contains "$out" "此后由你维护，升级不会覆盖"
   assert_eq "$(cat .autoteam/instructions/roles/reviewer.md)" "$(cat "$ROOT/skills/autoteam/instructions/roles/reviewer.md")"
   assert_no_file .autoteam/instructions/roles/planner.md
+  # 再 eject 一次：用户改过的文件不能被覆盖
+  echo "# 我的改动" >> .autoteam/instructions/roles/reviewer.md
+  out=$(autoteam_offline eject reviewer)
+  assert_contains "$out" "已存在，保留"
+  assert_file_contains .autoteam/instructions/roles/reviewer.md "# 我的改动"
 }
 
 t_eject_autopilot_and_mcp() {
@@ -348,15 +345,6 @@ t_eject_all() {
   for f in planner implementer reviewer auditor; do assert_file ".autoteam/instructions/roles/$f.md"; done
   assert_file .autoteam/instructions/planner-mcp.json
   assert_eq "$(find .autoteam/instructions/autopilots -name "*.md" | wc -l | tr -d " ")" 6
-}
-
-t_eject_does_not_overwrite_existing() {
-  setup_ready_repo
-  autoteam_offline eject reviewer >/dev/null
-  echo "# 我的改动" >> .autoteam/instructions/roles/reviewer.md
-  out=$(autoteam_offline eject reviewer)
-  assert_contains "$out" "已存在，保留"
-  assert_file_contains .autoteam/instructions/roles/reviewer.md "# 我的改动"
 }
 
 t_eject_diff_prints_without_writing() {
@@ -386,7 +374,7 @@ t_eject_rejects_bad_usage() {
 }
 
 # autoteam runbook：按名字读取，eject 优先
-t_runbook_list_show_and_unknown() {
+t_runbook_list_show_unknown_and_prefers_ejected() {
   setup_ready_repo
   out=$(autoteam_offline runbook --list)
   assert_contains "$out" "example"
@@ -397,10 +385,7 @@ t_runbook_list_show_and_unknown() {
   if out=$(autoteam_offline runbook nope 2>&1); then tfail "不存在的名字应失败"; fi
   assert_contains "$out" "没有名为 nope 的 runbook"
   assert_contains "$out" "example"
-}
-
-t_runbook_prefers_ejected() {
-  setup_ready_repo
+  # eject 之后以用户维护的版本为准
   out=$(autoteam_offline eject example)
   assert_contains "$out" "已 eject .autoteam/instructions/runbooks/example.md"
   echo "我改过的一行" >> .autoteam/instructions/runbooks/example.md
