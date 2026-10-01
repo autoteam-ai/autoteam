@@ -16,7 +16,7 @@ subscriber: human
 1. 本周的 Auditor 报告：周度健康报告、月度方向报告（有新的一份时）。
 2. `.autoteam/scripts/health-metrics.sh --md`，重点看 `human_7d`（人自己提交和评审了多少次）和一次通过率的趋势。
 3. 本周所有 `blocked` 过的任务，以及人在任务里留的评论——**每一条人工介入都是一次规则缺失的证据**。
-4. Multica 的「运营笔记」任务：你自己这一周记下的观察。
+4. Multica 的「运营笔记」任务，只读最近 7 天：`multica issue comment list <运营笔记任务> --since <7 天前的 RFC3339 时间> --compact --output json`，不读更早的评论。
 5. `.autoteam/playbook.md` 现在有什么。
 
 ## 产出
