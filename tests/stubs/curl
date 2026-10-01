@@ -6,10 +6,16 @@ method=GET out="" data="" url="" cfg="" bearer=""
 while [ $# -gt 0 ]; do
   case $1 in
     -K) [ "$2" = - ] && cfg=$(cat); shift 2 ;;
+    --connect-timeout) printf 'curl connect-timeout=%s\n' "$2" >> "$STUB_LOG"; shift 2 ;;
     --max-time) printf 'curl max-time=%s\n' "$2" >> "$STUB_LOG"; shift 2 ;;
     -X) method=$2; shift 2 ;;
     -o) out=$2; shift 2 ;;
-    -H) case $2 in "Authorization: Bearer "*) bearer=${2#Authorization: Bearer } ;; esac; shift 2 ;;
+    -H)
+      case $2 in
+        @-) bearer=$(cat); bearer=${bearer#Authorization: Bearer } ;;
+        "Authorization: Bearer "*) echo 'Authorization exposed in argv' >&2; exit 1 ;;
+      esac
+      shift 2 ;;
     -w) shift 2 ;;
     --data-binary) data=$(cat "${2#@}"); shift 2 ;;
     -*) shift ;;

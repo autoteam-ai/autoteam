@@ -141,3 +141,48 @@ t_ghapp_reports_all_searched_locations() {
   assert_contains "$out" ".autoteam/local/" "要说清两个位置都找过了"
   assert_contains "$out" "machine-keys"
 }
+
+# 用真实 curl 请求保留的不可达测试地址，不依赖 GitHub 或桩的超时模拟。
+t_ghapp_real_curl_timeout_is_bounded() {
+  ghapp_repo
+  mkdir -p "$WORK/real-curl"
+  cat > "$WORK/real-curl/curl" <<'EOF'
+#!/usr/bin/env bash
+# 保留生产调用的所有选项，只把 URL 换成不可达地址；禁用环境代理。
+args=()
+for arg in "$@"; do
+  case $arg in
+    https://api.github.com/*) args+=("https://192.0.2.1/") ;;
+    *) args+=("$arg") ;;
+  esac
+done
+exec /usr/bin/curl --noproxy '*' "${args[@]}"
+EOF
+  chmod +x "$WORK/real-curl/curl"
+  start=$(date +%s)
+  out=$(env PATH="$WORK/real-curl:$PATH" XDG_CACHE_HOME="$WORK/.cache" \
+    AUTOTEAM_GITHUB_CONNECT_TIMEOUT=0.2 AUTOTEAM_GITHUB_TIMEOUT=0.4 \
+    bash .autoteam/scripts/gh-app-token.sh implementer 2>&1); rc=$?
+  assert_eq "$rc" 1
+  assert_contains "$out" "调用 GitHub 超时"
+  assert_contains "$out" "总上限 0.4 秒"
+  [ "$(($(date +%s) - start))" -lt 5 ] || tfail "curl 未在超时内退出"
+}
+
+t_ghapp_timeout_options_and_private_headers() {
+  ghapp_repo
+  # curl 桩拒绝 argv 中的 Authorization，仍验证 stdin JWT 和 installation token。
+  out=$(AUTOTEAM_GITHUB_CONNECT_TIMEOUT=2 AUTOTEAM_GITHUB_TIMEOUT=3 ghapp --identity implementer)
+  assert_contains "$out" "acme-impl[bot]"
+  assert_log "curl connect-timeout=2"
+  assert_log "curl max-time=3"
+  assert_log "JWT segments=3"
+}
+
+t_ghapp_rejects_unbounded_timeouts() {
+  ghapp_repo
+  out=$(AUTOTEAM_GITHUB_TIMEOUT=0 ghapp implementer 2>&1); rc=$?
+  assert_eq "$rc" 1
+  assert_contains "$out" "超时必须是正秒数"
+  assert_no_log "BODY POST access_tokens"
+}

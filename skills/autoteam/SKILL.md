@@ -95,3 +95,5 @@ CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 3
 
 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。
 `next --check` 排除前提未满足的待派发任务（等待原因输出到 stderr）；`approve` 预览显示等待原因，放行仍使用 `--no-start`。
+
+GitHub App 铸 token 的请求默认连接超时 10 秒、总超时 30 秒；可用 `AUTOTEAM_GITHUB_CONNECT_TIMEOUT` 和 `AUTOTEAM_GITHUB_TIMEOUT` 覆盖，值为正秒数（支持小数，不能设为 0）。超时会明确报错并返回非 0。Authorization 经 stdin 传入 curl，JWT 和 installation token 不出现在 curl 的命令行参数中。

@@ -80,6 +80,8 @@ AUTOTEAM_PLANNER_APP_ID=1234569
 
 ### agent 怎么用
 
+GitHub App 铸 token 的请求默认连接超时 10 秒、总超时 30 秒；可用 `AUTOTEAM_GITHUB_CONNECT_TIMEOUT` 和 `AUTOTEAM_GITHUB_TIMEOUT` 覆盖，值为正秒数（支持小数，不能设为 0）。超时会明确报错并返回非 0。Authorization 经 stdin 传入 curl，JWT 和 installation token 不出现在 curl 的命令行参数中。
+
 `.autoteam/scripts/gh-app-token.sh` 负责用私钥签 JWT、换 1 小时有效的 installation token，并缓存到快过期才重铸。角色指令里已经写好了，不用你操心，但你要知道它怎么工作：
 
 ```bash

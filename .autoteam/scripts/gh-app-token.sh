@@ -148,12 +148,28 @@ signature=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$k
 jwt="$header.$payload.$signature"
 
 api() {  # 方法 路径 [凭据，默认用 App 的 JWT]
-  local out code cred=${3:-$jwt}
-  out=$(curl -sS -w '\n%{http_code}' -X "$1" \
-    -H "Authorization: Bearer $cred" \
+  local out code rc cred=${3:-$jwt}
+  local connect_timeout=${AUTOTEAM_GITHUB_CONNECT_TIMEOUT:-10}
+  local timeout=${AUTOTEAM_GITHUB_TIMEOUT:-30}
+  # 正秒数（支持小数），拒绝 0，避免 curl 把它解释成无限等待。
+  for value in "$connect_timeout" "$timeout"; do
+    printf '%s\n' "$value" | LC_ALL=C awk '
+      /^[0-9]+([.][0-9]+)?$/ && $0 + 0 > 0 { valid=1 }
+      END { exit !valid }' || die "GitHub 超时必须是正秒数：$value"
+  done
+  # printf 是 shell 内建；凭据只经 stdin 传给 curl，不出现在进程参数里。
+  out=$(printf 'Authorization: Bearer %s\n' "$cred" | curl -sS -w '\n%{http_code}' -X "$1" \
+    --connect-timeout "$connect_timeout" --max-time "$timeout" \
+    -H @- \
     -H 'Accept: application/vnd.github+json' \
     -H 'X-GitHub-Api-Version: 2022-11-28' \
-    "https://api.github.com$2") || die "调用 GitHub 失败：$2"
+    "https://api.github.com$2")
+  rc=$?
+  case $rc in
+    0) ;;
+    28) die "调用 GitHub 超时：$2（连接上限 $connect_timeout 秒，总上限 $timeout 秒）" ;;
+    *) die "调用 GitHub 失败：$2（curl 退出码 $rc）" ;;
+  esac
   code=$(printf '%s' "$out" | tail -n 1)
   API_BODY=$(printf '%s' "$out" | sed '$d')
   case $code in
