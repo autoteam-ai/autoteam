@@ -21,7 +21,27 @@ publish: ## 宿主机的 npm 配置只读挂进容器；远端 docker daemon 上
 
 else
 
-check: instruction-budget lint duplication test ## 全部检查
+# 各阶段互不依赖，并行跑：每阶段的输出先缓冲到临时目录，全部结束后按固定顺序整段打印，
+# 汇总里带每阶段耗时；任一阶段失败，整体返回 1 并列出失败的阶段。
+STAGES := instruction-budget shellcheck actionlint duplication test
+# 单阶段计时：$(call timed,名字,命令)，保留命令的退出码
+timed = t=$$(date +%s%N); $(2); rc=$$?; echo "$(1) 耗时 $$(( ($$(date +%s%N) - t) / 1000000 ))ms"; exit $$rc
+
+check: ## 全部检查（各阶段并行，输出按阶段顺序打印）
+	@d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT; \
+	for s in $(STAGES); do \
+	  ( t=$$(date +%s%N); $(MAKE) --no-print-directory $$s > "$$d/$$s.out" 2>&1; echo $$? > "$$d/$$s.rc"; \
+	    echo $$(( ($$(date +%s%N) - t) / 1000000 )) > "$$d/$$s.ms" ) & \
+	done; wait; \
+	failed=""; \
+	for s in $(STAGES); do \
+	  rc=$$(cat "$$d/$$s.rc" 2>/dev/null || echo 1); \
+	  if [ "$$rc" = 0 ]; then r=通过; else r="失败（退出码 $$rc）"; failed="$$failed $$s"; fi; \
+	  printf '\n===== %s：%s，%sms =====\n' "$$s" "$$r" "$$(cat "$$d/$$s.ms" 2>/dev/null || echo ?)"; \
+	  cat "$$d/$$s.out" 2>/dev/null; \
+	done; \
+	if [ -n "$$failed" ]; then printf '\nmake check 失败的阶段：%s\n' "$$failed"; exit 1; fi; \
+	echo; echo "make check 全部阶段通过"
 
 instruction-budget:
 	@bash .autoteam/scripts/check-instruction-budget.sh
@@ -32,12 +52,10 @@ test: ## 单元测试
 lint: shellcheck actionlint
 
 shellcheck:
-	shellcheck -x $(SCRIPTS)
+	@$(call timed,shellcheck,shellcheck -x $(SCRIPTS))
 
-actionlint: ## 检查本仓库的 CI 和渲染后的工作流模板
-	@rm -rf tests/.work/actionlint && bash tests/render-workflows.sh tests/.work/actionlint >/dev/null
-	actionlint .github/workflows/*.yml tests/.work/actionlint/.github/workflows/*.yml
-	@echo "actionlint 通过"
+actionlint: ## 检查本仓库的 CI 和渲染后的工作流模板（渲染到独立临时目录，不和并行的其他阶段共用）
+	@$(call timed,actionlint,d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && bash tests/render-workflows.sh "$$d" >/dev/null && actionlint .github/workflows/*.yml "$$d"/.github/workflows/*.yml && echo "actionlint 通过")
 
 duplication: ## 重复代码占比上限在 .jscpd.json 的 threshold：老项目按现状定值，只降不升
 	jscpd --config .jscpd.json .
