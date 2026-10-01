@@ -7,11 +7,7 @@ approve_fixture() {
 #!/usr/bin/env bash
 set -e
 printf '%s\n' "$*" >> "$APPROVE_LOG"
-args=()
-while [ $# -gt 0 ]; do
-  case $1 in --profile|--workspace-id|--output) shift 2 ;; *) args+=("$1"); shift ;; esac
-done
-set -- "${args[@]}"
+. "$(dirname "$STUB_FIXTURES")/stubs/strip-multica-args.sh"
 issue() { printf '{"id":"%s","identifier":"%s","status":"%s","assignee_type":"agent","assignee_id":"%s","stage":%s}' "$1" "$2" "$3" "$4" "$5"; }
 case "$1 $2" in
   'project list') echo '[{"id":"project-1","title":"shop"}]' ;;
