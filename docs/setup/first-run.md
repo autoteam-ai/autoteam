@@ -22,7 +22,7 @@ title: 第 7 步：跑通第一个需求
 
 ## 示例项目
 
-[autoteam-example](https://github.com/autoteam-ai/autoteam-example) 是用来演练的示例：一个零依赖的 Node 命令行工具，“线上”就是 GitHub Release（`make deploy` 发布新版本，Planner 下载最新版本按验收标准运行）。
+[示例项目：团队书架](example.md)记录了官方示例的一次完整交付，包括任务拆分、PR 评审、上线验收和截图。
 
 ## 每轮验证怎么不被上一轮干扰
 
