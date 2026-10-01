@@ -725,20 +725,22 @@ multica_pause_state() {
   [ -z "$MC_PAUSE_MARKER" ] || info "项目暂停，新建项将暂停（并记入暂停记录，resume 时恢复）"
 }
 
-# 项目暂停时新建的 autopilot：先记入暂停记录，再暂停
+# 项目暂停时仍是 active 的 autopilot（新建的，或上次没暂停成功留下的）：先记入暂停记录，再暂停。
+# 失败返回 1，调用方不得再给它加触发器
 multica_pause_new_autopilot() {
   local id=$1 title=$2 marker
   marker=$(jq -c --arg id "$id" '.active_autopilots |= (if index($id) then . else . + [$id] end)' <<<"$MC_PAUSE_MARKER") \
-    || { fail "更新暂停记录失败，未暂停「$title」"; return 0; }
+    || { fail "更新暂停记录失败，未暂停「$title」"; return 1; }
   if ! mc issue metadata set "$MC_PAUSE_NOTE_ID" --key autoteam.paused --type string --value "$marker" --output json >/dev/null 2>&1; then
-    fail "写入暂停记录失败，未暂停「$title」（$id）"
-    return 0
+    fail "写入暂停记录失败，未暂停「$title」（$id）；重新运行同步"
+    return 1
   fi
   MC_PAUSE_MARKER=$marker
   if mc autopilot update "$id" --status paused --output json >/dev/null 2>&1; then
-    info "已暂停新建的「$title」并记入暂停记录"
+    info "已暂停「$title」并记入暂停记录"
   else
-    fail "暂停「$title」失败"
+    fail "暂停「$title」失败；重新运行同步"
+    return 1
   fi
 }
 
@@ -838,14 +840,17 @@ multica_autopilot() {
   fi
 
   [ -n "$id" ] || return 0
+  # 暂停中的项目：先暂停再加触发器，失败就不加，下次同步仍会找到这个 active 项重试
+  if [ -n "$MC_PAUSE_MARKER" ] && [ "$AUTOTEAM_APPLY" = 1 ] \
+    && { [ "$newly_created" = 1 ] || [ "$(jq -r --arg id "$id" '[.autopilots[]? | select(.id == $id)][0].status // ""' <<<"$list")" = active ]; }; then
+    multica_pause_new_autopilot "$id" "$title" || return 0
+  fi
   case $trigger in
     schedule) multica_schedule_trigger "$id" "$title" "$cron" ;;
     webhook) multica_webhook_trigger "$id" "$title" "$rotate" ;;
     *) fail "$f 的 trigger 只能是 schedule 或 webhook：$trigger" ;;
   esac
-  if [ "$newly_created" = 1 ] && [ -n "$MC_PAUSE_MARKER" ]; then
-    multica_pause_new_autopilot "$id" "$title"
-  elif [ "$paused" = 1 ] && [ "$newly_created" = 1 ]; then
+  if [ "$paused" = 1 ] && [ -z "$MC_PAUSE_MARKER" ] && [ "$newly_created" = 1 ]; then
     if mc autopilot update "$id" --status paused --output json >/dev/null 2>&1; then
       info "已暂停「$title」"
     else

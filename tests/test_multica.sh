@@ -210,6 +210,55 @@ t_multica_instructions_sync_preamble_and_eject() {
   assert_not_contains "$(agent_instructions planner)" "新增一条规则"
 }
 
+# 暂停中的项目：先把运营笔记标成暂停（带一个旧 ID）
+pause_project_note() {
+  autoteam_stub multica --apply --only agents >/dev/null
+  autoteam_stub multica --apply --only project >/dev/null
+  jq '.[0].metadata = {"autoteam.paused": ({at:"2026-09-30T00:00:00Z",operator:{id:"u",name:"T"},active_autopilots:["ap-old"]} | tojson)}' \
+    "$STUB_STATE/mc-issues-project.json" > "$STUB_STATE/note.tmp"
+  mv "$STUB_STATE/note.tmp" "$STUB_STATE/mc-issues-project.json"
+}
+
+t_multica_paused_project_pauses_new_autopilots() {
+  setup_ready_repo
+  pause_project_note
+  out=$(autoteam_stub multica --only autopilots)
+  assert_contains "$out" '项目暂停，新建项将暂停'
+  assert_contains "$out" '新建 autopilot「推进巡检」'
+  assert_no_log 'autopilot create'
+  autoteam_stub multica --apply --only autopilots >/dev/null
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 5
+  assert_eq "$(jq '[.[] | select(.autopilot.status != "paused")] | length' "$STUB_STATE/mc-autopilots.json")" 0
+  marker=$(jq -r '.[0].metadata["autoteam.paused"]' "$STUB_STATE/mc-issues-project.json")
+  assert_eq "$(jq '.active_autopilots | length' <<<"$marker")" 6
+  assert_eq "$(jq -c '.active_autopilots[0]' <<<"$marker")" '"ap-old"'
+  for id in $(jq -r '.[].autopilot.id' "$STUB_STATE/mc-autopilots.json"); do
+    assert_contains "$marker" "$id"
+  done
+  autoteam_stub resume --apply >/dev/null
+  assert_eq "$(jq '[.[] | select(.autopilot.status == "active")] | length' "$STUB_STATE/mc-autopilots.json")" 5
+}
+
+t_multica_paused_project_retries_failed_pause_without_trigger() {
+  setup_ready_repo
+  pause_project_note
+  fail_command 'autopilot update ap-1 --status paused'
+  out=$(autoteam_stub multica --apply --only autopilots 2>&1) && tfail "暂停失败应返回非零"
+  assert_contains "$out" '重新运行同步'
+  assert_eq "$(jq -r '.[0].autopilot.status' "$STUB_STATE/mc-autopilots.json")" active
+  assert_eq "$(jq -r '.[0].triggers | length' "$STUB_STATE/mc-autopilots.json")" 0
+  clear_fail
+  autoteam_stub multica --apply --only autopilots >/dev/null
+  assert_eq "$(jq '[.[] | select(.autopilot.status != "paused")] | length' "$STUB_STATE/mc-autopilots.json")" 0
+  assert_eq "$(jq -r '.[0].triggers | length' "$STUB_STATE/mc-autopilots.json")" 1
+}
+
+t_multica_unpaused_project_keeps_new_autopilots_active() {
+  setup_ready_repo
+  autoteam_stub multica --apply >/dev/null
+  assert_eq "$(jq '[.[] | select(.autopilot.status == "active")] | length' "$STUB_STATE/mc-autopilots.json")" 5
+}
+
 t_runtimes_lists_selectors_and_multica_reports_missing_runtime() {
   setup_ready_repo
   out=$(autoteam_stub runtimes)
