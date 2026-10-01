@@ -26,7 +26,7 @@ depends_on_reason() {
     if dependency=$(mc issue get "$key" --output json) &&
       jq -e --arg key "$key" 'type == "object" and .identifier == $key and (.status | type == "string")' <<<"$dependency" >/dev/null; then
       status=$(jq -r '.status' <<<"$dependency")
-      [ "$status" != done ] || continue
+      [ "$status" != "done" ] || continue
       reasons="${reasons}${key}（${status}）；"
     else
       reasons="${reasons}${key}（不存在或读取失败）；"

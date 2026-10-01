@@ -129,7 +129,7 @@ t_next_cross_requirement_dependencies() {
   out=$(next_cmd --check --output json 2> "$WORK/deps.err") || true
   assert_eq "$(jq '[.[] | select(.category == "dispatchable")] | length' <<<"$out")" 0
   assert_contains "$(cat "$WORK/deps.err")" 'HDGCS-125（in_review）'
-  NEXT_DEP_STATUS=done; export NEXT_DEP_STATUS
+  NEXT_DEP_STATUS="done"; export NEXT_DEP_STATUS
   out=$(next_cmd --check --output json) || true
   assert_eq "$(jq '[.[] | select(.category == "dispatchable")] | length' <<<"$out")" 1
   for NEXT_DEP in missing invalid; do

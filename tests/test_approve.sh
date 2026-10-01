@@ -108,7 +108,7 @@ t_approve_cross_requirement_dependencies() {
   assert_not_contains "$out" '叫醒 Planner'
   out=$(approve_cmd HDGCS-126 --apply)
   assert_eq "$(grep -c 'issue status [^ ]* todo$' "$APPROVE_LOG" || true)" 0
-  APPROVE_DEP_STATUS=done; export APPROVE_DEP_STATUS
+  APPROVE_DEP_STATUS="done"; export APPROVE_DEP_STATUS
   out=$(approve_cmd HDGCS-126)
   assert_contains "$out" '叫醒 Planner'
 }
