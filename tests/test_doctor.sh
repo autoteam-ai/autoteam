@@ -1,7 +1,22 @@
 # shellcheck shell=bash
 # autoteam doctor 和装进目标仓库的两个脚本
 
-t_doctor_flags_todo_makefile() {
+# 配置完整时 doctor 不应有 ❌：$1 退出码，$2 输出，$3 场景说明
+assert_doctor_ok() { assert_eq "$1" 0 "$3：$(printf '%s' "$2" | grep '❌')"; }
+
+# 直接改桩状态里的 JSON：$1 是状态文件名，其余是 jq 的参数（最后一个是过滤式）
+stub_json_edit() {
+  local f=$STUB_STATE/$1
+  shift
+  jq "$@" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+}
+
+# 在 Multica 界面上直接改 agent 的字段，模拟没走 PR 的改绑
+doctor_edit_agent() {
+  stub_json_edit mc-agents.json --arg n "$1" "map(if .name == \$n then $2 else . end)"
+}
+
+t_doctor_flags_todo_makefile_and_missing_launcher() {
   setup_init_repo
   out=$(autoteam_offline doctor --skip-github --skip-multica)
   rc=$?
@@ -10,10 +25,7 @@ t_doctor_flags_todo_makefile() {
   assert_contains "$out" "工作流文件齐全"
   assert_contains "$out" "干净 checkout 只检查已提交的 HEAD，不包含未提交的改动"
   assert_contains "$out" "registry.yaml：6 个 agent"
-}
-
-t_doctor_reports_missing_root_launcher() {
-  setup_init_repo
+  assert_not_contains "$out" "autoteam init autoteam" "入口还在时不该提示重建"
   rm autoteam
   out=$(autoteam_offline doctor --skip-github --skip-multica)
   rc=$?
@@ -24,8 +36,6 @@ t_doctor_reports_missing_root_launcher() {
 t_doctor_reports_cli_version_other_than_pinned() {
   local pkg
   setup_applied_repo
-  out=$(autoteam_stub doctor --skip-github)
-  assert_contains "$out" "与 ./autoteam 固定的版本一致"
   pkg=$(mktemp -d "$TEST_BASE/package.XXXXXX")
   cp -R "$ROOT/skills/autoteam/." "$pkg/"
   printf '%s\n' 4519627303be7b76fe058b4857d1d4a5e058295f > "$pkg/source-ref"
@@ -42,6 +52,9 @@ t_doctor_full_after_setup() {
   autoteam_stub github --apply >/dev/null
   out=$(autoteam_stub doctor)
   rc=$?
+  assert_contains "$out" "与 ./autoteam 固定的版本一致"
+  assert_contains "$out" "agent impl-claude（implementer）指令一致"
+  assert_not_contains "$out" "指令漂移" "同步后的指令带前言，不算漂移"
   assert_contains "$out" "Makefile 有 check / dev / deploy"
   assert_contains "$out" "规则集生效：必须走 PR、1 个审批、必需检查 check"
   assert_contains "$out" "secret MULTICA_DEPLOY_HOOK 已设置"
@@ -50,167 +63,112 @@ t_doctor_full_after_setup() {
   assert_contains "$out" "autopilot「部署结果」已启用"
   assert_contains "$out" "项目有且只有一条运营笔记"
   assert_not_contains "$out" "与 registry 不一致" "刚同步完，runtime / 模型 / 并发都应一致"
-  assert_eq "$rc" 0 "配置完整时不应有错误：$(printf '%s' "$out" | grep '❌')"
+  assert_doctor_ok "$rc" "$out" "配置完整时不应有错误"
   assert_contains "$out" "https://multica.test/test/agents"
   assert_contains "$out" "https://multica.test/test/autopilots"
   assert_contains "$out" "https://multica.test/test/projects"
-}
-
-t_doctor_links_use_configured_app_url() {
-  setup_applied_repo
-  out=$(STUB_APP_URL=https://app.example.test autoteam_stub doctor --skip-github)
-  assert_contains "$out" "https://app.example.test/test/agents"
-  assert_not_contains "$out" "https://multica.test/test/agents"
-}
-
-t_doctor_distinguishes_login_and_server_setup() {
-  setup_ready_repo
-  rm -rf "$WORK/.home/.multica"
-  out=$(autoteam_stub doctor --skip-github 2>&1)
-  assert_contains "$out" "multica 还没登录：先运行 multica login"
-  assert_not_contains "$out" "默认 profile 没有配置服务器"
-
-  mkdir -p "$WORK/.home/.multica"
-  printf '{"token":"mul_test_token"}\n' > "$WORK/.home/.multica/config.json"
-  out=$(autoteam_stub doctor --skip-github 2>&1)
-  assert_contains "$out" "默认 profile 没有配置服务器"
-  assert_contains "$out" "multica setup"
-  assert_not_contains "$out" "multica 还没登录"
-}
-
-t_doctor_checks_note_count() {
-  setup_applied_repo
-  echo '[]' > "$STUB_STATE/mc-issues-project.json"
-  out=$(autoteam_stub doctor --skip-github)
-  assert_eq "$?" 1
-  assert_contains "$out" '项目缺少运营笔记（autoteam multica --apply --only project）'
-  jq -n '[{id:"note-1",title:"运营笔记"},{id:"note-2",title:"运营笔记"}]' > "$STUB_STATE/mc-issues-project.json"
-  out=$(autoteam_stub doctor --skip-github)
-  assert_eq "$?" 1
-  assert_contains "$out" '项目有 2 条运营笔记，应只有一条'
 }
 
 t_doctor_warns_when_codeowners_gate_off() {
   setup_ready_repo
   echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> .autoteam/autoteam.conf
   autoteam_stub github --apply >/dev/null
-  autoteam_stub multica --apply >/dev/null
-  out=$(autoteam_stub doctor)
+  out=$(autoteam_stub doctor --skip-multica)
   assert_contains "$out" "AUTOTEAM_CODEOWNERS_GATE=off：规则集不要求 Code Owner 审批"
 }
 
-t_doctor_ignores_other_project_autopilots() {
+# 运营笔记和 autopilot 的缺失、重复、同名异项目：一次预检出全部，再一次 apply 后复查
+t_doctor_checks_project_notes_and_autopilots() {
   setup_applied_repo
-  # 同一工作区的别的项目有同名 autopilot，本项目的还没建：doctor 不能把别人的当成本项目的
-  jq 'map(.autopilot.project_id = "proj-other")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
-  mv "$STUB_STATE/mc-autopilots.tmp" "$STUB_STATE/mc-autopilots.json"
+  # 同一工作区别的项目有同名 autopilot，本项目的还没建：doctor 不能把别人的当成本项目的
+  stub_json_edit mc-autopilots.json 'map(.autopilot.project_id = "proj-other")'
+  echo '[]' > "$STUB_STATE/mc-issues-project.json"
   out=$(autoteam_stub doctor --skip-github)
   rc=$?
   assert_contains "$out" "本项目没有 autopilot「部署结果」"
-  assert_eq "$rc" 1 "本项目缺 autopilot 应该算错误"
+  assert_contains "$out" '项目缺少运营笔记（autoteam multica --apply --only project）'
+  assert_eq "$rc" 1 "本项目缺 autopilot 和运营笔记都算错误"
 
-  # apply 给本项目另建一套后，别的项目排在前面的同名 autopilot 不影响判断
-  autoteam_stub multica --apply >/dev/null
+  # apply 给本项目另建一套后，别的项目排在前面的同名 autopilot 不影响判断；笔记重复则报错
+  autoteam_stub multica --apply --only autopilots >/dev/null
+  jq -n '[{id:"note-1",title:"运营笔记"},{id:"note-2",title:"运营笔记"}]' > "$STUB_STATE/mc-issues-project.json"
   out=$(autoteam_stub doctor --skip-github)
+  rc=$?
   assert_contains "$out" "autopilot「部署结果」已启用"
   assert_not_contains "$out" "本项目没有 autopilot"
+  assert_contains "$out" '项目有 2 条运营笔记，应只有一条'
+  assert_eq "$rc" 1 "运营笔记重复应算错误"
 }
 
+# 指令漂移的三个来源（本地 eject 后改动、Multica 上改 agent、本地 eject 后改 autopilot）同时出现，一次预检出全部
 t_doctor_detects_instruction_drift() {
   setup_applied_repo
   autoteam_stub eject reviewer >/dev/null
+  autoteam_stub eject patrol >/dev/null
   out=$(autoteam_stub doctor --skip-github)
   assert_not_contains "$out" "指令漂移" "eject 后文本没变，不算漂移"
   echo "本地改了但没同步" >> .autoteam/instructions/roles/reviewer.md
+  echo '尚未同步的新规则' >> .autoteam/instructions/autopilots/patrol.md
+  # Multica 上是不带前言的旧文本：doctor 按「前言 + 角色文件」比对，所以要报漂移
+  doctor_edit_agent impl-claude ".instructions = $(jq -Rs . < "$ROOT/skills/autoteam/instructions/roles/implementer.md")"
   out=$(autoteam_stub doctor --skip-github)
   assert_contains "$out" "agent rev-codex 的指令和生效文本（.autoteam/instructions/roles/reviewer.md）不一致"
-  # 删掉 eject 的文件，生效文本回到包内版本，和 Multica 里的一致，漂移消失
-  rm .autoteam/instructions/roles/reviewer.md
+  assert_contains "$out" 'autopilot「推进巡检」的指令和生效文本不一致（指令漂移）'
+  assert_contains "$out" "agent impl-claude 的指令和生效文本（autoteam 包内 instructions/roles/implementer.md）不一致（指令漂移）"
+  # 删掉 eject 的文件，生效文本回到包内版本，和 Multica 里的一致；重新同步 agent 后，漂移全部消失
+  rm .autoteam/instructions/roles/reviewer.md .autoteam/instructions/autopilots/patrol.md
+  autoteam_stub multica --apply --only agents >/dev/null
   out=$(autoteam_stub doctor --skip-github)
   assert_not_contains "$out" "指令漂移"
 }
 
-t_doctor_detects_autopilot_instruction_drift() {
-  setup_applied_repo
-  autoteam_stub eject patrol >/dev/null
-  echo '尚未同步的新规则' >> .autoteam/instructions/autopilots/patrol.md
-  out=$(autoteam_stub doctor --skip-github)
-  assert_contains "$out" 'autopilot「推进巡检」的指令和生效文本不一致（指令漂移）'
-}
-
-# doctor 按「前言 + 角色文件」比对：刚同步完不报漂移；Multica 上是不带前言的旧文本则报漂移
-t_doctor_compares_instructions_with_preamble() {
-  setup_applied_repo
-  out=$(autoteam_stub doctor --skip-github)
-  assert_not_contains "$out" "指令漂移" "同步后的指令带前言，不算漂移"
-  assert_contains "$out" "agent impl-claude（implementer）指令一致"
-  doctor_edit_agent impl-claude ".instructions = $(jq -Rs . < "$ROOT/skills/autoteam/instructions/roles/implementer.md")"
-  out=$(autoteam_stub doctor --skip-github)
-  assert_contains "$out" "agent impl-claude 的指令和生效文本（autoteam 包内 instructions/roles/implementer.md）不一致（指令漂移）"
-  autoteam_stub multica --apply --only agents >/dev/null
-  out=$(autoteam_stub doctor --skip-github)
-  assert_not_contains "$out" "指令漂移" "重新同步后漂移消失"
-}
-
-# 在 Multica 界面上直接改 agent 的字段，模拟没走 PR 的改绑
-doctor_edit_agent() {
-  jq --arg n "$1" "map(if .name == \$n then $2 else . end)" "$STUB_STATE/mc-agents.json" > "$STUB_STATE/mc-agents.tmp"
-  mv "$STUB_STATE/mc-agents.tmp" "$STUB_STATE/mc-agents.json"
-}
-
-t_doctor_detects_runtime_drift() {
+# runtime、模型、并发的漂移，以及 runtime 未绑定（空串和 null 两种形状），一次预检出全部
+t_doctor_detects_registry_drift() {
   setup_applied_repo
   # 指令没变，只换了 runtime：以前 doctor 照样报"指令一致，runtime 在线"
-  doctor_edit_agent impl-claude '.runtime_id = "rt-b-claude-0000"'
+  doctor_edit_agent impl-claude '.runtime_id = "rt-b-claude-0000" | .model = "claude-opus" | .max_concurrent_tasks = 5'
+  doctor_edit_agent rev-codex '.model = "gpt-5"'
+  # 实际值为空时比对输出里有相邻的 tab，不能把要求值错读成实际值
+  doctor_edit_agent planner '.runtime_id = ""'
+  doctor_edit_agent auditor '.runtime_id = null'
   out=$(autoteam_stub doctor --skip-github)
   rc=$?
   assert_contains "$out" "agent impl-claude 的 runtime 与 registry 不一致：实际 Claude (machine-b) rt-b-cla，registry 要求 claude@machine-a（Claude (machine-a) rt-a-cla）"
   assert_contains "$out" "autoteam multica --apply --only agents"
-  assert_not_contains "$out" "agent planner 的 runtime 与 registry 不一致"
-  assert_eq "$rc" 1 "runtime 不一致应算错误"
-
-  autoteam_stub multica --apply --only agents >/dev/null
-  out=$(autoteam_stub doctor --skip-github)
-  rc=$?
-  assert_not_contains "$out" "与 registry 不一致" "apply 之后应恢复一致"
-  assert_eq "$rc" 0 "恢复后不应有错误：$(printf '%s' "$out" | grep '❌')"
-}
-
-t_doctor_reports_unbound_runtime() {
-  setup_applied_repo
-  # 实际值为空时比对输出里有相邻的 tab，不能把要求值错读成实际值
-  for v in '""' null; do
-    doctor_edit_agent impl-claude ".runtime_id = $v"
-    out=$(autoteam_stub doctor --skip-github)
-    rc=$?
-    assert_contains "$out" "agent impl-claude 的 runtime 与 registry 不一致：实际 未绑定，registry 要求 claude@machine-a（Claude (machine-a) rt-a-cla）" "$v"
-    assert_eq "$rc" 1 "未绑定 runtime 应算错误（$v）"
-  done
-}
-
-t_doctor_detects_model_and_concurrency_drift() {
-  setup_applied_repo
-  doctor_edit_agent rev-codex '.model = "gpt-5"'
-  doctor_edit_agent impl-claude '.model = "claude-opus" | .max_concurrent_tasks = 5'
-  out=$(autoteam_stub doctor --skip-github)
-  rc=$?
+  assert_contains "$out" "agent planner 的 runtime 与 registry 不一致：实际 未绑定，registry 要求 claude@machine-c"
+  assert_contains "$out" "agent auditor 的 runtime 与 registry 不一致：实际 未绑定，registry 要求 rt-c-claude-0000"
   assert_contains "$out" "agent rev-codex 的 模型 与 registry 不一致：实际 gpt-5，registry 要求 gpt-5.5"
   assert_contains "$out" "agent impl-claude 的 模型 与 registry 不一致：实际 claude-opus，registry 要求 default"
   assert_contains "$out" "agent impl-claude 的 并发 与 registry 不一致：实际 5，registry 要求 2"
   assert_not_contains "$out" "agent rev-codex 的 runtime 与 registry 不一致"
-  assert_eq "$rc" 1 "模型不一致应算错误"
+  assert_eq "$rc" 1 "runtime / 模型不一致应算错误"
   # 和 autoteam multica 预览是同一份比对
   out=$(autoteam_stub multica --only agents)
   assert_contains "$out" "更新 agent rev-codex： 模型"
-  assert_contains "$out" "更新 agent impl-claude： 模型 并发"
+  assert_contains "$out" "模型 并发"
 
   autoteam_stub multica --apply --only agents >/dev/null
   out=$(autoteam_stub doctor --skip-github)
+  rc=$?
   assert_not_contains "$out" "与 registry 不一致" "apply 之后应恢复一致"
+  assert_doctor_ok "$rc" "$out" "恢复后不应有错误"
 }
 
-t_doctor_reports_read_failure_not_drift() {
+# 读取失败不能当成漂移：autopilot 触发器退出码非 0 但输出合法 JSON、agent 读超时、agent 输出不是 JSON
+# （502 页面），分别出一次；上次运行失败和链接用配置的 app url 顺带在第一次核对
+t_doctor_reports_read_failures_not_drift() {
   setup_applied_repo
+  out=$(STUB_AUTOPILOT_GET=fail STUB_FAILED_RUN=1 STUB_APP_URL=https://app.example.test autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "读不到 autopilot「部署结果」的触发器"
+  assert_contains "$out" "MULTICA_HTTP_TIMEOUT"
+  assert_not_contains "$out" "autopilot「部署结果」已启用"
+  assert_not_contains "$out" "没有触发器"
+  assert_eq "$rc" 1 "读不到触发器应算错误"
+  assert_contains "$out" "agent rev-codex 最近一次运行失败：Failed to authenticate: OAuth session expired"
+  assert_not_contains "$out" "agent planner 最近一次运行失败"
+  assert_contains "$out" "https://app.example.test/test/agents"
+  assert_not_contains "$out" "https://multica.test/test/agents"
   for mode in fail garbage; do
     out=$(STUB_AGENT_GET=$mode autoteam_stub doctor --skip-github)
     rc=$?
@@ -220,25 +178,6 @@ t_doctor_reports_read_failure_not_drift() {
     assert_not_contains "$out" "autoteam multica --apply）" "$mode 不该建议 --apply"
     assert_eq "$rc" 1 "读不到应算错误（$mode）"
   done
-}
-
-t_doctor_reports_autopilot_read_failure_with_valid_json() {
-  setup_applied_repo
-  # 退出码非 0 但输出是合法 JSON：不能当成读取成功
-  out=$(STUB_AUTOPILOT_GET=fail autoteam_stub doctor --skip-github)
-  rc=$?
-  assert_contains "$out" "读不到 autopilot「部署结果」的触发器"
-  assert_contains "$out" "MULTICA_HTTP_TIMEOUT"
-  assert_not_contains "$out" "autopilot「部署结果」已启用"
-  assert_not_contains "$out" "没有触发器"
-  assert_eq "$rc" 1 "读不到触发器应算错误"
-}
-
-t_doctor_reports_failed_last_run() {
-  setup_applied_repo
-  out=$(STUB_FAILED_RUN=1 autoteam_stub doctor --skip-github)
-  assert_contains "$out" "agent rev-codex 最近一次运行失败：Failed to authenticate: OAuth session expired"
-  assert_not_contains "$out" "agent planner 最近一次运行失败"
 }
 
 t_loop_guard_counts_rejections_and_markers() {
@@ -513,27 +452,25 @@ EOF
   chmod +x "$ghdir/gh"
 }
 
-t_health_metrics_human_review_per_merged_pr_normal() {
+# 评审次数 / 合并 PR 数：正常比值，以及合并数为零时比值为 null（零分母）
+t_health_metrics_human_review_per_merged_pr() {
   setup_init_repo
   git commit --allow-empty -qm seed
+  local gh_path="$WORK/.stub-gh:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin"
   stub_gh_pr_counts 5 4
-  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
+  out=$(env PATH="$gh_path" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
   assert_eq "$(jq -r '.prs_7d.merged' <<<"$out")" 5
   assert_eq "$(jq -r '.human_7d.reviews' <<<"$out")" 4
   assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" 0.8
-  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
+  md=$(env PATH="$gh_path" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | 0.8 |"
-}
 
-t_health_metrics_human_review_per_merged_pr_zero_denominator() {
-  setup_init_repo
-  git commit --allow-empty -qm seed
   stub_gh_pr_counts 0 3
-  out=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
+  out=$(env PATH="$gh_path" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --json)
   assert_eq "$(jq -r '.prs_7d.merged' <<<"$out")" 0
   assert_eq "$(jq -r '.human_7d.reviews' <<<"$out")" 3
   assert_eq "$(jq -r '.human_review_per_merged_pr' <<<"$out")" null
-  md=$(env PATH="$ghdir:$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
+  md=$(env PATH="$gh_path" AUTOTEAM_SKIP_JSCPD=1 bash .autoteam/scripts/health-metrics.sh --md)
   assert_contains "$md" "| 人工评审 / 合并 PR 比值（近 7 天） | — |"
 }
 
@@ -588,9 +525,21 @@ doctor_keys_repo() {
   mkdir -p .autoteam/local "$WORK/.home/.autoteam"
 }
 
-t_doctor_keys_missing_on_local_runtime_fails() {
+# runtime 在本机时缺私钥算错误，不在本机只提示；私钥可放仓库 .autoteam/local 或 AUTOTEAM_KEYS_DIR。
+# 一次 apply，逐步摆放私钥文件和本机 runtime，复用同一个仓库。
+t_doctor_checks_private_keys() {
   doctor_keys_repo
-  out=$(STUB_LOCAL_RUNTIMES=rt-a-claude-0000 autoteam_stub doctor --skip-github)
+  # 1. runtime 都不在本机：缺私钥只是提示，同一台远端机器只提示一条
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_not_contains "$out" "本机没有"
+  assert_contains "$out" "远端机器 machine-a 的私钥待检查（角色：implementer"
+  assert_contains "$out" "远端机器 rt-c-claude-0000 的私钥待检查（角色：planner"
+  assert_doctor_ok "$rc" "$out" "runtime 都不在本机时缺私钥只是提示"
+
+  # 2. implementer 和 auditor 的 runtime 在本机，没有私钥：算错误；auditor 用 planner 的私钥
+  export STUB_LOCAL_RUNTIMES=rt-a-claude-0000,rt-c-claude-0000
+  out=$(autoteam_stub doctor --skip-github)
   rc=$?
   assert_eq "$rc" 1 "本机 runtime 缺私钥应算错误"
   assert_contains "$out" "本机没有 implementer 的私钥，但 agent impl-claude 的 runtime claude@machine-a 在这台机器上"
@@ -600,37 +549,32 @@ t_doctor_keys_missing_on_local_runtime_fails() {
   assert_contains "$out" "AUTOTEAM_IMPLEMENTER_APP_KEY"
   assert_not_contains "$out" "本机没有 reviewer 的私钥" "不在本机的 runtime 不判错"
   assert_contains "$out" "远端机器 machine-b 的私钥待检查（角色：reviewer"
-}
+  assert_contains "$out" "本机没有 planner 的私钥，但 agent auditor 的 runtime rt-c-claude-0000 在这台机器上（auditor 使用 planner 身份）"
+  assert_contains "$out" "AUTOTEAM_PLANNER_APP_KEY"
+  assert_contains "$out" "planner.pem"
 
-t_doctor_keys_in_repo_local_passes() {
-  doctor_keys_repo
+  # 3. implementer 私钥在仓库本地，planner 私钥在 keys 目录
   : > .autoteam/local/implementer.pem
-  out=$(STUB_LOCAL_RUNTIMES=rt-a-claude-0000 autoteam_stub doctor --skip-github)
-  assert_contains "$out" "本机有 implementer 的私钥"
-  assert_not_contains "$out" "本机没有 implementer 的私钥"
-}
-
-t_doctor_keys_in_keys_dir_passes() {
-  doctor_keys_repo
-  : > "$WORK/.home/.autoteam/autoteam-implementer.2026-01-01.private-key.pem"
-  out=$(STUB_LOCAL_RUNTIMES=rt-a-claude-0000 autoteam_stub doctor --skip-github)
-  rc=$?
-  assert_contains "$out" "本机有 implementer 的私钥"
-  assert_not_contains "$out" "本机没有 implementer 的私钥"
-  assert_eq "$rc" 0 "私钥齐全时不应有错误：$(printf '%s' "$out" | grep '❌')"
-}
-
-t_doctor_keys_remote_runtime_only_hints() {
-  doctor_keys_repo
+  : > "$WORK/.home/.autoteam/planner.pem"
   out=$(autoteam_stub doctor --skip-github)
   rc=$?
-  assert_not_contains "$out" "本机没有"
-  assert_contains "$out" "远端机器 machine-a 的私钥待检查（角色：implementer"
-  assert_eq "$rc" 0 "runtime 都不在本机时缺私钥只是提示：$(printf '%s' "$out" | grep '❌')"
-}
+  assert_contains "$out" "本机有 implementer 的私钥"
+  assert_not_contains "$out" "本机没有 implementer 的私钥"
+  assert_contains "$out" "本机有 planner 的私钥（agent auditor 的 runtime 在本机；auditor 使用 planner 身份）"
+  assert_not_contains "$out" "本机没有 planner 的私钥"
+  assert_doctor_ok "$rc" "$out" "私钥齐全时不应有错误"
 
-t_doctor_remote_keys_aggregate_same_machine() {
-  doctor_keys_repo
+  # 4. implementer 私钥改放 keys 目录（带日期的文件名）
+  rm .autoteam/local/implementer.pem
+  : > "$WORK/.home/.autoteam/autoteam-implementer.2026-01-01.private-key.pem"
+  out=$(autoteam_stub doctor --skip-github)
+  rc=$?
+  assert_contains "$out" "本机有 implementer 的私钥"
+  assert_not_contains "$out" "本机没有 implementer 的私钥"
+  assert_doctor_ok "$rc" "$out" "私钥齐全时不应有错误"
+  unset STUB_LOCAL_RUNTIMES
+
+  # 5. 两个 runtime 在同一台远端机器：只有一条聚合提示
   sed -i 's/codex@machine-b/claude@machine-a/' .autoteam/registry.yaml
   out=$(autoteam_stub doctor --skip-github)
   assert_contains "$out" "远端机器 machine-a 的私钥待检查（角色：implementer reviewer"
@@ -639,62 +583,53 @@ t_doctor_remote_keys_aggregate_same_machine() {
   assert_contains "$out" "AUTOTEAM_KEYS_DIR，当前 ~/.autoteam"
 }
 
-t_doctor_auditor_uses_planner_key() {
-  doctor_keys_repo
-  out=$(STUB_LOCAL_RUNTIMES=rt-c-claude-0000 autoteam_stub doctor --skip-github)
-  rc=$?
-  assert_eq "$rc" 1 "auditor 本机 runtime 缺 planner 私钥应算错误"
-  assert_contains "$out" "本机没有 planner 的私钥，但 agent auditor 的 runtime rt-c-claude-0000 在这台机器上（auditor 使用 planner 身份）"
-  assert_contains "$out" "AUTOTEAM_PLANNER_APP_KEY"
-  assert_contains "$out" "planner.pem"
-
-  : > "$WORK/.home/.autoteam/planner.pem"
-  out=$(STUB_LOCAL_RUNTIMES=rt-c-claude-0000 autoteam_stub doctor --skip-github)
-  rc=$?
-  assert_contains "$out" "本机有 planner 的私钥（agent auditor 的 runtime 在本机；auditor 使用 planner 身份）"
-  assert_not_contains "$out" "本机没有 planner 的私钥"
-  assert_eq "$rc" 0 "auditor 有 planner 私钥时不应有错误：$(printf '%s' "$out" | grep '❌')"
-}
-
-t_doctor_auditor_remote_runtime_hints() {
-  doctor_keys_repo
-  out=$(autoteam_stub doctor --skip-github)
-  rc=$?
-  assert_contains "$out" "远端机器 rt-c-claude-0000 的私钥待检查（角色：planner"
-  assert_eq "$rc" 0 "auditor runtime 不在本机时只提示：$(printf '%s' "$out" | grep '❌')"
-}
-
-t_doctor_warns_retired_cron_keys() {
+# 登录和服务器配置缺失要分开提示
+t_doctor_distinguishes_login_and_server_setup() {
   setup_ready_repo
-  out=$(autoteam_stub doctor --skip-github --skip-multica)
-  assert_not_contains "$out" "已合并到"
-  printf 'AUTOTEAM_CRON_SCORECARD=0 8 * * 1\nAUTOTEAM_CRON_FRONTIER=0 11 * * 1\n' >> .autoteam/autoteam.conf
-  out=$(autoteam_stub doctor --skip-github --skip-multica)
-  assert_contains "$out" "AUTOTEAM_CRON_SCORECARD 已合并到 AUTOTEAM_CRON_HEALTH，旧键被忽略"
-  assert_contains "$out" "AUTOTEAM_CRON_FRONTIER 已合并到 AUTOTEAM_CRON_DIRECTION，旧键被忽略"
+  rm -rf "$WORK/.home/.multica"
+  out=$(autoteam_stub doctor --skip-github 2>&1)
+  assert_contains "$out" "multica 还没登录：先运行 multica login"
+  assert_not_contains "$out" "默认 profile 没有配置服务器"
+
+  mkdir -p "$WORK/.home/.multica"
+  printf '{"token":"mul_test_token"}\n' > "$WORK/.home/.multica/config.json"
+  out=$(autoteam_stub doctor --skip-github 2>&1)
+  assert_contains "$out" "默认 profile 没有配置服务器"
+  assert_contains "$out" "multica setup"
+  assert_not_contains "$out" "multica 还没登录"
 }
 
-t_doctor_warns_orphan_ejected_runbook() {
+# 本地配置和文件层面的告警：已废弃的 cron 键、孤立的 eject 文件、已提交的入口
+t_doctor_warns_local_config_issues() {
   setup_ready_repo
   autoteam_stub eject example >/dev/null
   out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_not_contains "$out" "已合并到"
   assert_not_contains "$out" "在 autoteam 包内已不存在"
+  assert_not_contains "$out" "干净 checkout 预跑只检查已提交的 HEAD"
+
+  printf 'AUTOTEAM_CRON_SCORECARD=0 8 * * 1\nAUTOTEAM_CRON_FRONTIER=0 11 * * 1\n' >> .autoteam/autoteam.conf
   cp .autoteam/instructions/runbooks/example.md .autoteam/instructions/runbooks/gone.md
+  git add .
+  git commit -qm "测试已提交的入口"
   out=$(autoteam_stub doctor --skip-github --skip-multica)
+  assert_contains "$out" "AUTOTEAM_CRON_SCORECARD 已合并到 AUTOTEAM_CRON_HEALTH，旧键被忽略"
+  assert_contains "$out" "AUTOTEAM_CRON_FRONTIER 已合并到 AUTOTEAM_CRON_DIRECTION，旧键被忽略"
   assert_contains "$out" ".autoteam/instructions/runbooks/gone.md 在 autoteam 包内已不存在"
+  assert_contains "$out" "干净 checkout 预跑只检查已提交的 HEAD，不包含未提交的改动"
 }
 
 # list 的真实 CLI 形状为 {autopilots:[{id,title,project_id,status,...}],total:N}。
-doctor_paused_fixture() {
+# 没有暂停标记时每个 paused autopilot 单独报；项目有暂停标记时合成一条暂停提醒
+t_doctor_reports_project_pause() {
   setup_applied_repo
-  jq 'map(.autopilot.status = "paused")' "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/paused.tmp"
-  mv "$STUB_STATE/paused.tmp" "$STUB_STATE/mc-autopilots.json"
-}
+  stub_json_edit mc-autopilots.json 'map(.autopilot.status = "paused")'
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 0
+  assert_eq "$(grep -c '是 paused 状态' <<<"$out")" "$(jq length "$STUB_STATE/mc-autopilots.json")"
+  assert_not_contains "$out" '项目已暂停'
 
-t_doctor_aggregates_project_pause() {
-  doctor_paused_fixture
-  jq 'map(.metadata = {"autoteam.paused": ({at:"2026-09-29T04:00:00Z",operator:{id:"person-1",name:"Tester"},active_autopilots:[]} | tojson)})' "$STUB_STATE/mc-issues-project.json" > "$STUB_STATE/paused.tmp"
-  mv "$STUB_STATE/paused.tmp" "$STUB_STATE/mc-issues-project.json"
+  stub_json_edit mc-issues-project.json 'map(.metadata = {"autoteam.paused": ({at:"2026-09-29T04:00:00Z",operator:{id:"person-1",name:"Tester"},active_autopilots:[]} | tojson)})'
   out=$(autoteam_stub doctor --skip-github)
   assert_eq "$?" 0
   assert_eq "$(grep -c '项目已暂停' <<<"$out")" 1
@@ -702,20 +637,4 @@ t_doctor_aggregates_project_pause() {
   assert_contains "$out" 'Tester'
   assert_contains "$out" 'autoteam resume --apply'
   assert_not_contains "$out" '是 paused 状态'
-}
-
-t_doctor_reports_each_pause_without_marker() {
-  doctor_paused_fixture
-  out=$(autoteam_stub doctor --skip-github)
-  assert_eq "$?" 0
-  assert_eq "$(grep -c '是 paused 状态' <<<"$out")" "$(jq length "$STUB_STATE/mc-autopilots.json")"
-  assert_not_contains "$out" '项目已暂停'
-}
-
-t_doctor_explains_committed_head_preflight() {
-  setup_ready_repo
-  git add .
-  git commit -qm "测试已提交的入口"
-  out=$(autoteam_stub doctor --skip-github --skip-multica)
-  assert_contains "$out" "干净 checkout 预跑只检查已提交的 HEAD，不包含未提交的改动"
 }
