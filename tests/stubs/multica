@@ -251,6 +251,16 @@ EOF
     jq --arg id "$id" --argjson t "$trig" 'map(if .autopilot.id == $id then .triggers += [$t] else . end)' "$autopilots" > "$autopilots.tmp"
     mv "$autopilots.tmp" "$autopilots"
     printf '%s\n' "$trig" ;;
+  "issue metadata")
+    issues=$state/mc-issues-project.json
+    case $3 in
+      set) jq --arg id "$4" --arg k "$(flag --key "$@")" --arg v "$(flag --value "$@")" \
+             'map(if .id == $id then .metadata[$k] = $v else . end)' "$issues" > "$issues.tmp" ;;
+      delete) jq --arg id "$4" --arg k "$(flag --key "$@")" \
+             'map(if .id == $id then del(.metadata[$k]) else . end)' "$issues" > "$issues.tmp" ;;
+    esac
+    mv "$issues.tmp" "$issues"
+    echo '{}' ;;
   "autopilot trigger-update") echo '{}' ;;
   *) echo "multica 桩不支持：$*" >&2; exit 2 ;;
 esac

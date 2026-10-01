@@ -702,12 +702,46 @@ fm_body() {
 multica_autopilots() {
   local rows=$1 paused=$2 rotate=$3 list f
   list=$(mc autopilot list --output json) || die "读取 autopilot 列表失败"
+  multica_pause_state
   mc_obsolete_autopilots_hint "$(mc_obsolete_autopilots "$list" "$MC_PROJECT_ID")"
   while IFS= read -r f; do
     multica_autopilot "$f" "$rows" "$list" "$paused" "$rotate"
   done <<EOF
 $(instructions_list autopilots)
 EOF
+}
+
+# 项目是否处于 autoteam stop 的暂停状态：读运营笔记上的暂停标记。
+# 设置 MC_PAUSE_NOTE_ID、MC_PAUSE_MARKER（未暂停或项目还没建时为空）
+multica_pause_state() {
+  local ids issue
+  MC_PAUSE_NOTE_ID="" MC_PAUSE_MARKER=""
+  [ -n "$MC_PROJECT_ID" ] || return 0
+  ids=$(mc_project_note_ids "$MC_PROJECT_ID") || die "读取项目运营笔记失败"
+  MC_PAUSE_NOTE_ID=$(head -n 1 <<<"$ids")
+  [ -n "$MC_PAUSE_NOTE_ID" ] || return 0
+  issue=$(mc issue get "$MC_PAUSE_NOTE_ID" --output json) || die "读取运营笔记失败"
+  MC_PAUSE_MARKER=$(stop_parse_marker "$issue") || die "暂停标记格式错误，停止操作"
+  [ -z "$MC_PAUSE_MARKER" ] || info "项目暂停，新建项将暂停（并记入暂停记录，resume 时恢复）"
+}
+
+# 项目暂停时仍是 active 的 autopilot（新建的，或上次没暂停成功留下的）：先记入暂停记录，再暂停。
+# 失败返回 1，调用方不得再给它加触发器
+multica_pause_new_autopilot() {
+  local id=$1 title=$2 marker
+  marker=$(jq -c --arg id "$id" '.active_autopilots |= (if index($id) then . else . + [$id] end)' <<<"$MC_PAUSE_MARKER") \
+    || { fail "更新暂停记录失败，未暂停「$title」"; return 1; }
+  if ! mc issue metadata set "$MC_PAUSE_NOTE_ID" --key autoteam.paused --type string --value "$marker" --output json >/dev/null 2>&1; then
+    fail "写入暂停记录失败，未暂停「$title」（$id）；重新运行同步"
+    return 1
+  fi
+  MC_PAUSE_MARKER=$marker
+  if mc autopilot update "$id" --status paused --output json >/dev/null 2>&1; then
+    info "已暂停「$title」并记入暂停记录"
+  else
+    fail "暂停「$title」失败；重新运行同步"
+    return 1
+  fi
 }
 
 # autopilot 列表 $1 里绑在项目 $3 上、标题为 $2 的 autopilot ID。项目还没建（$3 为空）时没有
@@ -806,12 +840,17 @@ multica_autopilot() {
   fi
 
   [ -n "$id" ] || return 0
+  # 暂停中的项目：先暂停再加触发器，失败就不加，下次同步仍会找到这个 active 项重试
+  if [ -n "$MC_PAUSE_MARKER" ] && [ "$AUTOTEAM_APPLY" = 1 ] \
+    && { [ "$newly_created" = 1 ] || [ "$(jq -r --arg id "$id" '[.autopilots[]? | select(.id == $id)][0].status // ""' <<<"$list")" = active ]; }; then
+    multica_pause_new_autopilot "$id" "$title" || return 0
+  fi
   case $trigger in
     schedule) multica_schedule_trigger "$id" "$title" "$cron" ;;
     webhook) multica_webhook_trigger "$id" "$title" "$rotate" ;;
     *) fail "$f 的 trigger 只能是 schedule 或 webhook：$trigger" ;;
   esac
-  if [ "$paused" = 1 ] && [ "$newly_created" = 1 ]; then
+  if [ "$paused" = 1 ] && [ -z "$MC_PAUSE_MARKER" ] && [ "$newly_created" = 1 ]; then
     if mc autopilot update "$id" --status paused --output json >/dev/null 2>&1; then
       info "已暂停「$title」"
     else
