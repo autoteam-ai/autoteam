@@ -58,10 +58,8 @@ autoteam_offline() {
   env PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" HOME="$WORK/.home" NO_COLOR=1 bash "$AUTOTEAM" "$@"
 }
 
-# 生成一套可用的配置：init + 把 Makefile 改成真实命令 + registry 用桩里的 runtime
-setup_ready_repo() {
-  new_repo "${1:-acme/shop}"
-  autoteam_stub init --owner alice --workspace test >/dev/null
+# 给已 init 的仓库填入真实 Makefile、桩 runtime 和登录配置。
+configure_ready_repo() {
   printf 'check:\n\t@true\ndev:\n\t@true\ndeploy:\n\t@true\n' > Makefile
   cat > .autoteam/registry.yaml <<'EOF'
 accounts:
@@ -77,3 +75,82 @@ EOF
   mkdir -p "$WORK/.home/.multica/profiles/test"
   printf '{"server_url":"https://api.multica.test","token":"mul_test_token"}' > "$WORK/.home/.multica/profiles/test/config.json"
 }
+
+# worker 的 result_dir 是本次 run.sh 的共享目录；直接 source lib.sh 时用 TEST_BASE。
+# 不跨测试运行复用，嵌套 runner 也不会读到外层的模板。
+setup_repo_template() {
+  local stage=$1 repo=${2:-acme/shop} cache key tries=0
+  case $stage in init|ready|applied) ;; *) echo "未知仓库模板：$stage" >&2; exit 1 ;; esac
+  key=$(printf '%s\n' "$repo" "${STUB_SCENARIO:-user-public}" "$AUTOTEAM" | git hash-object --stdin)
+  cache=${result_dir:-$TEST_BASE}/repo-templates/$stage-$key
+  mkdir -p "${cache%/*}" || exit 1
+  while [ ! -d "$cache" ]; do
+    if [ -f "$cache.failed" ]; then
+      echo "仓库模板构建失败：$stage（见首次构建的测试输出）" >&2
+      exit 1
+    fi
+    if mkdir "$cache.lock" 2>/dev/null; then
+      # 获取锁之前可能已由另一个 worker 发布；再次确认，避免重复构建。
+      if [ -f "$cache.failed" ]; then
+        rmdir "$cache.lock"
+        echo "仓库模板构建失败：$stage" >&2
+        exit 1
+      fi
+      if [ ! -d "$cache" ]; then
+        build_repo_template "$stage" "$repo" "$cache" || exit 1
+      else
+        rmdir "$cache.lock" || exit 1
+      fi
+    else
+      tries=$((tries + 1))
+      [ "$tries" -lt 1200 ] || { echo "等待仓库模板超时：$stage" >&2; exit 1; }
+      sleep 0.1
+    fi
+  done
+  WORK=$(mktemp -d "$TEST_BASE/repo.XXXXXX") || exit 1
+  cp -a "$cache/." "$WORK/" || exit 1
+  cd "$WORK" || exit 1
+  STUB_LOG=$WORK/.stub/log
+  STUB_STATE=$WORK/.stub
+  export STUB_LOG STUB_STATE
+  # git init 产生的 .git/config 不含 core.worktree 等绝对路径；配置和桩 JSON
+  # 也不含仓库路径。调用日志里的临时仓库路径则要改成当前副本。
+  if [ -f "$STUB_LOG" ]; then
+    python3 - "$STUB_LOG" "$(cat "$cache.origin")" "$WORK" <<'PYTHON'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+p.write_text(p.read_text().replace(sys.argv[2], sys.argv[3]))
+PYTHON
+  fi
+}
+
+# 只有持锁者构建，原子发布完整目录；失败标记让其他 worker 直接报错。
+# 子 shell 隔离 WORK、cwd、桩变量和 trap，不影响正在运行的用例。
+build_repo_template() (
+  local stage=$1 repo=$2 cache=$3
+  trap 'touch "$cache.failed"; rmdir "$cache.lock"' EXIT
+  trap 'exit 1' INT TERM
+  case $stage in
+    init)
+      new_repo "$repo" || exit 1
+      autoteam_offline init --owner alice >/dev/null || exit 1
+      ;;
+    ready)
+      new_repo "$repo" || exit 1
+      autoteam_stub init --owner alice --workspace test >/dev/null || exit 1
+      configure_ready_repo || exit 1
+      ;;
+    applied)
+      setup_ready_repo "$repo"
+      autoteam_stub multica --apply >/dev/null || exit 1
+      ;;
+  esac
+  printf '%s\n' "$WORK" > "$cache.origin" || exit 1
+  mv "$WORK" "$cache" || exit 1
+  trap - EXIT
+  rmdir "$cache.lock"
+)
+
+setup_init_repo() { setup_repo_template init "${1:-acme/shop}"; }
+setup_ready_repo() { setup_repo_template ready "${1:-acme/shop}"; }
+setup_applied_repo() { setup_repo_template applied "${1:-acme/shop}"; }

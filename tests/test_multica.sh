@@ -50,8 +50,7 @@ t_multica_apply_creates_everything() {
 }
 
 t_multica_second_apply_is_noop() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply)
   assert_contains "$out" "旧状态 shipping 不存在或已归档"
@@ -152,8 +151,7 @@ t_multica_prepends_preamble() {
   assert_contains "$pre" "开工先检查暂停"
   assert_contains "$pre" '使用 `zh-CN` 对应的语言'
   assert_eq "$(grep -rl "开工先检查暂停" "$ROOT/skills/autoteam/instructions")" "$ROOT/skills/autoteam/instructions/_preamble.md" "前言只能有一份来源"
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   for name in planner impl-claude rev-codex auditor; do
     assert_eq "$(jq -r --arg n "$name" '.[] | select(.name == $n) | .instructions' "$STUB_STATE/mc-agents.json" | head -n 1)" "$pre" "agent $name 的指令开头是前言"
   done
@@ -301,8 +299,7 @@ t_multica_fatal_local_error_summary() {
 
 
 t_multica_autopilot_read_failure_does_not_update() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   : > "$STUB_LOG"
   echo 'autopilot get ap-1' > "$STUB_STATE/mc-fail-command"
   echo -1 > "$STUB_STATE/mc-fail-count"
@@ -317,8 +314,7 @@ t_multica_autopilot_read_failure_does_not_update() {
 
 # 同一工作区接第二个项目：别的项目的同名 autopilot 预览和 --apply 都不动，本项目另建一套
 t_multica_leaves_other_project_autopilots() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   jq 'map(.autopilot.project_id = "proj-other" | .autopilot.description = "别的项目的 runbook")' \
     "$STUB_STATE/mc-autopilots.json" > "$STUB_STATE/mc-autopilots.tmp"
   mv "$STUB_STATE/mc-autopilots.tmp" "$STUB_STATE/mc-autopilots.json"
@@ -346,8 +342,7 @@ t_multica_leaves_other_project_autopilots() {
 
 # 列表里还是本项目的，读详情时已被改绑到别的项目：不更新、不同步触发器、不暂停
 t_multica_skips_autopilot_rebound_after_list() {
-  setup_ready_repo
-  autoteam_stub multica --apply >/dev/null
+  setup_applied_repo
   echo proj-other > "$STUB_STATE/mc-autopilot-get-project"
   : > "$STUB_LOG"
   out=$(autoteam_stub multica --apply --paused --only autopilots 2>&1) && tfail "改绑的 autopilot 应算失败"
@@ -584,9 +579,8 @@ t_multica_legacy_autopilots_preserved() {
 }
 
 t_obsolete_autopilots_preview_apply_and_doctor() {
-  setup_ready_repo
+  setup_applied_repo
   autoteam_stub github --apply >/dev/null
-  autoteam_stub multica --apply >/dev/null
   jq '. + [range(1;7) | {autopilot:{id:("old-" + tostring),title:("旧报告" + tostring),project_id:"proj-1",status:"active"},triggers:[]}]
     + [{autopilot:{id:"old-paused",title:"已暂停旧报告",project_id:"proj-1",status:"paused"},triggers:[]},
        {autopilot:{id:"other",title:"其他项目旧报告",project_id:"proj-other",status:"active"},triggers:[]}]' "$STUB_STATE/mc-autopilots.json" > "$WORK/aps.json"
