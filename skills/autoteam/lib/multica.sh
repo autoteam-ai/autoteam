@@ -649,6 +649,29 @@ autopilot_unlisted_hint() {
   warn "autopilot「$1」未在 AUTOTEAM_AUTOPILOTS 里，要保留就加上，不要就到 Multica 界面删除"
 }
 
+# 按生效定义的标题识别；eject 的自定义定义仍有效，别的项目不参与判断。
+mc_obsolete_autopilots() {
+  local list=$1 project=$2 f titles
+  titles=$(
+    while IFS= read -r f; do fm_get "$f" title; done <<EOF
+$(instructions_list autopilots)
+EOF
+  )
+  jq -c --arg p "$project" --arg titles "$titles" '
+    ($titles | split("\n")) as $defined
+    | [.autopilots[]? | select($p != "" and .project_id == $p)
+       | select(.title as $t | $defined | index($t) | not)]' <<<"$list"
+}
+
+mc_obsolete_autopilots_hint() {
+  local obsolete=$1 id title status message
+  while IFS=$'\t' read -r id title status; do
+    [ -n "$id" ] || continue
+    message="autopilot「$title」（$id，$status）已无生效定义；请暂停（multica autopilot update $id --status paused），或到 Multica 界面删除"
+    if [ "$status" = active ]; then warn "$message"; else info "$message"; fi
+  done < <(jq -r '.[] | [.id,.title,.status] | @tsv' <<<"$obsolete")
+}
+
 # autopilot 的 cron：front matter 的 cron_key 指向 autoteam.conf 里的 AUTOTEAM_CRON_* 配置项
 autopilot_cron() {
   local key re='^AUTOTEAM_CRON_[A-Z0-9_]+$'
@@ -679,6 +702,7 @@ fm_body() {
 multica_autopilots() {
   local rows=$1 paused=$2 rotate=$3 list f
   list=$(mc autopilot list --output json) || die "读取 autopilot 列表失败"
+  mc_obsolete_autopilots_hint "$(mc_obsolete_autopilots "$list" "$MC_PROJECT_ID")"
   while IFS= read -r f; do
     multica_autopilot "$f" "$rows" "$list" "$paused" "$rotate"
   done <<EOF

@@ -127,7 +127,7 @@ cmd_stop() {
 }
 
 cmd_resume() {
-  local profile="" apply=0 id list
+  local profile="" apply=0 id list obsolete
   while [ $# -gt 0 ]; do
     case $1 in
       --apply) apply=1; shift ;;
@@ -139,6 +139,11 @@ cmd_resume() {
   stop_setup "$profile"
   [ -n "$STOP_MARKER" ] || { info "项目未暂停，无需恢复"; return; }
   list=$(mc autopilot list --output json) || die "读取 autopilot 列表失败"
+  obsolete=$(mc_obsolete_autopilots "$list" "$STOP_PROJECT_ID")
+  jq -r --argjson ids "$(jq -c '.active_autopilots' <<<"$STOP_MARKER")" '
+    .[] | select(.id as $id | $ids | index($id))
+    | "  跳过 autopilot「\(.title)」（\(.id)）：已无生效定义，不恢复"' <<<"$obsolete"
+  list=$(jq --argjson obsolete "$obsolete" '.autopilots |= map(select(.id as $id | $obsolete | map(.id) | index($id) | not))' <<<"$list")
   info "将恢复的 autopilot："
   jq -r --arg p "$STOP_PROJECT_ID" --argjson ids "$(jq -c '.active_autopilots' <<<"$STOP_MARKER")" '.autopilots[] | select(.project_id == $p and .status == "paused") | select(.id as $id | $ids | index($id)) | "  \(.title) (\(.id))"' <<<"$list"
   [ "$apply" = 1 ] || { info "预览完成；加 --apply 执行"; return; }

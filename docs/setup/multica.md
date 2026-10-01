@@ -88,3 +88,5 @@ CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 3
 ```bash
 autoteam doctor
 ```
+
+升级后，本项目远端仍存在但包内和 eject 覆盖中都已没有定义的 autopilot，会在 `autoteam multica` 预览、`--apply` 和 `autoteam doctor` 中列出；启用中的显示 ⚠️，请手动暂停或到 Multica 界面删除。同步不会自动暂停或删除。`autoteam resume` 即使在升级前的 stop 恢复名单中找到它们，也会跳过并说明原因；仍有 eject 定义的实例可以恢复。
