@@ -508,6 +508,7 @@ EOF
 
   doctor_mc_read "autopilot 列表" autopilot list || return 0
   list=$MC_READ_OUT
+  mc_obsolete_autopilots_hint "$(mc_obsolete_autopilots "$list" "$project")"
   while IFS= read -r f; do
     title=$(fm_get "$f" title)
     local name

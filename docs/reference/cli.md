@@ -78,10 +78,10 @@ autoteam [-C <目录>] <命令> [选项]
 | `autoteam stop` | 预览将暂停的 autopilot、将取消的 running/queued 运行 |
 | `autoteam stop --apply [--keep-run <运行 ID>]` | 写标记、暂停本项目 active 的 autopilot，并取消 registry agent 的运行；`--keep-run` 保留当前 Chat 运行 |
 | `autoteam resume` | 预览恢复列表 |
-| `autoteam resume --apply` | 只恢复标记记录的 autopilot，清除标记；已取消的运行不会自动重跑 |
+| `autoteam resume --apply` | 只恢复标记记录且仍有生效定义的 autopilot，清除标记；已取消的运行不会自动重跑 |
 | `autoteam status [--check]` | 显示暂停状态；`--check` 在暂停时退出码为 1，供 agent 开工检查 |
 
-这三个命令均支持 `--profile <名字>`。连续 stop 保留首次标记里的恢复列表；原来就 paused 的 autopilot 不会被 resume 启动。预览不会写 Multica。
+这三个命令均支持 `--profile <名字>`。连续 stop 保留首次标记里的恢复列表；原来就 paused 的 autopilot 不会被 resume 启动。升级后包内和 eject 覆盖中均无定义的实例会跳过，输出说明原因，保持暂停。预览不会写 Multica。
 
 ## autoteam next
 

@@ -39,7 +39,7 @@ EOF
   mkdir -p "$STOP_STATE"
   export STOP_STATE STOP_LOG
   cat > "$STOP_STATE/autopilots" <<'EOF'
-[{"id":"ap-active","title":"巡检","project_id":"project-1","status":"active","last_run_at":"2026-09-29T04:00:00Z"},{"id":"ap-old-paused","title":"旧暂停","project_id":"project-1","status":"paused","last_run_at":null},{"id":"ap-other","title":"别的项目","project_id":"project-2","status":"active"}]
+[{"id":"ap-active","title":"推进巡检","project_id":"project-1","status":"active","last_run_at":"2026-09-29T04:00:00Z"},{"id":"ap-old-paused","title":"旧暂停","project_id":"project-1","status":"paused","last_run_at":null},{"id":"ap-other","title":"别的项目","project_id":"project-2","status":"active"}]
 EOF
   echo '[{"id":"run-chat","status":"running","issue_id":"issue-chat"}]' > "$STOP_STATE/tasks-agent-planner"
   echo '[{"id":"run-work","status":"running","issue_id":"issue-work"},{"id":"run-next","status":"queued","issue_id":"issue-next"}]' > "$STOP_STATE/tasks-agent-impl"
@@ -58,7 +58,7 @@ t_stop_preview_and_apply() {
   stop_fixture
   : > "$STOP_LOG"
   out=$(stop_cmd stop --keep-run run-chat)
-  assert_eq "$(grep -c '巡检 (ap-active)' <<<"$out")" 1
+  assert_eq "$(grep -c '推进巡检 (ap-active)' <<<"$out")" 1
   assert_contains "$out" 'run-work'
   assert_contains "$out" 'run-next'
   assert_not_contains "$out" 'run-chat'
@@ -74,7 +74,7 @@ t_stop_preview_and_apply() {
   assert_contains "$(cat "$STOP_LOG")" 'issue cancel-task run-work'
   assert_not_contains "$(cat "$STOP_LOG")" 'issue cancel-task run-chat'
   assert_contains "$(stop_cmd status)" '已暂停'
-  assert_contains "$(stop_cmd status)" '巡检 (ap-active)：paused，最后运行 2026-09-29T04:00:00Z'
+  assert_contains "$(stop_cmd status)" '推进巡检 (ap-active)：paused，最后运行 2026-09-29T04:00:00Z'
   if stop_cmd status --check >/dev/null; then tfail '暂停时 --check 应失败'; fi
 }
 
@@ -93,7 +93,7 @@ t_stop_repeat_preserves_original_and_resume() {
   assert_eq "$(jq -r '.[] | select(.id=="ap-other") | .status' "$STOP_STATE/autopilots")" active
   assert_contains "$(stop_cmd status --check)" '未暂停'
   out=$(stop_cmd status)
-  assert_contains "$out" '巡检 (ap-active)：active，最后运行 2026-09-29T04:00:00Z'
+  assert_contains "$out" '推进巡检 (ap-active)：active，最后运行 2026-09-29T04:00:00Z'
   assert_contains "$out" '旧暂停 (ap-old-paused)：paused，最后运行 未运行'
   assert_not_contains "$out" '别的项目'
   assert_not_contains "$(stop_cmd status --check)" 'autopilot：'
@@ -117,4 +117,23 @@ t_stop_status_without_operational_note() {
   assert_contains "$(stop_cmd status --check)" '未暂停'
   assert_contains "$(stop_cmd stop)" '预览完成'
   if stop_cmd stop --apply >/dev/null 2>&1; then tfail '没有运营笔记时不能执行 stop'; fi
+}
+
+t_resume_skips_removed_definition_after_upgrade() {
+  stop_fixture
+  mkdir -p .autoteam/instructions/autopilots
+  printf '%s\n' '---' 'title: 旧报告' '---' '旧指令' > .autoteam/instructions/autopilots/old.md
+  jq '. + [{id:"ap-obsolete",title:"旧报告",project_id:"project-1",status:"active"}]' "$STOP_STATE/autopilots" > "$STOP_STATE/next"
+  mv "$STOP_STATE/next" "$STOP_STATE/autopilots"
+  stop_cmd stop --apply >/dev/null
+  rm .autoteam/instructions/autopilots/old.md
+  out=$(stop_cmd resume)
+  assert_contains "$out" '跳过 autopilot「旧报告」（ap-obsolete）：已无生效定义，不恢复'
+  : > "$STOP_LOG"
+  out=$(stop_cmd resume --apply)
+  assert_contains "$out" '已无生效定义，不恢复'
+  assert_eq "$(jq -r '.[] | select(.id=="ap-obsolete") | .status' "$STOP_STATE/autopilots")" paused
+  assert_not_contains "$(cat "$STOP_LOG")" 'autopilot update ap-obsolete'
+  assert_eq "$(jq -r '.[] | select(.id=="ap-active") | .status' "$STOP_STATE/autopilots")" active
+  assert_no_file "$STOP_STATE/marker"
 }

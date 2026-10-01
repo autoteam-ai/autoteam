@@ -582,3 +582,33 @@ t_multica_legacy_autopilots_preserved() {
   out=$(autoteam_stub upgrade --dry-run)
   assert_contains "$out" '没有 AUTOTEAM_AUTOPILOTS'
 }
+
+t_obsolete_autopilots_preview_apply_and_doctor() {
+  setup_ready_repo
+  autoteam_stub github --apply >/dev/null
+  autoteam_stub multica --apply >/dev/null
+  jq '. + [range(1;7) | {autopilot:{id:("old-" + tostring),title:("旧报告" + tostring),project_id:"proj-1",status:"active"},triggers:[]}]
+    + [{autopilot:{id:"old-paused",title:"已暂停旧报告",project_id:"proj-1",status:"paused"},triggers:[]},
+       {autopilot:{id:"other",title:"其他项目旧报告",project_id:"proj-other",status:"active"},triggers:[]}]' "$STUB_STATE/mc-autopilots.json" > "$WORK/aps.json"
+  mv "$WORK/aps.json" "$STUB_STATE/mc-autopilots.json"
+  cp "$STUB_STATE/mc-autopilots.json" "$WORK/before.json"
+  for mode in preview apply doctor; do
+    : > "$STUB_LOG"
+    case $mode in
+      preview) out=$(autoteam_stub multica --only autopilots) ;;
+      apply) out=$(autoteam_stub multica --apply --only autopilots) ;;
+      doctor) out=$(autoteam_stub doctor) ;;
+    esac
+    assert_eq "$(grep -c '⚠️.*旧报告[1-6].*已无生效定义' <<<"$out")" 6
+    assert_contains "$out" '已暂停旧报告'
+    assert_contains "$out" 'multica autopilot update old-1 --status paused'
+    assert_not_contains "$out" '其他项目旧报告'
+    assert_no_log 'autopilot update old-'
+    assert_no_log 'autopilot delete'
+  done
+  assert_eq "$(cat "$STUB_STATE/mc-autopilots.json")" "$(cat "$WORK/before.json")"
+  mkdir -p .autoteam/instructions/autopilots
+  printf '%s\n' '---' 'title: 旧报告1' '---' > .autoteam/instructions/autopilots/retained.md
+  out=$(autoteam_stub doctor)
+  assert_not_contains "$out" '旧报告1」（old-1，active）已无生效定义'
+}
