@@ -41,10 +41,16 @@ stop_setup() {
 stop_read_marker() {
   local issue
   issue=$(mc issue get "$STOP_NOTE_ID" --output json) || die "读取运营笔记失败"
-  STOP_MARKER=$(jq -c '.metadata["autoteam.paused"] // empty | if type == "string" then fromjson else . end' <<<"$issue") || die "暂停标记格式错误，停止操作"
-  if [ -n "$STOP_MARKER" ]; then
-    jq -e 'type == "object" and (.active_autopilots | type == "array")' <<<"$STOP_MARKER" >/dev/null || die "暂停标记格式错误，停止操作"
+  STOP_MARKER=$(stop_parse_marker "$issue") || die "暂停标记格式错误，停止操作"
+}
+
+stop_parse_marker() {
+  local marker
+  marker=$(jq -c '.metadata["autoteam.paused"] // empty | if type == "string" then fromjson else . end' <<<"$1") || return 1
+  if [ -n "$marker" ]; then
+    jq -e 'type == "object" and (.active_autopilots | type == "array")' <<<"$marker" >/dev/null || return 1
   fi
+  printf '%s' "$marker"
 }
 
 stop_agents() {

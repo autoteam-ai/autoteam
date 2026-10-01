@@ -92,3 +92,5 @@ CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 3
 判断受保护文件统一跑 `.autoteam/scripts/protected-paths.sh --files <文件...>`；已有 PR 可跑 `--pr <PR>`，后者读取 PR 目标分支的 CODEOWNERS。脚本输出命中路径，退出码 0 / 1 / 2 分别表示命中 / 未命中 / 出错。`AUTOTEAM_CODEOWNERS_GATE=off` 时，Implementer 和 Reviewer 跳过这项判断。
 
 升级后，本项目远端仍存在但包内和 eject 覆盖中都已没有定义的 autopilot，会在 `autoteam multica` 预览、`--apply` 和 `autoteam doctor` 中列出；启用中的显示 ⚠️，请手动暂停或到 Multica 界面删除。同步不会自动暂停或删除。`autoteam resume` 即使在升级前的 stop 恢复名单中找到它们，也会跳过并说明原因；仍有 eject 定义的实例可以恢复。
+
+项目有暂停标记时，doctor 将 paused autopilot 合成一条提醒，显示暂停时间、操作人和 `autoteam resume --apply`；没有标记时仍逐条提示。
