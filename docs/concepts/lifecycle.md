@@ -42,6 +42,8 @@ Multica 的流程使用 7 个内置状态。旧工作区的 `shipping` 已退出
 | agent 派出去的运行最终失败（没有待执行的自动重试） | 平台在父任务上发系统评论，叫醒派活的 agent（Planner）去改派、跳过或结束 |
 | autopilot 定时或 webhook 触发 | 叫醒 autopilot 指派的 agent |
 
+Reviewer 等 CI 时用有期限、绑定原线程的 `--until-pr checks` 条件唤醒结束运行；唤醒后复核当前 PR head 和检查结果，失败仍打回。参见 [Reviewer 条件唤醒验收](../operations/reviewer-wakeup.md)。
+
 ### 界面批准后的唤醒核对
 
 `backlog` → `todo` 这一行以**不带 `--no-start` 的 CLI 状态变更**为准；带 `--no-start` 不会启动运行。2026-09-26 本工作区里，人通过界面把 HDGCS-80、84、85 从 `backlog` 改为 `todo` 后都没有生成指派人的运行，原因仍待确认。依赖界面批准推进时，需用 `multica issue runs <任务>` 检查运行记录；这三个实例不能当作「界面改状态必然唤醒」的证据。
