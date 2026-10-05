@@ -11,13 +11,10 @@
   --sl-color-accent-high: #cef5ec;
 }
 
-.sl-markdown-content h1 {
-  letter-spacing: -0.035em;
-}
-
 .sl-markdown-content table {
-  display: table;
-  width: 100%;
+  /* Keep CJK labels readable; Starlight contains wide tables with overflow: auto. */
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .mermaid-diagram {
@@ -29,12 +26,7 @@
 .mermaid-diagram svg {
   display: inline-block;
   width: auto;
-  max-width: 100%;
+  /* Scroll wide diagrams instead of shrinking their labels on small screens. */
+  max-width: none;
   height: auto;
-}
-
-@media (max-width: 50rem) {
-  .sl-markdown-content table {
-    display: block;
-  }
 }
