@@ -7,7 +7,8 @@ import {defineConfig} from 'astro/config';
 import {renderMermaidSVG} from 'beautiful-mermaid';
 
 const base = process.env.AUTOTEAM_DOCS_BASE || '/';
-const source = process.env.AUTOTEAM_DOCS_SOURCE || '../docs';
+// 相对路径按 site/ 解析，而不是进程的 cwd（docs:build 在仓库根执行）。
+const source = path.resolve(import.meta.dirname, process.env.AUTOTEAM_DOCS_SOURCE || '../docs');
 const mermaidPlugin = {
   name: 'mermaid',
   code(node, context) {

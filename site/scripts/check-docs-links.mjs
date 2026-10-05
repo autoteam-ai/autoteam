@@ -8,6 +8,7 @@ export async function checkDocsLinks(directory, base = '/', site = 'https://auto
   const prefix = `/${base}/`.replace(/\/+/g, '/');
   const origin = new URL(site).origin;
   const failures = [];
+  const empty = [];
   let checked = 0;
   async function walk(folder) {
     for (const entry of await readdir(folder, {withFileTypes: true})) {
@@ -19,6 +20,11 @@ export async function checkDocsLinks(directory, base = '/', site = 'https://auto
       const tree = parse(await readFile(file, 'utf8'));
       const hrefs = [];
       function visit(node) {
+        // 正文被插件吞掉时构建仍然成功，页面却是空的：docs 页面必须至少有一个正文节点（404 没有对应文档，除外）。
+        const classes = node.attrs?.find((attr) => attr.name === 'class')?.value.split(/\s+/) || [];
+        if (classes.includes('sl-markdown-content') && entry.name !== '404.html' && !node.childNodes.some((child) => child.tagName)) {
+          empty.push(relative);
+        }
         if (node.tagName === 'a') {
           const href = node.attrs.find((attr) => attr.name === 'href')?.value;
           if (href !== undefined) hrefs.push(href);
@@ -47,6 +53,7 @@ export async function checkDocsLinks(directory, base = '/', site = 'https://auto
     }
   }
   await walk(root);
+  if (empty.length) throw new Error(`Pages with empty body (${empty.length}):\n${empty.join('\n')}`);
   if (failures.length) throw new Error(`Broken internal links (${failures.length}):\n${failures.join('\n')}`);
   console.log(`Checked ${checked} internal links in ${directory}`);
 }

@@ -38,3 +38,15 @@ test('checks parsed anchors and rejects a deliberately broken internal link', as
     await rm(directory, {recursive: true, force: true});
   }
 });
+
+test('rejects a docs page whose body rendered empty', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'docs-body-'));
+  try {
+    await writeFile(path.join(directory, 'index.html'), '<main><div class="sl-markdown-content"><h1>Home</h1></div></main>');
+    await checkDocsLinks(directory, '/');
+    await writeFile(path.join(directory, 'index.html'), '<main><div class="sl-markdown-content"></div></main>');
+    await assert.rejects(checkDocsLinks(directory, '/'), /Pages with empty body \(1\):\nindex.html/);
+  } finally {
+    await rm(directory, {recursive: true, force: true});
+  }
+});
