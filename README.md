@@ -1,137 +1,83 @@
 # autoteam
 
-让几个编码 agent 按角色分工，自己完成拆需求、写代码、评审、合并、上线和验收，人只负责提需求和批准任务。
+把自管理 agent 团队装进你的项目：Planner 拆需求和验收，Implementer 写代码，Reviewer 独立评审，Auditor 定期复盘；**GitHub 管合并闸门，Multica 管任务调度**。
 
-这个仓库把这套“自管理 agent 团队”做成了能直接装进你项目的工具：**GitHub 管合并闸门，Multica 管任务调度**。一条命令生成规则文件和角色指令，再用两条命令把 GitHub 规则集、Multica 的状态、agent 和定时任务配好，最后用 `autoteam doctor` 逐项验收。
-
-> 状态：实验性（v0.1）。已在示例项目上端到端跑通（见 [跑通第一个需求](docs/setup/first-run.md)），还没在长期运行的大型项目上验证过，效果要用[每周指标](docs/operations/metrics.md)自己衡量。
+当前包版本为 **0.1.0**（已发布 tag `v0.1.0`），main 持续开发，包含尚未发布的变更；版本差异与升级说明见 [CHANGELOG](CHANGELOG.md)。[在线文档](https://autoteam-ai.github.io/autoteam/)默认打开开发版（`next`），可切换到发布版本。
 
 ## 流程
 
 ```mermaid
 flowchart TD
-    H(["人"]) -->|"① 提需求"| P1["Planner 拆分"]
-    P1 -->|"② 子任务放进 backlog"| BL["待审核"]
-    BL -->|"③ 人批准：改成 todo"| TODO["待办 todo"]
-    TODO -->|"④ Planner 选人派发"| I["Implementer"]
-    I -->|"⑤ 提交 PR，@Reviewer"| CR["审核中 in_review"]
-    CR --> R["Reviewer"]
-    R -->|"有阻塞项，@Implementer 改回 in_progress"| I
-    R -->|"⑥ 批准，任务仍是 in_review，检查通过后自动合并、部署"| P2["⑦ 部署 webhook，Planner 线上验收"]
-    P2 -->|"通过"| DONE["完成 done"]
-    P2 -->|"不通过，改回 in_progress"| I
+    H(["人提需求"]) --> P["Planner 拆分子任务：backlog"]
+    P --> A["人批准，或 Planner 按放行规则自主放行：todo"]
+    A --> D["Planner 按批次和额度派发"]
+    D --> I["Implementer 实现：in_progress"]
+    I --> PR["提交 PR，邀请 Reviewer：in_review"]
+    PR --> R["Reviewer 独立评审"]
+    R -->|"要求修改"| I
+    R -->|"批准"| M["按保护等级合并，部署"]
+    M --> V["Planner 线上验收"]
+    V -->|"通过"| DONE["done"]
+    V -->|"不通过"| I
 ```
 
-人在日常流转里只做一件事：把 Planner 拆好的任务从“待审核”（backlog）改成“待办”（todo）。原来靠人把关的环节，换成了 agent 绕不过去的规则：
-
-| 原来靠人 | 现在靠什么 |
-|---|---|
-| 看代码 | 另一个账号的 Reviewer + 自动检查 |
-| 点合并 | 代码平台的合并规则，所有 agent 都不能豁免 |
-| 验收 | Planner 看线上真实结果 |
-
-为什么这样设计，见[为什么要自管理](docs/concepts/why.md)和[四个角色](docs/concepts/roles.md)。
+人工审批、合并方式和故障升级取决于项目配置与平台能力，见[安全边界和保护等级](https://autoteam-ai.github.io/autoteam/next/concepts/guardrails/)；状态与唤醒规则见[任务生命周期](https://autoteam-ai.github.io/autoteam/next/concepts/lifecycle/)。
 
 ## 快速开始
 
-### 方式一：让你的编码 agent 来装
+### 让编码 agent 安装
 
 ```bash
 npx skills add autoteam-ai/autoteam --skill autoteam
 ```
 
-然后在项目里对 Claude Code、Codex 等说：“帮我在这个项目里搭好自管理 agent 团队”。skill 会调用下面的 `autoteam`，并完成需要判断的部分：按技术栈写 `make check/dev/deploy`、补 AGENTS.md、和你确认订阅账号后填团队清单。改动 GitHub 和 Multica 之前，它会先给你看预览。
+在目标项目里对编码 agent 说：“帮我在这个项目里搭好自管理 agent 团队”。skill 会协助适配检查、开发和部署命令，配置团队，并预览 GitHub 与 Multica 的改动。
 
-### 方式二：自己跑 autoteam
+### 手动安装
 
 ```bash
 git clone https://github.com/autoteam-ai/autoteam ~/.autoteam
 cd your-project
-
-~/.autoteam/autoteam init --workspace <Multica 工作区 slug>
-# 把 Makefile 的 check / dev / deploy 改成真实命令，按你的账号和机器填 .autoteam/registry.yaml
-# 提交这些文件，走 PR 合并
-
-~/.autoteam/autoteam github            # 预览 GitHub 改动
-~/.autoteam/autoteam github --apply
-~/.autoteam/autoteam multica           # 预览 Multica 改动
-~/.autoteam/autoteam multica --apply
-~/.autoteam/autoteam doctor            # 逐项检查
+bash ~/.autoteam/autoteam init --workspace <工作区-slug>
 ```
 
-完整步骤见[快速上手](docs/setup/quickstart.md)。
+将生成的 `Makefile` 检查、开发、部署目标和工作流改成项目真实命令，填写 `.autoteam/registry.yaml` 与 `.autoteam/autoteam.conf`，审阅并提交生成文件。然后配置外部平台：
+
+```bash
+bash ./autoteam github --create-apps         # 预览三个 GitHub App 的创建计划
+bash ./autoteam github --create-apps --apply # 浏览器确认创建；随后手动安装到目标仓库
+bash ./autoteam setup                       # 一次预览 GitHub 和 Multica，交互确认后执行并运行 doctor
+```
+
+已有 App 可跳过创建；非交互终端的 `setup` 只预览，确认计划后运行 `bash ./autoteam setup --apply`。App 私钥需放到对应 agent 的运行机器，完整步骤见[快速上手](https://autoteam-ai.github.io/autoteam/next/setup/quickstart/)与[GitHub 设置](https://autoteam-ai.github.io/autoteam/next/setup/github/)。
 
 ## 前提条件
 
-| 需要 | 说明 |
+- GitHub 目标仓库的 admin 权限，以及已登录的 `gh`；正式团队使用不同的 Implementer 与 Reviewer App 身份。
+- bash 3.2+、git、jq、curl 和 Multica CLI；Windows 使用 WSL。
+- Multica 工作区、至少一个在线 daemon，以及已登录订阅账号、能访问仓库的 agent CLI。
+- 项目有可重复执行的检查、开发和部署命令，以及清楚的 `AGENTS.md` 约定。
+
+工具版本、权限与运行环境要求见[前提条件](https://autoteam-ai.github.io/autoteam/next/setup/prerequisites/)。
+
+## 文档导航
+
+| 想了解什么 | 入口 |
 |---|---|
-| GitHub 仓库 | 你有 admin 权限；`gh` 已登录 |
-| `bash`、`git`、`jq`、`curl` | macOS 自带的 bash 3.2 也可以 |
-| Multica | CLI 0.5 以上；运行 `autoteam multica` 的人是工作区 owner 或 admin；至少一台机器跑着 daemon，agent CLI 已登录订阅 |
-| GitHub App | 写代码和评审用两个不同的 App 身份（不用注册机器账号）；没有就先用单身份试用模式 |
+| 设计与角色分工 | [为什么要自管理](https://autoteam-ai.github.io/autoteam/next/concepts/why/) · [四个角色](https://autoteam-ai.github.io/autoteam/next/concepts/roles/) |
+| 安装后跑通一个需求 | [首次运行](https://autoteam-ai.github.io/autoteam/next/setup/first-run/) |
+| 日常操作与排障 | [日常操作](https://autoteam-ai.github.io/autoteam/next/operations/daily/) · [常见问题](https://autoteam-ai.github.io/autoteam/next/operations/troubleshooting/) |
+| 命令、配置和安装产物 | [命令参考](https://autoteam-ai.github.io/autoteam/next/reference/cli/) · [配置参考](https://autoteam-ai.github.io/autoteam/next/reference/config/) · [生成的文件](https://autoteam-ai.github.io/autoteam/next/reference/files/) |
+| 成效与代价 | [运行指标](https://autoteam-ai.github.io/autoteam/next/operations/metrics/) · [代价和风险](https://autoteam-ai.github.io/autoteam/next/limitations/) |
 
-GitHub 套餐决定平台闸门能做到什么程度：
+## 开发与许可
 
-| 仓库 | 规则集 + 自动合并 | 合并队列 | autoteam 的保护等级 |
-|---|---|---|---|
-| 组织的公开仓库 | 有 | 有 | full |
-| 个人公开仓库、Pro 私有仓库、Team 组织私有仓库 | 有 | 没有 | standard |
-| GitHub Free 的私有仓库 | **没有** | 没有 | none：合并只靠 agent 指令约束 |
-
-详见[安全边界和保护等级](docs/concepts/guardrails.md)。
-
-## 装进你项目的东西
-
-```
-AGENTS.md                      追加一个受管块：检查命令、PR 规则、哪些是规则文件
-Makefile                       check / dev / deploy（已有就不动，只检查目标）
-.jscpd.json                    重复代码阈值
-.github/CODEOWNERS             追加受管块：规则文件只能由人批准
-.github/workflows/gate.yml     必需检查 check：PR 行数、重复代码、make check
-.github/workflows/deploy.yml   合并后部署，结果通知 Planner
-.github/workflows/rollback.yml Planner 回滚用
-.autoteam/                     配置、团队清单、经验库、辅助脚本、.lock.json（升级依据）
-```
-
-四个角色指令、autopilot 和 `planner-mcp.json` **不落盘**：它们随 autoteam 包发布，升级 autoteam 就升级了它们；要按项目改某一份，`autoteam eject` 到 `.autoteam/instructions/`。逐个文件的说明见[生成的文件](docs/reference/files.md)。
-
-## 文档
-
-在线文档：<https://autoteam-ai.github.io/autoteam/>。根地址默认打开最新发布版本，也可以在页面顶部切换到开发版或历史版本。
-
-- 概念：[为什么要自管理](docs/concepts/why.md) · [四个角色](docs/concepts/roles.md) · [任务状态和唤醒](docs/concepts/lifecycle.md) · [按额度选 agent](docs/concepts/quota-routing.md) · [安全边界和保护等级](docs/concepts/guardrails.md) · [四条不变量](docs/concepts/invariants.md)
-- 搭建：[前提条件](docs/setup/prerequisites.md) · [快速上手](docs/setup/quickstart.md) · [第 0 步 准备仓库](docs/setup/repo.md) · [第 1–3 步 GitHub](docs/setup/github.md) · [第 4–6 步 Multica](docs/setup/multica.md) · [第 7 步 跑通第一个需求](docs/setup/first-run.md)
-- 日常：[日常操作](docs/operations/daily.md) · [每周指标](docs/operations/metrics.md) · [常见问题](docs/operations/troubleshooting.md)
-- 参考：[autoteam 命令](docs/reference/cli.md) · [配置文件](docs/reference/config.md) · [生成的文件](docs/reference/files.md) · [代价和风险](docs/limitations.md)
-
-## 和原始设计的差异
-
-这套流程来自《自管理 Agent 团队研究》。落地时按平台现状做了几处调整，都在文档里写了原因：
-
-- **Multica 0.5 改了状态模型**：自定义状态不再继承“进入即唤醒”等行为。所以唤醒下一个角色全部靠显式指派或评论里的 @提及，自定义状态只表示看板上的进度。详见[任务状态和唤醒](docs/concepts/lifecycle.md)。
-- **GitHub Free 的私有仓库没有规则集和自动合并**：autoteam 会识别出来并降级：Implementer 不开自动合并（这种仓库里 `gh pr merge --auto` 会立即合并），Reviewer 批准后在检查通过时自己合并，doctor 标出哪些闸门没有生效。
-- **身份用 GitHub App，不用机器账号**：研究文档里是三个机器账号，落地时改成三个 GitHub App。不变量没变（两个不同身份 → 平台挡住作者批准自己），但不用注册邮箱和两步验证、不占席位。两点代价：私钥是长期凭据，比带过期时间的 token 权限宽；Reviewer App 也必须给写权限（否则批准不计入必需审批数），所以「评审者不能推代码」仍然只是指令约束。
-- **每日摘要改用 create_issue 模式**：run_only 的结果只在运行历史里，人收不到通知。
-
-## 开发
+本仓库的开发与检查使用 Docker 开发镜像：
 
 ```bash
-make check   # shellcheck + actionlint + 重复代码 + 单元测试；在开发镜像 dev/Dockerfile 里执行，只需要 docker
+make dev     # 沙盒安装与验证
+make check   # 指令预算、shellcheck、actionlint、重复代码与测试
+make deploy  # 打包并在干净仓库验证安装
 ```
 
-文档站使用 Starlight，本地开发要求 Node.js 22.12 以上：
-
-```bash
-npm ci
-npm run docs:start       # 本地预览当前 docs/
-npm run docs:build       # 检查当前文档能否构建
-npm run docs:build:all   # 从所有 v* tag 提取 docs/，生成完整版本站到 build/docs-site/
-```
-
-`docs/` 始终只维护当前内容。推送 `main` 或 `v*` tag 后，`.github/workflows/docs.yml` 会重新生成开发版和全部历史版本并部署到 GitHub Pages；仓库首次启用时需要在 Settings → Pages 中把 Source 设为 GitHub Actions。
-
-发布到 npm 用 `make deploy`（`make deploy DRY_RUN=1` 先演练）。维护约定见 [AGENTS.md](AGENTS.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)。
-
-## 许可
-
-[MIT](LICENSE)
+文档站本地预览使用 Node.js 22.12+：`npm ci` 后运行 `npm run docs:start`。npm 发版由人执行 `make publish`。维护约定见 [AGENTS.md](AGENTS.md)，许可为 [MIT](LICENSE)。
