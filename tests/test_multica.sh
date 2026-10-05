@@ -253,6 +253,29 @@ t_multica_paused_project_retries_failed_pause_without_trigger() {
   assert_eq "$(jq -r '.[0].triggers | length' "$STUB_STATE/mc-autopilots.json")" 1
 }
 
+t_multica_paused_project_retries_failed_metadata_without_trigger() {
+  local note_id marker
+  setup_ready_repo
+  set_conf_autopilots patrol
+  pause_project_note
+  note_id=$(jq -r '.[0].id' "$STUB_STATE/mc-issues-project.json")
+  marker=$(jq -r '.[0].metadata["autoteam.paused"]' "$STUB_STATE/mc-issues-project.json")
+  marker=$(jq -c '.active_autopilots += ["ap-1"]' <<<"$marker")
+  fail_command "issue metadata set $note_id --key autoteam.paused --type string --value $marker"
+  out=$(autoteam_stub multica --apply --only autopilots 2>&1) && tfail "写入暂停记录失败应返回非零"
+  assert_contains "$out" '写入暂停记录失败'
+  assert_eq "$(jq length "$STUB_STATE/mc-autopilots.json")" 1
+  assert_eq "$(jq '[.[] | .triggers | length] | add' "$STUB_STATE/mc-autopilots.json")" 0
+  # 写入恢复记录失败时保留 active，重试据此补记并暂停；没有触发器就不会运行。
+  assert_eq "$(jq '[.[] | select(.autopilot.status == "active")] | length' "$STUB_STATE/mc-autopilots.json")" 1
+  clear_fail
+  autoteam_stub multica --apply --only autopilots >/dev/null
+  assert_eq "$(jq '[.[] | select(.autopilot.status != "paused")] | length' "$STUB_STATE/mc-autopilots.json")" 0
+  assert_eq "$(jq '[.[] | .triggers | length] | add' "$STUB_STATE/mc-autopilots.json")" 1
+  marker=$(jq -r '.[0].metadata["autoteam.paused"]' "$STUB_STATE/mc-issues-project.json")
+  assert_eq "$(jq -c '.active_autopilots' <<<"$marker")" '["ap-old","ap-1"]'
+}
+
 t_multica_unpaused_project_keeps_new_autopilots_active() {
   setup_ready_repo
   autoteam_stub multica --apply >/dev/null
