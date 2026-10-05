@@ -38,15 +38,17 @@ title: 四条不变量
 
 ## 4. 约束 agent 的规则文件只能由人批准
 
+> **本条在 `AUTOTEAM_CODEOWNERS_GATE=on`（默认）时成立。** 当前本仓库配置为 `off`，属于已登记的临时偏离，见[已知的偏离](#已知的偏离)。
+
 | | |
 |---|---|
-| 由什么保证 | CODEOWNERS 把 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` 指给人；规则集要求 Code Owner 审批。**CODEOWNERS 不能写 App**，所以这里必须是人工账号 |
+| 由什么保证 | gate=on 时：CODEOWNERS 把 `.github/`、`.autoteam/`、`Makefile`、`.jscpd.json` 指给人；规则集要求 Code Owner 审批。**CODEOWNERS 不能写 App**，所以这里必须是人工账号 |
 | 什么会破坏它 | 规则文件挪出 CODEOWNERS 覆盖范围；升级 autoteam 版本却不看指令文本的变化；关掉 Require review from Code Owners；用 `--trial` 长期运行（它会关掉 Code Owner 审批）；Planner 在没合并的分支上跑 `autoteam multica --apply`（指令里明令禁止：只能同步 main） |
 | 怎么验证 | `autoteam doctor` 检查 CODEOWNERS 和规则集；`--trial` 下 doctor 会一直标黄 |
 
 **指令不落盘不改变这条**：角色指令和 autopilot 由包版本固定，改规则的路径只剩两条——`autoteam eject` 后修改 `.autoteam/instructions/`（受 CODEOWNERS 保护），或升级 autoteam 版本（版本号变更本身受 CODEOWNERS 保护）。两条都要人批准；代价是升级时指令文本不再出现在 PR diff 里，见[规则由包版本固定](guardrails.md#规则由包版本固定指令不落盘)。
 
-初期阶段可用 `AUTOTEAM_CODEOWNERS_GATE=off` 临时关闭这道升级闸门，见 playbook；何时恢复由人决定。
+初期阶段可用 `AUTOTEAM_CODEOWNERS_GATE=off` 临时关闭这道升级闸门，实际边界见[已知的偏离](#已知的偏离)；何时恢复由人决定。
 
 > **前提：仓库必须开启「Require review from Code Owners」。** Implementer 在任务明确要求时可以改规则文件并提 PR，全靠这条规则集把关；没开就不要放开这条权限（`autoteam github --apply` 会配置它）。没有任务要求时，Implementer 仍不得顺手改这些文件，也仍不能批准或合并 PR。
 
@@ -58,12 +60,13 @@ title: 四条不变量
 
 | 偏离 | 研究文档怎么写 | 现在怎么做 | 为什么 |
 |---|---|---|---|
-| 身份 | 三个 GitHub 机器账号 + fine-grained token | 三个 GitHub App + installation token | 不变量没变（两个不同身份），但不用注册邮箱和两步验证、不占席位，Reviewer 可以连写权限都不给。代价是私钥是长期凭据，比带过期时间的 token 权限宽 |
+| 身份 | 三个 GitHub 机器账号 + fine-grained token | 三个 GitHub App + installation token | 不变量没变（两个不同身份），但不用注册邮箱和两步验证、不占席位。Reviewer App 仍须有 Contents 写权限，否则它的批准不计入必需审批数（见不变量 1，`autoteam doctor` 会报错）。代价是私钥是长期凭据，比带过期时间的 token 权限宽 |
 | 唤醒 | 自定义状态"进入即唤醒" | 人对已指派任务的普通评论用平台默认唤醒；角色交接靠显式指派和 @提及；任务级定时或事件规则按需单独创建 | Multica 0.5 的自定义状态不继承唤醒行为；0.5.1 新增任务级 wakeup rule，但自动为每个任务配置会增加循环触发风险 |
 | 合并模式 | 只有"平台自动合并" | 加了 `staged` 和 `reviewer` 两种降级 | GitHub Free 私有仓库没有规则集；单身份时审批数只能设 0，检查一绿就合并，Reviewer 来不及看 |
 | 每日摘要 | 直接运行 | 先建任务再运行（create_issue） | run_only 的结果只在运行历史里，人收不到通知 |
 | 批准 | 人只需要判断一件事值不值得做：所有任务都由人批准 | `AUTOTEAM_AUTO_APPROVE=on` 时 Planner 自主放行低风险任务：不碰受保护路径（CODEOWNERS 覆盖的全部文件和 lock 文件），不涉及凭据、权限、部署、回滚、删数据、对外发布，单个子任务不超过行数上限、整个需求不超过 3 个子任务，不是新功能也不改方向；Auditor 和前沿扫描的建议优先级最高 `medium`；每天最多 `AUTOTEAM_AUTO_APPROVE_MAX_PER_DAY` 个，每个都有 `【自主放行】` 评论 | 过去 6 天 38 次批准决定大多当场就批，隔夜才批的任务白等 9–11 小时。「值不值得做」仍归人：新功能、方向调整和规则文件的改动照旧等人批准，不变量 4 不受影响；代码照样要过检查和独立评审 |
 | Multica 配置同步 | 没提（默认规则文件合并即生效） | Planner 验收时跑 `autoteam multica --apply`，用的是人的 multica 凭据 | 合并到 main 不等于 Multica 上的 agent 换了指令，这一步原来没有归属、漂移是静默的。交给 Planner 的前提是它只能搬 main 上人已批准的内容。**代价是 Planner 手里有人的工作区权限，能改所有 agent 的配置，这是目前最宽的一处授权**；等 Multica 支持更细的 agent 权限再收窄 |
+| CODEOWNERS 闸门 | 规则文件只能由人批准：CODEOWNERS 命中即升级给人，规则集要求 Code Owner 审批 | HDGCS-65 已授权临时设 `AUTOTEAM_CODEOWNERS_GATE=off`：Implementer 和 Reviewer 不再因命中 CODEOWNERS 升级给人，规则集保留 1 个审批、关闭 Code Owner 审批；`autoteam doctor` 对此标黄。**不变量 4 在此期间不成立**：规则文件的 PR 与其他 PR 一样，只要过检查并经 Reviewer 批准就会合并。不变化的部分：作者不能批准自己、必需检查 `check`、bypass 留空 | 初期开发阶段，规则文件改动频繁，逐个等人批准拖慢迭代。**退出由人决定**：改回 `AUTOTEAM_CODEOWNERS_GATE=on` 并跑 `autoteam github --apply` 恢复 Code Owner 审批 |
 
 ## 谁来对账
 
