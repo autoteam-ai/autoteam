@@ -99,3 +99,5 @@ CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 3
 `next --check` 排除前提未满足的待派发任务（等待原因输出到 stderr）；`approve` 预览显示等待原因，放行仍使用 `--no-start`。
 
 健康指标：`health-metrics.sh` 用临时文件向 jq 传入任务历史、完整评论和 PR 评审数据，支持超过命令行单参数上限的数据；指标口径和 JSON / Markdown 格式不变，见 `docs/operations/metrics.md`。
+
+Reviewer 的 CI 等待使用 Multica 条件唤醒（`--until-pr checks --expires-in 2h --on-timeout wake`），绑定原评论线程，重入复核当前 head 与检查结论；失败打回、超时升级、不重复延长期限。配置和验收演练见 `docs/operations/reviewer-wakeup.md`，角色指令是唯一执行依据。
