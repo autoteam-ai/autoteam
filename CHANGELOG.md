@@ -2,6 +2,16 @@
 
 ## 未发布
 
+### ⚠️ 一个团队服务多个仓库：成员仓库不再装 autoteam 的文件（design/0003）
+
+- **团队仓库的 `.autoteam/` 是全部项目的默认配置**，成员项目登记在 `.autoteam/projects/<owner>/<repo>/`（`project.conf` 只写和团队不同的键，`playbook.md` 是本项目经验）。新增 `autoteam project add <owner/name>`、`autoteam projects [--json]`、`autoteam conf [KEY...]`、`autoteam playbook`，全局选项 `-P <owner/name>` 不用 clone 就能操作团队里的项目。
+- **成员仓库只放 Makefile 的 check / dev / deploy 和 `.github/workflows/autoteam.yml`**：调用文件调用团队仓库的可复用工作流 `.github/workflows/member.yml@main`（PR 行数上限 + `make check`，合并后 `make deploy` + 通知 Planner），必需检查名是 `autoteam / check`。成员仓库里 `autoteam init` 只生成这两个文件，`doctor` 按成员仓库核对。
+- **运行时脚本改为 CLI 子命令**：`autoteam token`（原 `gh-app-token.sh`）、`open-pr`、`merge-mode`、`merge-status`、`loop-guard`、`protected-paths`、`deployed-issues`、`metrics`。脚本读 `AUTOTEAM_CONF_FILE` 指向的合并配置；独立项目和团队仓库仍优先用仓库里安装的那份。`protected-paths` 在没有 CODEOWNERS 的仓库里视为没有受保护路径。
+- **启动器 `skills/autoteam/bin/autoteam-launcher`**：装在跑 agent 的机器上作为 PATH 里的 `autoteam`，优先用仓库自带的 CLI，否则用团队仓库（`AUTOTEAM_TEAM_HOME`，默认 autoteam-ai/autoteam）默认分支最新提交的快照。版本只在团队仓库一处，成员仓库升级零改动。
+- **autopilot 改为团队级**：只在团队仓库的项目上建一套；巡检用新的 `autoteam next --check --all` 跨项目出清单（跳过暂停的项目），每日摘要、健康报告、规则复盘按项目分节，「部署结果」的 webhook 所有仓库共用。团队仓库里的 `autoteam multica --apply` 还会给每个成员项目建 Multica 项目、运营笔记，并把 webhook 写进成员仓库的 secret。`autoteam github` 可以用 planner App 的身份运行。
+- **指令**：所有 `bash ./autoteam` 和 `.autoteam/scripts/...` 改为 `autoteam ...` 子命令；Planner 用 `autoteam projects` 匹配需求的项目、用 `-P` 按项目停止和恢复；新增 runbook `onboard`（接入新仓库）；`dispatch` 补上「解除 blocked 交回同一个 Implementer 时必须提及它」（HDGCS-232）。
+- **迁移 0002 的成员仓库**：团队仓库 `autoteam project add`，成员仓库删掉 `.autoteam/`、`./autoteam`、gate / deploy / rollback 工作流和受管块后 `autoteam init`，再在团队仓库 `autoteam multica --apply`、`autoteam -P <仓库> github --apply`；按项目建的旧 autopilot 到 Multica 界面归档。步骤见 `docs/setup/multi-project.md`。
+
 - 新增 `autoteam init --team-home <团队仓库目录>`：接入共享团队的成员仓库时，从团队仓库带来工作区、三个 App ID、私钥目录、负责人、调用权限、任务前缀、语言、时区并复制 `registry.yaml`，写入 `AUTOTEAM_TEAM_HOME`（命令行参数优先）。`autoteam doctor` 读不到 `orgs/<owner>/installations`（个人账号或非 admin）时，改用本机私钥调 `repos/<repo>/installation` 核对 App 安装和权限（`gh-app-token.sh` 新增 `--installation`，已装机项目跑 `autoteam upgrade` 获取）；成员仓库的 doctor 还会核对团队级配置键与团队仓库是否一致。新文档 `docs/setup/multi-project.md`。
 - 根入口 `./autoteam` 只使用版本（`source-ref`）与 `AUTOTEAM_REF` 一致的本机 skill；HOME 或仓库下别的版本（含没有 `source-ref` 的）被忽略并在 stderr 提示，改用固定版本。自举仓库的 skill 不受影响。`autoteam doctor` 在检查 Multica 指令前核对本机 CLI 与 `./autoteam` 固定的版本，不一致报错。已装机项目跑 `autoteam upgrade autoteam` 拿到新入口。
 - Planner 指令拆分：`planner.md` 从 214 行降到 72 行，只留身份、原则、停止与恢复和「事件 → runbook」表；收到需求、放行分级、派发、换人、验收、升级搬进 `instructions/runbooks/`（`intake` / `release` / `dispatch` / `reassign` / `accept` / `escalate`），用 `autoteam runbook <名字>` 按需读取。规则语义不变；常用命令表分放进各 runbook。

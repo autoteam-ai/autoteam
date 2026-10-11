@@ -1,5 +1,7 @@
 # 0002：共享 agent 团队
 
+> 2026-10-11 起被 [0003 工作区级团队](0003-workspace-team.md) 取代：成员仓库不再安装 `.autoteam/`，配置登记在团队仓库 `.autoteam/projects/`，autopilot 改为团队级。下面「成员仓库不能同步 agent」「本项目的定义」「暂停作用域」「三个 App 装到每个成员仓库」仍然成立。
+
 采用 HDGCS-213 方案 C：一个 Multica 工作区共用一套 agent，服务多个 GitHub 仓库。
 
 团队仓库（首个为 `autoteam-ai/autoteam`）持有权威 registry 和角色指令，只在团队仓库运行 `autoteam multica --apply` 创建、更新 agent。团队仓库的 `AUTOTEAM_TEAM_HOME` 为空；此时命令行为与原来完全一致。

@@ -6,6 +6,8 @@ title: 配置文件
 
 三类配置都在目标仓库的 `.autoteam/` 下，受 CODEOWNERS 保护，修改走 PR。角色指令和 autopilot 默认不在这里，见文末[角色指令](#角色指令)。
 
+一个团队服务多个仓库时，这些文件只在团队仓库里：团队仓库的 `autoteam.conf` 是全部项目的默认配置，成员项目在 `.autoteam/projects/<owner>/<repo>/project.conf` 里只写和团队不同的键，见[成员项目的配置](#成员项目的配置)。
+
 ## autoteam.conf
 
 每行 `KEY=VALUE`，`#` 开头是注释，不支持行尾注释和变量展开。环境变量优先于文件（例如 `AUTOTEAM_REPO=acme/shop autoteam github`）。autoteam 和 agent 都会读它（gate.yml、loop-guard.sh 在运行时读取）。
@@ -18,7 +20,7 @@ title: 配置文件
 | `AUTOTEAM_IMPLEMENTER_APP_ID` / `AUTOTEAM_REVIEWER_APP_ID` / `AUTOTEAM_PLANNER_APP_ID` | 空 | 三个角色各自的 GitHub App ID。impl 和 review 必须不同，否则作者要批准自己的 PR，GitHub 会拒 |
 | `AUTOTEAM_KEYS_DIR` | `~/.autoteam` | App 私钥的机器级目录，`~` 按运行的那台机器展开。查找顺序：`AUTOTEAM_<角色大写>_APP_KEY` 指的路径 > 仓库的 `.autoteam/local/` > 这里。**跑 agent 的机器要用这个**——agent 每次 checkout 都是新目录，放仓库里的私钥不会跟过去 |
 | `AUTOTEAM_MULTICA_WORKSPACE` | 空 | Multica 工作区 slug |
-| `AUTOTEAM_TEAM_HOME` | 空 | 共享团队仓库（owner/name）；空表示自己管理团队，非空表示成员仓库，不同步 agent |
+| `AUTOTEAM_TEAM_HOME` | 空 | 团队仓库（owner/name）。团队仓库自己留空；成员项目自动取团队仓库的值，不用写。0002 的旧成员仓库在自己的 conf 里写它，表示不同步 agent |
 | `AUTOTEAM_MULTICA_PROJECT` | 仓库名 | Multica 项目标题 |
 | `AUTOTEAM_HUMAN` | 空（运行 autoteam 的人） | 负责批准、接收升级的成员名；每日摘要的订阅人 |
 | `AUTOTEAM_AGENT_ACCESS` | private | agent 调用权限：private 或 workspace |
@@ -41,6 +43,34 @@ title: 配置文件
 | `AUTOTEAM_DEPLOY_ENVIRONMENT` | production（Free 私有仓库为空） | 部署用的 GitHub environment |
 | `AUTOTEAM_TIMEZONE` | Asia/Shanghai | autopilot 定时触发的时区 |
 | `AUTOTEAM_LANGUAGE` | zh-CN | agent 评论、PR 标题和描述、提交信息、任务描述的语言（代码标识符、命令、日志原文除外），如 zh-CN、en。渲染进指令前言，改完跑 `autoteam multica --apply` |
+
+## 成员项目的配置
+
+`.autoteam/projects/<owner>/<repo>/project.conf` 格式同 `autoteam.conf`，由团队仓库里的 `autoteam project add` 生成。生效的配置按 环境变量 > `project.conf` > 团队 `autoteam.conf` > 默认值 取，用 `autoteam conf` 查看。
+
+下面这些键描述项目自己，不继承团队 `autoteam.conf` 里的值（那里写的是团队仓库自己），没写时用默认值：
+
+| 键 | 成员项目的默认值 |
+|---|---|
+| `AUTOTEAM_REPO` | 登记的目录名 `<owner>/<repo>` |
+| `AUTOTEAM_DEFAULT_BRANCH` | main（`project add` 写入 GitHub 上的默认分支） |
+| `AUTOTEAM_MULTICA_PROJECT` | 仓库名 |
+| `AUTOTEAM_CHECK_NAME` | `autoteam / check`，即调用文件的检查 |
+| `AUTOTEAM_PR_SIZE_EXCLUDE` | 同上表默认 |
+| `AUTOTEAM_DEPLOY_ENVIRONMENT` | production（可复用工作流固定用它） |
+| `AUTOTEAM_AUTOPILOTS` | 空：autopilot 是团队级的，只在团队仓库的项目上建 |
+| `AUTOTEAM_TEAM_HOME` | 团队仓库的 `AUTOTEAM_REPO` |
+
+同目录的 `playbook.md` 是本项目的经验库，`autoteam playbook` 先打印团队的 `.autoteam/playbook.md` 再打印它。
+
+和团队仓库相关的环境变量：
+
+| 变量 | 说明 |
+|---|---|
+| `AUTOTEAM_PROJECT` | 同全局选项 `-P`：指定团队里的项目 |
+| `AUTOTEAM_TEAM_DIR` | 团队仓库的本地目录；不设时就是 CLI 所在的源码树（启动器下载的快照或 autoteam 仓库的 checkout） |
+| `AUTOTEAM_TEAM_HOME` | 启动器用：团队仓库 owner/name，默认 `autoteam-ai/autoteam` |
+| `AUTOTEAM_TEAM_TTL` | 启动器缓存团队仓库最新提交的秒数，默认 300 |
 
 ## registry.yaml
 

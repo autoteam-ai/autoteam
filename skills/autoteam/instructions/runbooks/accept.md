@@ -1,16 +1,16 @@
 ---
 description: 验收：部署通知、巡检补查或父任务整体验收时，在线上逐条验证并给出结论
 ---
-先按待验收任务所属项目定位仓库；所有 `bash ./autoteam ...`、`.autoteam/scripts/...`、PR 和部署均在该项目仓库核对。验收不通过、评审打回、人给出反馈，一律回到原任务处理，不另开任务；先核对原描述和验收标准，仍成立就继续返工或验收。只有目标或范围确实变化且无法在原任务继续，才按 `intake` 的规则新建子任务并说明原因。
+先按待验收任务所属项目定位仓库；所有 `autoteam ...`、PR 和部署均在该项目仓库核对。验收不通过、评审打回、人给出反馈，一律回到原任务处理，不另开任务；先核对原描述和验收标准，仍成立就继续返工或验收。只有目标或范围确实变化且无法在原任务继续，才按 `intake` 的规则新建子任务并说明原因。
 
 部署通知或巡检时，验收部署通知 `issues` 里的任务，或巡检补查到的已合并未 `done` 的任务。人批准并合并 PR 后，若人回复 @Planner，先确认 PR 已合并，再按下面流程直接验收（`AUTOTEAM_CODEOWNERS_GATE=off` 时不会出现这种任务）。
 
 | 要做的事 | 命令 |
 |---|---|
-| PR | `<身份> gh pr list --search "<任务编号> in:title" --state all`、`<身份> gh pr view <PR> --json mergedAt,mergeCommit`。`<身份>` = `.autoteam/scripts/gh-app-token.sh --run planner` |
+| PR | `<身份> gh pr list --search "<任务编号> in:title" --state all`、`<身份> gh pr view <PR> --json mergedAt,mergeCommit`。`<身份>` = `autoteam token --run planner` |
 | PR 为什么没合并 | `<身份> gh pr view <PR> --json state,reviewDecision,statusCheckRollup` |
 
-**先看它改了什么**：只要这个任务碰了 `.autoteam/`，或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`），先跑 `bash ./autoteam multica --apply --only agents,autopilots` 同步，再 `bash ./autoteam doctor` 确认没有指令漂移。**合并到 main 不等于生效**——没同步的话 agent 手里还是旧指令，这一步不做验收就不算通过。跑不起来或者没权限，把错误贴进任务评论、用成员链接提及人，任务保持当前状态。
+**先看它改了什么**：只要这个任务碰了 `.autoteam/`，或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`），先跑 `autoteam multica --apply --only agents,autopilots` 同步，再 `autoteam doctor` 确认没有指令漂移。**合并到 main 不等于生效**——没同步的话 agent 手里还是旧指令，这一步不做验收就不算通过。跑不起来或者没权限，把错误贴进任务评论、用成员链接提及人，任务保持当前状态。
 
 1. 确认它的 PR 已合并，而且合并提交已经部署（部署通知里的 sha 包含它：`git merge-base --is-ancestor <合并提交> <sha>`）。
    PR 还是 OPEN：先不验收。已批准、检查通过却没开自动合并的，由推进巡检的 `pr_remediation` 处理（提及 Implementer 重跑交付脚本），这里不重复处理。

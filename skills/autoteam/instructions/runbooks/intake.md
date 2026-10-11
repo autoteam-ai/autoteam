@@ -1,7 +1,7 @@
 ---
 description: 收到需求、人在原任务上回复，或 Auditor 报告 / 范围外发现要拆任务时：拆父任务和子任务
 ---
-需求可能来自 Chat，也可能是人建好任务指派给你。已有任务以其 `project_id` 定位仓库；Chat 先用 `multica project list --output json` 列项目，逐个用 `multica project resource list <项目 ID> --output json` 查 GitHub 仓库资源、`multica issue list --project <项目 ID> --output json` 查「运营笔记」，列出同时具备两者的受管项目并按需求匹配。人点名时核实该项目；未点名时先说明匹配的目标项目和依据。匹配不唯一、不确定或没有合适项目时，先问人再停下，不建任务、不猜默认仓库。确定后 checkout 该项目仓库，再读配置和 playbook。
+需求可能来自 Chat，也可能是人建好任务指派给你。已有任务以其 `project_id` 定位仓库；Chat 先运行 `autoteam projects` 列出团队管理的项目（仓库和 Multica 项目名，项目 ID 用 `multica project list --output json` 按名字查）并按需求匹配；要接入还没登记的仓库按 `onboard`。人点名时核实该项目；未点名时先说明匹配的目标项目和依据。匹配不唯一、不确定或没有合适项目时，先问人再停下，不建任务、不猜默认仓库。确定后 checkout 该项目仓库，再读配置和 playbook。
 
 | 要做的事 | 命令 |
 |---|---|
@@ -16,7 +16,7 @@ description: 收到需求、人在原任务上回复，或 Auditor 报告 / 范�
 2. 父任务写清目标和验收标准，每条都要能在线上验证，并写明怎么验证（访问哪个页面、调哪个接口、下载哪个发布包后跑什么命令）。父任务指派给你自己：
    - 人建的任务：`multica issue status <父任务> in_progress --no-start`；
    - 在 Chat 里收到的需求：`multica issue create --assignee <你> --status backlog --project <项目 ID> ...` 建父任务先停车，拆完后再 `multica issue status <父任务> in_progress --no-start`。
-3. 父任务和子任务都显式用 `--project <目标项目 ID>` 建立；跨仓库需求按仓库拆子任务，每个子任务建在各自项目里，父任务建在已确定的主项目（主项目不明确先问人）。切换子任务时重新 checkout 对应仓库、读该项目配置，不能沿用父任务仓库。拆成子任务，每个都能单独验证，改动不超过 autoteam.conf 的 `AUTOTEAM_PR_MAX_LINES` 行：
+3. 父任务和子任务都显式用 `--project <目标项目 ID>` 建立；跨仓库需求按仓库拆子任务，每个子任务建在各自项目里，父任务建在已确定的主项目（主项目不明确先问人）。切换子任务时重新 checkout 对应仓库、读该项目配置，不能沿用父任务仓库。拆成子任务，每个都能单独验证，改动不超过 `autoteam conf AUTOTEAM_PR_MAX_LINES` 行：
 
    ```bash
    multica issue create --parent <父任务> --stage <批次> --project <项目 ID> \
@@ -25,11 +25,11 @@ description: 收到需求、人在原任务上回复，或 Auditor 报告 / 范�
 
    - `--priority` 必须设（`urgent` / `high` / `medium` / `low`），放行分级按它决定放行和派发的先后；
    - 描述包含四节：为什么做、要做什么、不做什么、验收标准（能在线上验证）；
-   - **改 `.autoteam/` 或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`）的任务，验收标准里必须有一条「已 `autoteam multica --apply` 同步、`autoteam doctor` 无指令漂移」**；
+   - **改团队仓库 `.autoteam/` 或当前生效的指令源（包内 `skills/autoteam/instructions/**`，已 eject 时为 `.autoteam/instructions/**`）的任务，验收标准里必须有一条「已 `autoteam multica --apply` 同步、`autoteam doctor` 无指令漂移」**；
    - 建之前用 `multica issue search` 查重，还要检查原任务及已有子任务是否可以直接推进；能继续原任务就不重复建。建子任务后，评论里的任务链接用 `multica issue create` 返回的 ID 生成：`[编号](mention://issue/<返回的 ID>)`，不得沿用触发任务自己的 ID；也可以只写编号、不带链接；
    - 设置 `autoteam.depends_on` 或拆出多批后当场按 `dispatch` 的「依赖方唤醒」注册：依赖方 `--until-issue`，父任务 `--until-children-done`；不要留给巡检；
-   - 批次按依赖排，先做的是第 1 批；互不依赖的放同一批。 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。 派发前运行 `<身份> bash ./autoteam next --output json`，仅派发其中 `dispatchable` 的任务；放行不代表前提已经满足。
-4. 读 `bash ./autoteam runbook release`，逐个判断子任务：符合条件的由你自主放行；其余留在 `backlog`，在父任务评论里列出这些子任务和批次，用成员链接提及人，请他批准：「运行 `autoteam approve <父任务> --apply`，或者在界面把子任务改成 todo」。多批拆分时，逐个改 todo 会在后续批次多叫醒 Planner，优先用 `autoteam approve`。全部自主放行时不用提及人。
+   - 批次按依赖排，先做的是第 1 批；互不依赖的放同一批。 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。 派发前运行 `<身份> autoteam next --output json`，仅派发其中 `dispatchable` 的任务；放行不代表前提已经满足。
+4. 读 `autoteam runbook release`，逐个判断子任务：符合条件的由你自主放行；其余留在 `backlog`，在父任务评论里列出这些子任务和批次，用成员链接提及人，请他批准：「运行 `autoteam approve <父任务> --apply`，或者在界面把子任务改成 todo」。多批拆分时，逐个改 todo 会在后续批次多叫醒 Planner，优先用 `autoteam approve`。全部自主放行时不用提及人。
 
 ## 处理 Auditor 的报告
 

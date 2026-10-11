@@ -33,7 +33,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 1. 生成文件
 
-`autoteam init --workspace <slug>`。接入共享团队的成员仓库用 `autoteam init --team-home <团队仓库本地目录>`（可先加 `--dry-run`）：从团队仓库的 conf 带来工作区、三个 App ID、私钥目录、负责人、调用权限、任务前缀、语言、时区并复制 `registry.yaml`，写入 `AUTOTEAM_TEAM_HOME`；命令行参数优先；步骤见 `docs/setup/multi-project.md`。确认根目录生成可执行的 `./autoteam`，把它和其他生成文件一起提交；agent 会运行 `bash ./autoteam status --check`。入口只使用版本与固定提交一致的本机 skill，否则下载当前包构建提交的 CLI。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。生成的 `.gitignore` 受管块会忽略 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/`。
+`autoteam init --workspace <slug>`。已有团队、要让它多服务一个仓库时不要这样装：在团队仓库里 `autoteam project add <owner/name>` 登记，再在新仓库的 clone 里 `autoteam init`，只会生成 `.github/workflows/autoteam.yml` 和 Makefile；步骤见 `docs/setup/multi-project.md`（`--team-home` 是旧接法）。确认根目录生成可执行的 `./autoteam`，把它和其他生成文件一起提交；agent 会运行 `bash ./autoteam status --check`。入口只使用版本与固定提交一致的本机 skill，否则下载当前包构建提交的 CLI。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。生成的 `.gitignore` 受管块会忽略 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/`。
 
 ### 2. 适配（需要判断的部分）
 
@@ -59,7 +59,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 给用户看预览中会建哪些状态、agent、autopilot。新项目默认只新建 `AUTOTEAM_AUTOPILOTS` 中的 5 个 autopilot（`deploy-result,patrol,daily-digest,rule-review,health`）；月度方向报告需显式追加 `direction`。已有但未列入的 autopilot 仍更新，预览和 doctor 会提示用户决定加入清单或到 Multica 界面删除；升级前 conf 缺少该键时，现有实例加默认 5 个都保留，`autoteam upgrade` 提醒补写。想先配好、晚点再让定时任务跑起来，加 `--paused`。项目已被 `autoteam stop` 暂停时，新建的 autopilot 自动保持暂停并记入暂停记录（`resume` 时恢复），预览会提示「项目暂停，新建项将暂停」。autopilot 只认绑在本项目（`AUTOTEAM_MULTICA_PROJECT`）上的，同一工作区别的项目的同名 autopilot 不会被改；预览里出现「另有同名 autopilot 不属于本项目」时向用户说明会另建一套。
 
-共享团队时，成员仓库设置 `AUTOTEAM_TEAM_HOME=owner/name`，registry 只需角色到名字的映射；预览和 `--apply` 不改 agent，`--only agents` 报错并提示去团队仓库执行。项目、运营笔记、状态和 autopilot 仍按本仓库同步。doctor 只核对 agent 存在、实际 runtime 在线，指令及配置差异以 info 说明由团队仓库负责；另核对本仓库的团队级配置键与团队仓库一致（不一致 warn，读不到则跳过）。团队仓库保持该键为空，沿用原行为。
+一个团队服务多个仓库时（`docs/setup/multi-project.md`）：团队仓库的 `autoteam multica --apply` 同步 agent 和团队级 autopilot，并给 `.autoteam/projects/` 下登记的每个成员项目建 Multica 项目、运营笔记，把「部署结果」的 webhook 写进成员仓库的 secret。成员仓库里不改 agent、不建 autopilot，`--only agents` 报错；doctor 只核对 agent 存在、实际 runtime 在线。成员项目的配置用 `autoteam conf` 查看（团队配置 + `project.conf`）。
 
 同步完成时给用户看输出末尾的 agents、autopilots、项目看板链接。未登录提示对应 `multica login`；默认 profile 没有服务器对应 `multica setup` 或 `--profile`。
 
@@ -90,9 +90,9 @@ CLI 和状态 API 的 curl 请求都受 `MULTICA_HTTP_TIMEOUT` 控制，默认 3
 
 人工 CODEOWNERS 路径的 PR：Implementer 提交后立即将任务设为 `blocked`、指派给 `AUTOTEAM_HUMAN` 并提及人及 Reviewer；Reviewer 批准后保持 `blocked`，等待 codeowner 批准。人批准并合并后回复 @Planner，由 Planner 确认已合并后直接验收；未命中人工路径的 PR 按原流程流转。
 
-开 PR 和自动合并：Implementer 交付和返工都跑 `.autoteam/scripts/open-pr.sh`，它按 `merge-mode.sh` 开 PR（staged 开 draft、reviewer 不碰 `gh pr merge`），platform 时开自动合并并用 `merge-status.sh` 核对，none 重试一次仍不行就返回非 0。漏开的兜底只在巡检一处：已批准、检查通过但 `merge-status.sh` 输出 none，提及 Implementer 重跑脚本。
+开 PR 和自动合并：Implementer 交付和返工都跑 `autoteam open-pr`（即 `.autoteam/scripts/open-pr.sh`，成员仓库里用包内的那份），它按 `merge-mode.sh` 开 PR（staged 开 draft、reviewer 不碰 `gh pr merge`），platform 时开自动合并并用 `merge-status.sh` 核对，none 重试一次仍不行就返回非 0。漏开的兜底只在巡检一处：已批准、检查通过但 `merge-status.sh` 输出 none，提及 Implementer 重跑脚本。
 
-判断受保护文件统一跑 `.autoteam/scripts/protected-paths.sh --files <文件...>`；已有 PR 可跑 `--pr <PR>`，后者读取 PR 目标分支的 CODEOWNERS。脚本输出命中路径，退出码 0 / 1 / 2 分别表示命中 / 未命中 / 出错。`AUTOTEAM_CODEOWNERS_GATE=off` 时，Implementer 和 Reviewer 跳过这项判断。
+判断受保护文件统一跑 `autoteam protected-paths --files <文件...>`（没有 CODEOWNERS 的仓库视为没有受保护路径）；已有 PR 可跑 `--pr <PR>`，后者读取 PR 目标分支的 CODEOWNERS。脚本输出命中路径，退出码 0 / 1 / 2 分别表示命中 / 未命中 / 出错。`AUTOTEAM_CODEOWNERS_GATE=off` 时，Implementer 和 Reviewer 跳过这项判断。
 
 升级后，本项目远端仍存在但包内和 eject 覆盖中都已没有定义的 autopilot，会在 `autoteam multica` 预览、`--apply` 和 `autoteam doctor` 中列出；启用中的显示 ⚠️，请手动暂停或到 Multica 界面删除。同步不会自动暂停或删除。`autoteam resume` 即使在升级前的 stop 恢复名单中找到它们，也会跳过并说明原因；仍有 eject 定义的实例可以恢复。
 

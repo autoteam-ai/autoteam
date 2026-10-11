@@ -56,6 +56,26 @@ title: 生成的文件
 
 “模板”表示一般不需要手改，升级 autoteam 时用 `autoteam upgrade` 更新（改过的文件它不会动）；“人”表示装完后按项目情况修改。
 
+## 成员仓库
+
+一个团队服务多个仓库时，上面这些只装在团队仓库里。成员仓库只有两样（`autoteam init` 在登记过的成员仓库里生成）：
+
+```
+成员仓库/
+├─ Makefile                         check / dev / deploy，项目自己的命令
+└─ .github/workflows/autoteam.yml   调用团队仓库的可复用工作流 member.yml@main
+```
+
+团队仓库多出成员项目的登记：
+
+```
+团队仓库/.autoteam/projects/<owner>/<repo>/
+├─ project.conf                     只写和团队默认不同的键（说明见配置参考）
+└─ playbook.md                      本项目的经验库
+```
+
+升级 autoteam 不用改成员仓库：agent 通过启动器跑团队仓库最新的 CLI，`autoteam.yml` 调用的也是团队仓库 main 上的工作流。见[一个团队服务多个仓库](../setup/multi-project.md)。
+
 ## 不再落盘的文件
 
 四个角色指令（planner / implementer / reviewer / auditor）、autopilot 的 runbook、`planner-mcp.json` **不写进你的仓库**：它们随 autoteam 包发布，`autoteam multica --apply` 和 `autoteam doctor` 直接读包内的版本，升级 autoteam 就升级了它们。规则由包版本固定，为什么这样是安全的见[安全边界](../concepts/guardrails.md#规则由包版本固定指令不落盘)。

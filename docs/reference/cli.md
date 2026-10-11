@@ -5,10 +5,10 @@ title: autoteam 命令
 # autoteam 命令
 
 ```
-autoteam [-C <目录>] <命令> [选项]
+autoteam [-C <目录>] [-P <owner/name>] <命令> [选项]
 ```
 
-`-C` 指定在哪个仓库里执行（默认当前目录）。每个命令都有 `-h`。依赖 bash 3.2+、git、jq；`github` 需要 gh，`multica` 需要 multica CLI 和 curl。
+`-C` 指定在哪个仓库里执行（默认当前目录）。`-P`（或环境变量 `AUTOTEAM_PROJECT`）指定团队里的一个项目，不需要在它的 clone 里，见[一个团队服务多个仓库](../setup/multi-project.md)。每个命令都有 `-h`。依赖 bash 3.2+、git、jq；`github` 需要 gh，`multica` 需要 multica CLI 和 curl。
 
 ## autoteam init
 
@@ -22,10 +22,12 @@ autoteam [-C <目录>] <命令> [选项]
 | `--workspace <slug>` | Multica 工作区 |
 | `--human <成员名>` | 负责批准和接收升级的 Multica 成员 |
 | `--timezone <时区>` | autopilot 时区，默认 Asia/Shanghai |
-| `--team-home <目录>` | 共享团队仓库的本地目录：带入其 conf 的团队级配置和 `registry.yaml`，写入 `AUTOTEAM_TEAM_HOME`；命令行参数优先，见[共享团队接入新仓库](../setup/multi-project.md) |
+| `--team-home <目录>` | 旧的共享团队接法（0002）：带入团队仓库 conf 的团队级配置和 `registry.yaml`，写入 `AUTOTEAM_TEAM_HOME`。新接入的仓库改用团队仓库里的 `autoteam project add`，见[一个团队服务多个仓库](../setup/multi-project.md) |
 | `--force` | 覆盖与模板不同的文件、替换受管块，不管改没改过；`autoteam.conf`、`registry.yaml`（用户数据）不覆盖。升级请用 `autoteam upgrade`，它不会动你改过的文件 |
 | `[文件...]` | 只处理这些文件，例如 `autoteam init --force .autoteam/playbook.md` |
 | `--dry-run` | 只列出会做什么 |
+
+在团队仓库登记过的成员仓库里，`init` 只生成 `.github/workflows/autoteam.yml`（调用团队仓库的可复用工作流）和 Makefile 模板（已有 Makefile 只检查目标），不写 lock，并提示删掉旧版装进来的 `.autoteam/`、`./autoteam` 和 gate / deploy / rollback 工作流。
 
 写文件的规则：
 
@@ -87,6 +89,8 @@ autoteam [-C <目录>] <命令> [选项]
 ## autoteam next
 
 只读列出本项目下一轮巡检事项：可派发的 `todo`（`dispatchable`）、最近一次运行失败的 `todo` / `in_progress`（`failed_run`）、最近合并 PR 对应的未完成任务超过 `AUTOTEAM_ACCEPT_RECHECK_HOURS`（`merged_unaccepted`）、需补开自动合并或有冲突的 PR（`pr_remediation`），以及 `in_progress` / `in_review` 打转次数达到上限的任务（`loop_limit`）。GitHub 查询使用运行者当前的 `gh` 身份，不执行补救动作。每行显示任务编号、类别和原因。`--output json` 返回包含 `id`、`identifier`、`category`、`reason` 的数组；`--profile <名字>` 选择 Multica profile。
+
+`--all` 逐个检查 `autoteam projects` 列出的全部项目，跳过已暂停的项目，每项多一个 `repo` 字段（文本输出多一列仓库）；任一项目读取失败返回 2。团队级的「推进巡检」用它。
 
 `autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 或 GitHub 失败时返回 2。
 
@@ -200,3 +204,36 @@ autoteam runbook <名字>       # 输出该 runbook 的正文
 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。
 
 `next` 将等待原因写到 stderr，不把等待任务列入 `dispatchable`；`next --check` 按完整巡检清单决定退出码，缺少对应唤醒会列为 `missing_wakeup`。`approve` 预览显示等待的前提，放行时这些任务使用 `--no-start`；前提完成后由巡检派发。同一父任务的批次语义不变，无此字段或空字符串表示没有跨需求前提。
+
+## 团队与成员项目
+
+团队仓库的 `.autoteam/` 是全部项目的默认配置，成员项目登记在 `.autoteam/projects/<owner>/<repo>/`。完整说明见[一个团队服务多个仓库](../setup/multi-project.md)。
+
+| 命令 | 说明 |
+|---|---|
+| `autoteam project add <owner/name> [--default-branch <分支>]` | 在团队仓库登记成员项目：生成 `project.conf`（默认分支取 GitHub 的）和 `playbook.md`，已存在就不动 |
+| `autoteam projects [--json]` | 列出团队管理的项目（仓库、Multica 项目名），团队仓库排第一。在成员 clone 里或不在任何仓库里时，列的是 CLI 所在的团队 |
+| `autoteam conf [KEY...]` | 打印当前项目生效的配置；成员项目 = 团队 `autoteam.conf` + 本项目 `project.conf`，描述项目自己的键不继承 |
+| `autoteam playbook` | 打印经验库；成员项目先打印团队的，再打印本项目的 |
+
+团队仓库里的 `autoteam multica --apply` 还会给每个成员项目建 Multica 项目（挂仓库、运营笔记），并把团队「部署结果」的 webhook 写进成员仓库的 secret `MULTICA_DEPLOY_HOOK`。成员仓库里的 `multica --apply` 只建本项目，不建 autopilot。
+
+成员仓库不能 `eject`（改团队仓库的），`upgrade`、`diff` 直接说明不需要。
+
+## 运行时脚本
+
+agent 在任何项目里都用子命令调运行时脚本，配置按上面的规则取（脚本读 `AUTOTEAM_CONF_FILE` 指向的合并配置）。独立项目和团队仓库优先用仓库里安装的 `.autoteam/scripts/` 那份，成员项目用包内的。子命令后面的参数原样交给脚本。
+
+| 子命令 | 脚本 | 用途 |
+|---|---|---|
+| `autoteam token` | `gh-app-token.sh` | `--run <角色> <命令>` 带 App 身份跑命令，`--setup-git <角色>` 配好 clone 的提交身份和凭据 |
+| `autoteam open-pr` | `open-pr.sh` | 开 PR、按合并模式开自动合并并核对 |
+| `autoteam merge-mode` / `merge-status` | 同名 | 判断谁来合并；核对自动合并 |
+| `autoteam loop-guard` | 同名 | 统计任务的打回、验收失败、换人次数 |
+| `autoteam protected-paths` | 同名 | 判断文件是否命中 CODEOWNERS 保护；仓库没有 CODEOWNERS 时没有受保护路径（锁文件仍算） |
+| `autoteam deployed-issues` | 同名 | 部署清单和是否改了规则文件 |
+| `autoteam metrics` | `health-metrics.sh` | 健康指标 |
+
+## 启动器
+
+`skills/autoteam/bin/autoteam-launcher` 装在跑 agent 的机器上，作为 PATH 里的 `autoteam`。它按顺序选 CLI：仓库自带的（团队仓库的 checkout、独立项目固定版本的 `./autoteam`）→ `AUTOTEAM_TEAM_DIR` 指向的本机 checkout → 团队仓库（`AUTOTEAM_TEAM_HOME`，默认 `autoteam-ai/autoteam`）默认分支最新提交的快照。最新提交缓存 `AUTOTEAM_TEAM_TTL` 秒（默认 300），查不到时用上次的快照并在 stderr 提示；快照放在 `~/.cache/autoteam/cli/<提交>`，只保留最近 10 份。
