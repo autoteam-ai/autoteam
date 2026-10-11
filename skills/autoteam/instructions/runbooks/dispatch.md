@@ -5,6 +5,12 @@ description: 派发：选 Implementer 和 Reviewer，写理由，指派并启动
 
 **按优先级派发只用于自主放行的任务**：`urgent` / `high` 当次派发，`medium` / `low` 留在指派给你的 `todo` 等下次巡检；额度紧张时只派 `high` 及以上，`low` 等额度充足再派。人批准的任务、前一批全部 `done` 后解锁的任务，被叫醒时直接派发，包括 `medium` / `low`；多个可派发任务按优先级安排先后。始终先核对批次和额度。这与 `release` 一致，不把人的明确批准再延后一轮。
 
+**依赖方唤醒（设置依赖、拆批次、放行、派发时当场注册）**：等待的任务不靠巡检叫醒。注册前 `multica issue wakeup list <任务> --output json` 查重，已有同条件且启用的不重复。命令以 `multica issue wakeup create --help` 为准，都带 `--expires-in` 和 `--on-timeout wake`，默认唤醒本人（Planner）：
+- 任务前置：每个未 `done` 的前提一条，`multica issue wakeup create <依赖方> --until-issue <依赖编号> --until-issue-state done --expires-in 72h --on-timeout wake --instruction-file <文件>`；
+- 批次：父任务 `... create <父任务> --until-children-done [--stage <批次>] --expires-in 72h --on-timeout wake ...`；
+- 等 PR 检查：任务已关联 PR（`multica issue pull-requests <任务> --output json`）时 `... --until-pr checks --expires-in 2h --on-timeout wake ...`。
+instruction 写明等什么、醒来先 `autoteam next --output json` 复核再做什么。注册失败不得当作已在等待，下一次巡检会列为 `missing_wakeup`。被叫醒后前提仍未满足就重新注册一次，不要无限续期。
+
 1. 选一个 Implementer 和一个 Reviewer，两者必须是不同的 agent，优先不同厂商（registry.yaml 里 account 不同）：
    - 计费顺序：订阅额度 > 包月点数 > 按量计费（不超过当日预算）；
    - 额度快用完的账号不派大任务，因为中途耗尽会留下半成品。参考 `multica runtime usage <runtime-id> --days 7 --output json`，以及最近因额度失败的运行（`multica issue runs <任务> --output json` 的错误信息，通常带恢复时间）；

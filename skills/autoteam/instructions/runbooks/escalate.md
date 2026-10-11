@@ -9,6 +9,7 @@ description: 升级：什么情况下把任务设为 blocked 并指派给人，�
 - 换过一次 Reviewer 后再次在评审开始前因 runtime 路由、登录、额度或权限失败，且该 Reviewer 在 PR 上没有评审记录（换人时评论 `【换人-Reviewer】` 加原因）；
 - 派发时没有 Implementer 或 Reviewer 的私钥检查能通过（写明缺哪个角色的私钥、该放 `AUTOTEAM_KEYS_DIR`）；
 - 巡检提及 Implementer 补开自动合并或 rebase 后，同一个 PR 仍然没开自动合并或仍然冲突（见推进巡检的 `pr_remediation`）；
+- 外部前提（集成、人工配置）缺失，且任务评论里还没有 `【前提升级】`（只升级一次，之后的节奏见 `progress` 的外部前提）；
 - 线上故障（已回滚）。
 
 ```bash
