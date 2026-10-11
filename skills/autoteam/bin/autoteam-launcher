@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# autoteam 启动器：装在跑 agent 的机器上，作为 PATH 里的 autoteam，每台机器装一次：
+#   curl -fsSL https://raw.githubusercontent.com/autoteam-ai/autoteam/main/skills/autoteam/bin/autoteam-launcher \
+#     -o ~/.local/bin/autoteam && chmod +x ~/.local/bin/autoteam
+# 按顺序选用：
+#   1. 当前仓库自带的 CLI：autoteam 仓库自己（自举），或独立项目根目录固定版本的 ./autoteam
+#   2. 团队仓库（AUTOTEAM_TEAM_HOME，默认 autoteam-ai/autoteam）默认分支最新提交的快照。CLI、
+#      团队配置和成员项目配置来自同一个提交，成员仓库里不用装 autoteam 的文件。最新提交缓存
+#      AUTOTEAM_TEAM_TTL 秒（默认 300），查不到时用上次的快照并在 stderr 提示。
+set -euo pipefail
+
+dir=.
+[ "${1:-}" != -C ] || dir=${2:-.}
+root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)
+if [ -n "$root" ]; then
+  [ ! -f "$root/skills/autoteam/bin/autoteam" ] || exec bash "$root/skills/autoteam/bin/autoteam" "$@"
+  if [ -f "$root/autoteam" ] && grep -q '^AUTOTEAM_REF=' "$root/autoteam" 2>/dev/null; then
+    exec bash "$root/autoteam" "$@"
+  fi
+fi
+
+# 本机已有团队仓库的 checkout（开发、测试）：直接用
+if [ -n "${AUTOTEAM_TEAM_DIR:-}" ] && [ -f "$AUTOTEAM_TEAM_DIR/skills/autoteam/bin/autoteam" ]; then
+  exec bash "$AUTOTEAM_TEAM_DIR/skills/autoteam/bin/autoteam" "$@"
+fi
+
+home=${AUTOTEAM_TEAM_HOME:-autoteam-ai/autoteam}
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/autoteam
+ref_file=$cache/team-ref-$(printf '%s' "$home" | tr '/' '_')
+mkdir -p "$cache/cli"
+now=$(date +%s) stamp=0 cached="" ref=""
+[ ! -f "$ref_file" ] || read -r stamp cached < "$ref_file" || true
+if [ -n "$cached" ] && [ $((now - stamp)) -lt "${AUTOTEAM_TEAM_TTL:-300}" ]; then
+  ref=$cached
+elif latest=$(git ls-remote "https://github.com/$home.git" HEAD 2>/dev/null | cut -f1) && [[ $latest =~ ^[0-9a-f]{40}$ ]]; then
+  ref=$latest
+  printf '%s %s\n' "$now" "$ref" > "$ref_file.$$" && mv "$ref_file.$$" "$ref_file"
+elif [ -n "$cached" ]; then
+  ref=$cached
+  echo "autoteam：查不到团队仓库 $home 的最新提交，用上次的 ${ref:0:7}" >&2
+else
+  echo "autoteam：查不到团队仓库 $home 的最新提交，检查网络后重试" >&2
+  exit 1
+fi
+
+snap=$cache/cli/$ref
+if [ ! -f "$snap/skills/autoteam/bin/autoteam" ]; then
+  tmp=$(mktemp -d "$cache/cli/.download.XXXXXX")
+  if ! curl -fsSL "https://codeload.github.com/$home/tar.gz/$ref" | tar -xz -C "$tmp" --strip-components=1 ||
+    [ ! -f "$tmp/skills/autoteam/bin/autoteam" ]; then
+    rm -rf "$tmp"
+    echo "autoteam：下载 $home@${ref:0:7} 失败" >&2
+    exit 1
+  fi
+  # symlink 的建立是原子的；并发下载者只有一个赢，其他清理自己的解压目录。
+  ln -s "$tmp" "$snap" 2>/dev/null || rm -rf "$tmp"
+  # 只留最近 10 份快照（独立项目固定版本的快照也在这里，删了下次重新下载）。名字都是提交 SHA
+  # shellcheck disable=SC2012
+  ls -dt "$cache/cli"/[0-9a-f]* 2>/dev/null | sed 1,10d | while IFS= read -r old; do
+    target=$(readlink "$old" || true)
+    rm -f "$old"
+    [ -z "$target" ] || rm -rf "$target"
+  done
+fi
+AUTOTEAM_TEAM_DIR=$snap exec bash "$snap/skills/autoteam/bin/autoteam" "$@"

@@ -5,7 +5,7 @@
 # scripts/in-container.sh；工具版本只写在 Dockerfile 里。镜像里设了 AUTOTEAM_DEV_IMAGE=1，
 # 在镜像里（含 devcontainer）直接执行，不嵌套。
 SHELL := /bin/bash
-SCRIPTS := skills/autoteam/bin/autoteam scripts/release.sh scripts/in-container.sh tests/dev-sandbox.sh \
+SCRIPTS := skills/autoteam/bin/autoteam skills/autoteam/bin/autoteam-launcher scripts/release.sh scripts/in-container.sh tests/dev-sandbox.sh \
   $(wildcard skills/autoteam/lib/*.sh) $(wildcard skills/autoteam/templates/autoteam/scripts/*.sh) \
   tests/run.sh tests/lib.sh tests/render-workflows.sh $(wildcard tests/test_*.sh) $(wildcard tests/stubs/*)
 

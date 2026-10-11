@@ -49,6 +49,11 @@ cmd_init() {
   local root
   root=$(repo_root)
   cd "$root" || die "进不去 $root"
+  if [ "${AUTOTEAM_MODE:-local}" = member ]; then
+    [ -z "$team_dir" ] || die "本仓库已在团队仓库登记，不用 --team-home"
+    init_member
+    return
+  fi
 
   section "识别项目"
   [ -z "$team_dir" ] || init_team_load "$team_dir"
@@ -87,6 +92,30 @@ EOF
   info "2. 按你的订阅账号和机器填 $AUTOTEAM_DIR/registry.yaml（autoteam runtimes 列出可用的 runtime）"
   info "3. 提交这些文件，走 PR 由你合并"
   info "4. autoteam setup    一次预览 GitHub 和 Multica，交互终端确认后执行并运行 doctor；非交互终端确认后加 --apply"
+}
+
+# 成员项目（design/0003）：配置在团队仓库，本仓库只放调用团队可复用工作流的 autoteam.yml
+# 和 Makefile 的三个目标。不写 lock：这两个文件升级 autoteam 时不用动
+init_member() {
+  local old
+  conf_load
+  lock_load
+  section "成员项目 $AUTOTEAM_REPO"
+  info "团队仓库 $AUTOTEAM_TEAM_HOME；本项目的配置在那边的 $AUTOTEAM_PROJECTS_REL/$AUTOTEAM_REPO/"
+  section "生成文件"
+  init_install member/github/workflows/autoteam.yml .github/workflows/autoteam.yml file
+  init_install member/Makefile Makefile makefile
+  for old in "$AUTOTEAM_DIR" autoteam .github/workflows/gate.yml .github/workflows/deploy.yml .github/workflows/rollback.yml; do
+    [ ! -e "$old" ] || warn "$old 是旧版装进来的，成员项目不再需要：确认没有项目自己的改动后删掉"
+  done
+  if [ "$AUTOTEAM_DRY_RUN" = 1 ]; then
+    printf '\n%s以上是预览，没有写任何文件。%s\n' "$C_BLUE" "$C_RESET"
+    return 0
+  fi
+  section "下一步"
+  info "1. 把 Makefile 的 check / dev / deploy 改成真实命令，提交并合并"
+  info "2. autoteam github --apply：规则集的必需检查是 $AUTOTEAM_CHECK_NAME"
+  info "3. 在团队仓库运行 autoteam multica --apply：建 Multica 项目、写部署 webhook secret"
 }
 
 # 读团队仓库的 conf 和 registry.yaml：团队级键没被命令行设置时取团队仓库的值，并记下 registry 路径
@@ -288,6 +317,7 @@ EOF
 }
 
 cmd_diff() {
+  [ "${AUTOTEAM_MODE:-local}" = local ] || die "成员项目没有安装 autoteam 的文件：升级 autoteam 不用改这个仓库，配置在团队仓库"
   local only=" " a check=0
   for a in "$@"; do
     case $a in

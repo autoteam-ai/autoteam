@@ -1,0 +1,107 @@
+# 成员仓库的 autoteam 工作流（可复用）。成员仓库的 .github/workflows/autoteam.yml 调用它：
+#   uses: autoteam-ai/autoteam/.github/workflows/member.yml@main
+# 团队配置和成员项目配置从本仓库（团队仓库）main 的 .autoteam/ 读，成员仓库里不放 autoteam 的文件。
+# 受 CODEOWNERS 保护：改它等于同时改所有成员仓库的闸门。
+name: member
+
+on:
+  workflow_call:
+
+jobs:
+  check:
+    name: check
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: repo
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        with:
+          repository: autoteam-ai/autoteam
+          path: team
+
+      # 上限和不计入的路径取本项目生效的配置（团队 autoteam.conf + 本项目 project.conf）
+      - name: pr-size
+        if: github.event_name == 'pull_request'
+        working-directory: repo
+        env:
+          BASE: ${{ github.base_ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          max=$(bash ../team/skills/autoteam/bin/autoteam -P "$REPO" conf AUTOTEAM_PR_MAX_LINES)
+          skip=$(bash ../team/skills/autoteam/bin/autoteam -P "$REPO" conf AUTOTEAM_PR_SIZE_EXCLUDE)
+          # set -f 关掉路径展开，否则 $skip 里的 **/*.md 会先被 shell 展开成实际文件名
+          set -f --
+          IFS=,
+          for pat in $skip; do set -- "$@" ":(exclude,glob)$pat"; done
+          unset IFS
+          set +f
+          changed=$(git diff --numstat "origin/$BASE"...HEAD -- . "$@" \
+            | awk '{s += $1 + $2} END {print s + 0}')
+          echo "本 PR 改动 $changed 行，上限 $max 行"
+          if [ "$changed" -gt "$max" ]; then
+            echo "::error::PR 改动 $changed 行，超过上限 $max 行：拆成更小的任务"
+            exit 1
+          fi
+
+      - name: check
+        working-directory: repo
+        run: make check
+
+  deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # 部署记录用于计算本次上线的任务清单（deployed-issues 按 environment 找上一次成功部署）
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: repo
+      - uses: actions/checkout@v7
+        with:
+          repository: autoteam-ai/autoteam
+          path: team
+
+      # 约定：make deploy 要等线上换成本次提交再返回（带超时），否则通知 Planner 时线上还是旧版本
+      - name: deploy
+        working-directory: repo
+        run: make deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # 有新上线任务才通知 Planner，避免空部署唤醒 Planner。webhook 是团队共用的「部署结果」
+      - name: notify planner
+        if: always()
+        working-directory: repo
+        env:
+          HOOK: ${{ secrets.MULTICA_DEPLOY_HOOK }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          KEY: deploy-${{ github.repository }}-${{ github.run_id }}-${{ github.run_attempt }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::没有设置 secret MULTICA_DEPLOY_HOOK，跳过通知 Planner（团队仓库里 autoteam multica --apply 会写入）"
+            exit 0
+          fi
+          if ! issues=$(bash ../team/skills/autoteam/bin/autoteam -P "$REPO" deployed-issues deploy "$SHA"); then
+            echo "::warning::计算部署任务清单失败"
+            exit 1
+          fi
+          echo "部署任务清单: $issues"
+          if [ "$issues" = '[]' ]; then
+            echo "没有相关任务，跳过通知 Planner"
+            exit 0
+          fi
+          jq -n --arg kind deploy --arg sha "$SHA" --arg result "$RESULT" --arg repo "$REPO" --arg run_url "$RUN_URL" --argjson issues "$issues" \
+            '{kind: $kind, sha: $sha, result: $result, repo: $repo, run_url: $run_url, issues: $issues, sync_instructions: false}' \
+            | curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' \
+                -H "Idempotency-Key: $KEY" --data-binary @- \
+            || echo "::warning::通知 Planner 失败，巡检会补查待上线的任务"

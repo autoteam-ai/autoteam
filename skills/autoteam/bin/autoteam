@@ -49,7 +49,10 @@ autoteam —— 把自管理 agent 团队流程装进你的项目
   version    打印版本
 
 团队（一个团队仓库服务多个成员仓库，见 design/0003）：
+  projects   列出团队管理的项目
+  project    project add <owner/name>：在团队仓库登记成员项目
   conf       打印当前项目生效的配置（成员项目 = 团队配置 + 项目配置）
+  playbook   打印本项目的经验库
 
 运行时脚本（agent 在任何项目里都这样调，配置按上面的规则取）：
   token            GitHub App 身份：token --run <角色> <命令>、token --setup-git <角色>
@@ -108,7 +111,10 @@ autoteam_main() {
     diff)     cmd_diff ${args[@]+"${args[@]}"} ;;
     eject)    cmd_eject ${args[@]+"${args[@]}"} ;;
     runbook)  cmd_runbook ${args[@]+"${args[@]}"} ;;
+    projects) cmd_projects ${args[@]+"${args[@]}"} ;;
+    project)  cmd_project ${args[@]+"${args[@]}"} ;;
     conf)     cmd_conf ${args[@]+"${args[@]}"} ;;
+    playbook) cmd_playbook ${args[@]+"${args[@]}"} ;;
     token|open-pr|merge-mode|merge-status|loop-guard|protected-paths|deployed-issues|metrics|instruction-budget)
               cmd_script "$cmd" ${args[@]+"${args[@]}"} ;;
     version|--version|-v) echo "autoteam $(autoteam_version)" ;;
