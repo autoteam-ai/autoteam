@@ -7,7 +7,7 @@
 AUTOTEAM_REGISTRY_REL=$AUTOTEAM_DIR/registry.yaml
 
 registry_agents() {
-  local file=${1:-$(repo_root)/$AUTOTEAM_REGISTRY_REL}
+  local file=${1:-$(autoteam_conf_root)/$AUTOTEAM_REGISTRY_REL}
   [ -f "$file" ] || die "找不到 $AUTOTEAM_REGISTRY_REL，先运行 autoteam init"
   awk '
     function t(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }

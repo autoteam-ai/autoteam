@@ -18,6 +18,7 @@ EOF
 }
 
 cmd_upgrade() {
+  [ "${AUTOTEAM_MODE:-local}" = local ] || die "成员项目没有安装 autoteam 的文件：升级 autoteam 不用改这个仓库，配置在团队仓库"
   local only=" " a
   AUTOTEAM_FORCE=0 AUTOTEAM_DRY_RUN=0
   for a in "$@"; do

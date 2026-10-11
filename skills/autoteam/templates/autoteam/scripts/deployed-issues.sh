@@ -6,8 +6,10 @@ set -euo pipefail
 mode=${1:?usage: deployed-issues.sh deploy|rollback|rules SHA}
 sha=${2:?usage: deployed-issues.sh deploy|rollback|rules SHA}
 case "$mode" in deploy|rollback|rules) ;; *) echo "invalid mode: $mode" >&2; exit 2 ;; esac
-[ -f .autoteam/autoteam.conf ] || { echo 'missing autoteam.conf' >&2; exit 2; }
-conf() { sed -n "s/^$1=//p" .autoteam/autoteam.conf | tail -n 1; }
+# autoteam deployed-issues 传入合并后的配置（成员项目没有 .autoteam/）
+conf_file=${AUTOTEAM_CONF_FILE:-.autoteam/autoteam.conf}
+[ -f "$conf_file" ] || { echo 'missing autoteam.conf' >&2; exit 2; }
+conf() { sed -n "s/^$1=//p" "$conf_file" | tail -n 1; }
 AUTOTEAM_REPO=$(conf AUTOTEAM_REPO)
 AUTOTEAM_ISSUE_PREFIX=$(conf AUTOTEAM_ISSUE_PREFIX)
 AUTOTEAM_DEPLOY_ENVIRONMENT=$(conf AUTOTEAM_DEPLOY_ENVIRONMENT)

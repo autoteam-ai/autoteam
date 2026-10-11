@@ -29,7 +29,11 @@ if [ "$mode" = pr ]; then
   base=$(gh pr view "$pr" --json baseRefName --jq .baseRefName) || die 'cannot read PR base branch'
   gh pr view "$pr" --json files --jq '.files[].path' > "$tmp/files" || die 'cannot read PR files'
   if [ -z "$source_file" ]; then
-    gh api "repos/{owner}/{repo}/contents/.github/CODEOWNERS?ref=$base" -H 'Accept: application/vnd.github.raw' > "$tmp/CODEOWNERS" || die 'cannot read base CODEOWNERS'
+    # No CODEOWNERS on the base branch (e.g. a team member repository): nothing is protected.
+    if ! gh api "repos/{owner}/{repo}/contents/.github/CODEOWNERS?ref=$base" -H 'Accept: application/vnd.github.raw' > "$tmp/CODEOWNERS" 2> "$tmp/err"; then
+      grep -q '404' "$tmp/err" || die 'cannot read base CODEOWNERS'
+      : > "$tmp/CODEOWNERS"
+    fi
     source_file=$tmp/CODEOWNERS
   fi
 elif [ "$mode" = stdin ]; then
@@ -38,7 +42,10 @@ else
   [ "${#files[@]}" -gt 0 ] || die 'provide files, --stdin, or --pr'
   printf '%s\n' "${files[@]}" > "$tmp/files"
 fi
-[ -n "$source_file" ] || source_file="$root/.github/CODEOWNERS"
+if [ -z "$source_file" ]; then
+  source_file="$root/.github/CODEOWNERS"
+  [ -e "$source_file" ] || { : > "$tmp/CODEOWNERS"; source_file=$tmp/CODEOWNERS; }
+fi
 [ -r "$source_file" ] || die "cannot read CODEOWNERS: $source_file"
 
 # GitHub CODEOWNERS uses gitignore-style path patterns, but does not support

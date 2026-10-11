@@ -31,12 +31,13 @@ done
 
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-repo=$(sed -n 's/^AUTOTEAM_REPO=//p' "$root/.autoteam/autoteam.conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')
+conf=${AUTOTEAM_CONF_FILE:-$root/.autoteam/autoteam.conf}
+repo=$(sed -n 's/^AUTOTEAM_REPO=//p' "$conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')
 repo_args=()
 [ -n "$repo" ] && repo_args=(--repo "$repo")
 
 # 和 merge-mode.sh 用同一个默认分支
-base=$(sed -n 's/^AUTOTEAM_DEFAULT_BRANCH=//p' "$root/.autoteam/autoteam.conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')
+base=$(sed -n 's/^AUTOTEAM_DEFAULT_BRANCH=//p' "$conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')
 [ -n "$base" ] || base=$(gh repo view ${repo:+"$repo"} --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null)
 [ -n "$base" ] || fail "读不出默认分支（AUTOTEAM_DEFAULT_BRANCH）"
 

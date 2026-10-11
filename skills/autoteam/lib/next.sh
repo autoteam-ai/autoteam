@@ -107,7 +107,7 @@ next_collect_github() {
     if [ "$(jq -r '.mergeable' <<<"$pr")" = CONFLICTING ]; then
       reason="PR #$number 与主分支冲突"
     elif jq -e '.reviewDecision == "APPROVED" and (.statusCheckRollup | length > 0) and all(.statusCheckRollup[]; .status == "COMPLETED" and ((.conclusion == "SUCCESS") or (.conclusion == "SKIPPED") or (.conclusion == "NEUTRAL")))' <<<"$pr" >/dev/null; then
-      status=$(bash "$(repo_root)/.autoteam/scripts/merge-status.sh" "$number") || { next_read_error "PR #$number 自动合并状态"; return 2; }
+      status=$(autoteam_script merge-status "$number") || { next_read_error "PR #$number 自动合并状态"; return 2; }
       [ "$status" = none ] || continue
       reason="PR #$number 已批准且检查通过，但未开自动合并"
     else
@@ -243,7 +243,7 @@ next_collect() {
     [ -n "$id" ] && [ -n "$identifier" ] || { next_read_error '任务字段'; return 2; }
     case $(jq -r '.status_category // .status' <<<"$issue") in done|cancelled) continue ;; esac
     if [ "$status" = in_progress ] || [ "$status" = in_review ]; then
-      guard=$(MULTICA_BIN="$MC_BIN" AUTOTEAM_MULTICA_PROFILE="$MC_PROFILE" bash "$(repo_root)/.autoteam/scripts/loop-guard.sh" "$identifier") || { next_read_error "$identifier 打转次数"; return 2; }
+      guard=$(MULTICA_BIN="$MC_BIN" AUTOTEAM_MULTICA_PROFILE="$MC_PROFILE" autoteam_script loop-guard "$identifier") || { next_read_error "$identifier 打转次数"; return 2; }
       jq -e 'type == "object" and (.escalate | type == "boolean") and (.reasons | type == "array") and (.notes | type == "array")' <<<"$guard" >/dev/null || { next_read_error "$identifier 打转次数格式"; return 2; }
       reason=$(jq -r 'if .escalate or (.notes | length > 0) then ((.reasons + .notes) | join("；")) else empty end' <<<"$guard")
       if [ -n "$reason" ]; then

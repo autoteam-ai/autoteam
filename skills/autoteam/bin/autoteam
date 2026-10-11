@@ -17,7 +17,7 @@ AUTOTEAM_LIB=$AUTOTEAM_HOME/lib
 # shellcheck disable=SC2034  # 在 lib 里使用
 AUTOTEAM_TEMPLATES=$AUTOTEAM_HOME/templates
 
-for autoteam_lib in common conf render registry instructions lock init upgrade github create_apps multica stop next approve propose doctor setup; do
+for autoteam_lib in common conf team render registry instructions lock init upgrade github create_apps multica stop next approve propose doctor setup; do
   # shellcheck source=/dev/null
   . "$AUTOTEAM_LIB/$autoteam_lib.sh"
 done
@@ -27,7 +27,7 @@ autoteam_usage() {
   cat <<'EOF'
 autoteam —— 把自管理 agent 团队流程装进你的项目
 
-用法：autoteam [-C <目录>] <命令> [选项]
+用法：autoteam [-C <目录>] [-P <owner/name>] <命令> [选项]
 
 命令：
   init       生成工作流文件（已有文件不覆盖，受管块只追加一次）
@@ -48,14 +48,29 @@ autoteam —— 把自管理 agent 团队流程装进你的项目
   runbook    按名字输出一份 runbook（eject 优先；--list 列出可用的）
   version    打印版本
 
+团队（一个团队仓库服务多个成员仓库，见 design/0003）：
+  conf       打印当前项目生效的配置（成员项目 = 团队配置 + 项目配置）
+
+运行时脚本（agent 在任何项目里都这样调，配置按上面的规则取）：
+  token            GitHub App 身份：token --run <角色> <命令>、token --setup-git <角色>
+  open-pr          开 PR 并按合并模式开自动合并
+  merge-mode       判断谁来合并：platform / reviewer / staged / none
+  merge-status     核对 PR 的自动合并
+  loop-guard       统计任务的打回、验收失败、换人次数
+  protected-paths  判断文件是否命中 CODEOWNERS 保护
+  deployed-issues  部署清单（deploy <sha>）和是否改了规则文件（rules <sha>）
+  metrics          健康指标
+
 通用选项：
   -C <目录>  在指定仓库里执行（默认当前目录）
+  -P <owner/name>  指定团队里的项目，不需要在它的 clone 里（也可设 AUTOTEAM_PROJECT）
   -h         查看命令帮助，例如 autoteam github -h
 
 文档：https://github.com/autoteam-ai/autoteam
 EOF
 }
 
+# shellcheck disable=SC2034  # AUTOTEAM_PROJECT 由 team.sh 的 team_context 读
 autoteam_main() {
   local args=() cmd=""
   autoteam_tmp_init
@@ -63,11 +78,18 @@ autoteam_main() {
     case $1 in
       -C) [ -n "$2" ] || die "-C 需要一个目录"; cd "$2" || die "进不去目录：$2"; shift 2 ;;
       -C*) cd "${1#-C}" || die "进不去目录：${1#-C}"; shift ;;
+      -P) [ -n "${2:-}" ] || die "-P 需要 owner/name"; AUTOTEAM_PROJECT=$2; shift 2 ;;
       *)
         if [ -z "$cmd" ]; then cmd=$1; else args+=("$1"); fi
-        shift ;;
+        shift
+        # 运行时脚本的参数原样传下去：token --run 后面的命令可能带自己的 -C
+        case $cmd in
+          token|open-pr|merge-mode|merge-status|loop-guard|protected-paths|deployed-issues|metrics|instruction-budget)
+            args+=("$@"); break ;;
+        esac ;;
     esac
   done
+  case ${cmd:-help} in help|--help|-h|version|--version|-v) ;; *) team_context ;; esac
 
   case ${cmd:-help} in
     init)     cmd_init ${args[@]+"${args[@]}"} ;;
@@ -86,6 +108,9 @@ autoteam_main() {
     diff)     cmd_diff ${args[@]+"${args[@]}"} ;;
     eject)    cmd_eject ${args[@]+"${args[@]}"} ;;
     runbook)  cmd_runbook ${args[@]+"${args[@]}"} ;;
+    conf)     cmd_conf ${args[@]+"${args[@]}"} ;;
+    token|open-pr|merge-mode|merge-status|loop-guard|protected-paths|deployed-issues|metrics|instruction-budget)
+              cmd_script "$cmd" ${args[@]+"${args[@]}"} ;;
     version|--version|-v) echo "autoteam $(autoteam_version)" ;;
     help|--help|-h) autoteam_usage ;;
     *) autoteam_usage >&2; die "未知命令：$cmd" ;;

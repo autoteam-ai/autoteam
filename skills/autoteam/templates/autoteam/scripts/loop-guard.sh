@@ -12,7 +12,7 @@ if [ -z "$key" ] || [ "$key" = -h ] || [ "$key" = --help ]; then
 fi
 
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-conf=$root/.autoteam/autoteam.conf
+conf=${AUTOTEAM_CONF_FILE:-$root/.autoteam/autoteam.conf}
 conf_get() { sed -n "s/^$1=//p" "$conf" 2>/dev/null | head -n 1 | tr -d '[:space:]'; }
 max_rej=$(conf_get AUTOTEAM_MAX_REVIEW_REJECTIONS)
 max_acc=$(conf_get AUTOTEAM_MAX_ACCEPTANCE_FAILURES)
