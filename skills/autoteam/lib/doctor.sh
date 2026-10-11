@@ -355,12 +355,12 @@ doctor_apps() {
     else
       # 个人账号或非 admin 读不到 orgs/<owner>/installations：用私钥直接问这个仓库有没有装
       where=$AUTOTEAM_REPO row="" err=""
-      if ! row=$("$AUTOTEAM_DIR/scripts/gh-app-token.sh" --installation "$key_role" 2>&1); then
+      if ! row=$(autoteam_script token --installation "$key_role" 2>&1); then
         err=$row row=""
         case $err in
           *"找不到 $key_role 的私钥"*) info "$role App $id：核对不了安装状态（需要组织 admin，或本机有该角色的私钥），到 App 的 Install 页面自己确认" ;;
           *"没有装在"*) fail "$role App $id 没有装在 $where 上" ;;
-          *) fail "$role App $id：查不到在 $where 的安装：${err:-跑 $AUTOTEAM_DIR/scripts/gh-app-token.sh --installation $key_role 看报错}" ;;
+          *) fail "$role App $id：查不到在 $where 的安装：${err:-跑 autoteam token --installation $key_role 看报错}" ;;
         esac
       fi
     fi
@@ -377,12 +377,12 @@ doctor_apps() {
     fi
     # 私钥可能在 $AUTOTEAM_DIR/local/、AUTOTEAM_KEYS_DIR 或环境变量指的路径，别去猜它在哪，
     # 直接铸一次看结果：铸得出就是好的，没有私钥和有私钥但坏了要分开报
-    if err=$("$AUTOTEAM_DIR/scripts/gh-app-token.sh" "$key_role" 2>&1 >/dev/null); then
+    if err=$(autoteam_script token "$key_role" 2>&1 >/dev/null); then
       ok "$role 的私钥能铸出 token（本机可以用这个身份操作 GitHub）"
     else
       case $err in
         *"找不到 $key_role 的私钥"*) info "本机没有 $key_role 的私钥：只有跑 $role 的那台机器需要它" ;;
-        *) fail "$role 铸不出 token：${err:-跑 $AUTOTEAM_DIR/scripts/gh-app-token.sh $key_role 看报错}" ;;
+        *) fail "$role 铸不出 token：${err:-跑 autoteam token $key_role 看报错}" ;;
       esac
     fi
   done
@@ -438,14 +438,14 @@ doctor_app_keys() {
       esac
       continue
     fi
-    if err=$("$AUTOTEAM_DIR/scripts/gh-app-token.sh" --find-key "$key_role" 2>&1 >/dev/null); then
+    if err=$(autoteam_script token --find-key "$key_role" 2>&1 >/dev/null); then
       ok "本机有 $key_role 的私钥（agent $name 的 runtime 在本机；$role 使用 $key_role 身份）"
     else
       case $err in
         *"找不到 $key_role 的私钥"*)
           fail "本机没有 $key_role 的私钥，但 agent $name 的 runtime $runtime 在这台机器上（$role 使用 $key_role 身份）：派给它的任务会在开工时铸不出 token"
           hint "把 App 的 .pem 放进 AUTOTEAM_KEYS_DIR（当前 $AUTOTEAM_KEYS_DIR；agent 每次 checkout 都是新目录，别只放仓库里），文件名要带角色名，例如 $key_role.pem；也可以用 AUTOTEAM_${upper}_APP_KEY 指路径" ;;
-        *) fail "$role 使用的 $key_role 私钥有问题：${err:-跑 $AUTOTEAM_DIR/scripts/gh-app-token.sh --find-key $key_role 看报错}" ;;
+        *) fail "$role 使用的 $key_role 私钥有问题：${err:-跑 autoteam token --find-key $key_role 看报错}" ;;
       esac
     fi
   done <<EOF

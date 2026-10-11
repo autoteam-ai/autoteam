@@ -14,7 +14,8 @@
 set -eo pipefail
 
 format=md
-days=$(sed -n 's/^AUTOTEAM_METRICS_DAYS=//p' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.autoteam/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
+conf_file=${AUTOTEAM_CONF_FILE:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.autoteam/autoteam.conf}
+days=$(sed -n 's/^AUTOTEAM_METRICS_DAYS=//p' "$conf_file" 2>/dev/null | head -n 1 | tr -d '[:space:]')
 days=${days:-30}
 while [ $# -gt 0 ]; do
   case $1 in
@@ -90,7 +91,7 @@ fi
 # 5. 近 7 天人的介入。批准任务是设计内的动作不算，这里只数人自己动手写和评审代码：
 #    它应该随着规则变好而下降，是"越来越符合人工期望"唯一客观的指标
 human=null
-owner=$(sed -n 's/^AUTOTEAM_OWNER=//p' "$root/.autoteam/autoteam.conf" 2>/dev/null | head -n 1 | tr -d '[:space:]')
+owner=$(sed -n 's/^AUTOTEAM_OWNER=//p' "$conf_file" 2>/dev/null | head -n 1 | tr -d '[:space:]')
 if [ -n "$owner" ]; then
   commits=$(git log --since="7 days ago" --author="$owner" --oneline 2>/dev/null | grep -c . || true)
   reviews=null
@@ -107,7 +108,7 @@ fi
 # 操作须有【人工授权放行】记录，自主放行须有本人写的【自主放行】记录。
 approvals=null
 mc=${MULTICA_BIN:-multica}
-project_name=$(sed -n 's/^AUTOTEAM_MULTICA_PROJECT=//p' "$root/.autoteam/autoteam.conf" | head -n 1)
+project_name=$(sed -n 's/^AUTOTEAM_MULTICA_PROJECT=//p' "$conf_file" | head -n 1)
 if [ -n "$project_name" ] && command -v "$mc" >/dev/null 2>&1; then
   if projects=$("$mc" project list --output json 2>/dev/null); then
     project_id=$(jq -r --arg name "$project_name" '[.[] | select(.title == $name) | .id][0] // empty' <<<"$projects")

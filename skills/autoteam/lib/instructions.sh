@@ -5,12 +5,22 @@
 
 AUTOTEAM_INSTRUCTIONS_REL=$AUTOTEAM_DIR/instructions
 
+# eject 的指令所在目录：成员项目用团队仓库的（团队规则只有一份），其余是当前仓库的相对路径
+instructions_dir() {
+  if [ "${AUTOTEAM_MODE:-local}" = member ]; then
+    printf '%s' "$AUTOTEAM_TEAM_ROOT/$AUTOTEAM_INSTRUCTIONS_REL"
+  else
+    printf '%s' "$AUTOTEAM_INSTRUCTIONS_REL"
+  fi
+}
+
 # 指令文件的实际路径：instructions_path <kind> <name>
 # kind 是 roles / autopilots / runbooks，或空串（planner-mcp.json 直接放在 instructions/ 下）
 instructions_path() {
-  local rel=${1:+$1/}$2
-  if [ -f "$AUTOTEAM_INSTRUCTIONS_REL/$rel" ]; then
-    printf '%s\n' "$AUTOTEAM_INSTRUCTIONS_REL/$rel"
+  local rel=${1:+$1/}$2 dir
+  dir=$(instructions_dir)
+  if [ -f "$dir/$rel" ]; then
+    printf '%s\n' "$dir/$rel"
   elif [ -f "$AUTOTEAM_HOME/instructions/$rel" ]; then
     printf '%s\n' "$AUTOTEAM_HOME/instructions/$rel"
   else
@@ -37,7 +47,7 @@ instructions_role_text() {
 # 指令来自哪里，写进 Multica agent 的描述：不能写包内的绝对路径，那是机器相关的
 instructions_source() {
   local rel=${1:+$1/}$2
-  if [ -f "$AUTOTEAM_INSTRUCTIONS_REL/$rel" ]; then
+  if [ -f "$(instructions_dir)/$rel" ]; then
     printf '%s' "$AUTOTEAM_INSTRUCTIONS_REL/$rel"
   else
     printf 'autoteam 包内 instructions/%s' "$rel"
@@ -47,7 +57,7 @@ instructions_source() {
 # 列出某一类指令的文件路径：包内和已 eject 的合成一份清单，同名以 eject 的为准
 instructions_list() {
   local kind=$1 f name
-  for f in "$AUTOTEAM_HOME/instructions/$kind"/*.md "$AUTOTEAM_INSTRUCTIONS_REL/$kind"/*.md; do
+  for f in "$AUTOTEAM_HOME/instructions/$kind"/*.md "$(instructions_dir)/$kind"/*.md; do
     [ -f "$f" ] && printf '%s\n' "${f##*/}"
   done | sort -u | while IFS= read -r name; do
     instructions_path "$kind" "$name"
@@ -122,6 +132,7 @@ EOF
   [ ${#targets[@]} -gt 0 ] || { eject_usage >&2; die "需要指定目标或 --all"; }
 
   local root spec kind name src dst
+  [ "${AUTOTEAM_MODE:-local}" = local ] || die "成员项目用团队的指令：到团队仓库里 eject，改动对所有项目生效"
   root=$(repo_root)
   cd "$root" || die "进不去 $root"
   for a in "${targets[@]}"; do

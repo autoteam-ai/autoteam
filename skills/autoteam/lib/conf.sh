@@ -84,8 +84,12 @@ conf_load_file() {
   fi
 }
 
-# 加载仓库配置，再用默认值补齐
+# 加载仓库配置，再用默认值补齐。成员项目（team.sh）的配置来自团队仓库，root 参数不用
 conf_load() {
+  if [ "${AUTOTEAM_MODE:-local}" = member ]; then
+    conf_load_member
+    return
+  fi
   local root=${1:-$(repo_root)}
   # shellcheck disable=SC2034  # multica、doctor、upgrade 在 source 后使用
   AUTOTEAM_AUTOPILOTS_CONFIGURED=1
@@ -94,14 +98,42 @@ conf_load() {
     AUTOTEAM_AUTOPILOTS_CONFIGURED=0
   fi
   conf_load_file "$root/$AUTOTEAM_CONF_REL"
-  local line key val
+  conf_fill_defaults
+}
+
+# 还没有值的键用默认值补齐
+conf_fill_defaults() { conf_fill_defaults_for ''; }
+
+# 只补给出的这些键（空白分隔）；空串表示全部
+conf_fill_defaults_for() {
+  local only=$1 line key
   while IFS= read -r line; do
     key=${line%%=*}
-    val=${line#*=}
-    if [ -z "${!key+x}" ]; then
-      printf -v "$key" '%s' "$val"
+    if [ -n "$only" ]; then
+      case " $only " in *" $key "*) ;; *) continue ;; esac
     fi
+    [ -n "${!key+x}" ] || printf -v "$key" '%s' "${line#*=}"
   done <<EOF
+$(autoteam_conf_defaults)
+EOF
+}
+
+# 文件里某个键的值（同名键第一条生效，不受当前环境变量影响）
+conf_file_get() {
+  (
+    unset "$2"
+    conf_load_file "$1"
+    printf '%s' "${!2-}"
+  )
+}
+
+# 把当前生效的全部配置写成 KEY=VALUE 文件，给 .autoteam/scripts/ 下的脚本读（AUTOTEAM_CONF_FILE）
+conf_write_effective() {
+  local line key
+  while IFS= read -r line; do
+    key=${line%%=*}
+    printf '%s=%s\n' "$key" "${!key-}"
+  done > "$1" <<EOF
 $(autoteam_conf_defaults)
 EOF
 }
@@ -126,4 +158,6 @@ conf_team_values() {
   )
 }
 
-conf_exists() { [ -f "${1:-$(repo_root)}/$AUTOTEAM_CONF_REL" ]; }
+conf_exists() {
+  [ "${AUTOTEAM_MODE:-local}" = member ] || [ -f "${1:-$(repo_root)}/$AUTOTEAM_CONF_REL" ]
+}

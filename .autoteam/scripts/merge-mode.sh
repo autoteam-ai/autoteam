@@ -22,7 +22,7 @@ if [ "${1:-}" = -h ] || [ "${1:-}" = --help ]; then
 fi
 
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-conf="$root/.autoteam/autoteam.conf"
+conf=${AUTOTEAM_CONF_FILE:-$root/.autoteam/autoteam.conf}
 repo=$(sed -n 's/^AUTOTEAM_REPO=//p' "$conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')
 [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
 branch=$(sed -n 's/^AUTOTEAM_DEFAULT_BRANCH=//p' "$conf" 2>/dev/null | tail -n 1 | tr -d '[:space:]')

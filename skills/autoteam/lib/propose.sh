@@ -59,9 +59,12 @@ cmd_propose() {
   conf_load "$root"
   [ -n "$AUTOTEAM_REPO" ] || die "$AUTOTEAM_CONF_REL 里没有 AUTOTEAM_REPO"
   base=$AUTOTEAM_DEFAULT_BRANCH
-  tok=$root/$AUTOTEAM_DIR/scripts/gh-app-token.sh
-  openpr=$root/$AUTOTEAM_DIR/scripts/open-pr.sh
-  [ -f "$tok" ] && [ -f "$openpr" ] || die "缺少 $AUTOTEAM_DIR/scripts/gh-app-token.sh 或 open-pr.sh：先 autoteam init / upgrade"
+  tok=$(script_file token) openpr=$(script_file open-pr)
+  [ -f "$tok" ] && [ -f "$openpr" ] || die "缺少 gh-app-token.sh 或 open-pr.sh：先 autoteam init / upgrade"
+  # 两个脚本（含 git 凭据助手）都读合并后的配置，成员项目没有 .autoteam/
+  AUTOTEAM_CONF_FILE=$(autoteam_tmpdir)/effective.conf
+  conf_write_effective "$AUTOTEAM_CONF_FILE"
+  export AUTOTEAM_CONF_FILE
   # 推送目标：默认只推 github.com 上的本仓库；覆盖只接受本地目录（测试用），token 不会被交给任何网络主机。
   # git 会把以 url.<新前缀>.insteadOf / pushInsteadOf 的值开头的地址改写成新前缀；任何一条能匹配 push 地址就拒绝
   remote=https://github.com/$AUTOTEAM_REPO.git

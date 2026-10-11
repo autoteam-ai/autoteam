@@ -60,7 +60,7 @@ for cmd in openssl curl jq; do
 done
 
 root=$(git rev-parse --show-toplevel 2>/dev/null) || die "不在 git 仓库里"
-conf="$root/.autoteam/autoteam.conf"
+conf=${AUTOTEAM_CONF_FILE:-$root/.autoteam/autoteam.conf}
 conf_get() { sed -n "s/^$1=//p" "$conf" 2>/dev/null | head -n 1 | tr -d '[:space:]'; }
 # 把开头的 ~ 展开成 $HOME。shell 只对字面量里的波浪号做展开，从配置文件或环境变量
 # 读出来的是普通字符，要自己处理。
