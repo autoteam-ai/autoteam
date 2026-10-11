@@ -40,9 +40,13 @@ cmd_doctor() {
     return 1
   fi
   conf_load "$root"
-  doctor_files
-  doctor_retired_keys "$root"
-  doctor_launcher "$root"
+  if [ "$AUTOTEAM_MODE" = member ]; then
+    doctor_member_files
+  else
+    doctor_files
+    doctor_retired_keys "$root"
+    doctor_launcher "$root"
+  fi
   if rows=$(registry_agents 2>/dev/null) && registry_validate "$rows"; then
     ok "registry.yaml：$(printf '%s\n' "$rows" | grep -c .) 个 agent，角色齐全"
   else
@@ -114,7 +118,7 @@ EOF
 # runbook 不同步到 Multica，不做漂移对比；只提示 eject 了但包内已经没有的那份
 doctor_runbooks() {
   local f name
-  for f in "$AUTOTEAM_INSTRUCTIONS_REL"/runbooks/*.md; do
+  for f in "$(instructions_dir)"/runbooks/*.md; do
     [ -f "$f" ] || continue
     name=${f##*/}
     [ -f "$AUTOTEAM_HOME/instructions/runbooks/$name" ] || warn "$f 在 autoteam 包内已不存在，确认还要不要保留"
@@ -147,16 +151,7 @@ EOF
 
   doctor_lock
   doctor_runbooks
-  if [ -f Makefile ]; then
-    for t in check dev deploy; do
-      grep -Eq "^${t}[[:space:]]*:" Makefile || fail "Makefile 缺少 $t 目标"
-    done
-    if grep -q 'AUTOTEAM-TODO' Makefile; then
-      fail "Makefile 里还有 AUTOTEAM-TODO 桩：把 check / dev / deploy 改成真实命令"
-    else
-      ok "Makefile 有 check / dev / deploy"
-    fi
-  fi
+  [ ! -f Makefile ] || doctor_makefile
   if [ -f .github/CODEOWNERS ] && grep -Eq "^/$AUTOTEAM_DIR/[[:space:]]+@[A-Za-z0-9]" .github/CODEOWNERS; then
     ok "CODEOWNERS 保护 .github/、$AUTOTEAM_DIR/、Makefile、.jscpd.json"
   else
@@ -168,6 +163,35 @@ EOF
   if [ -f .github/workflows/deploy.yml ] && ! grep -q 'MULTICA_DEPLOY_HOOK' .github/workflows/deploy.yml; then
     warn "deploy.yml 没有通知 Planner 的步骤（MULTICA_DEPLOY_HOOK）"
   fi
+}
+
+doctor_makefile() {
+  local t
+  for t in check dev deploy; do
+    grep -Eq "^${t}[[:space:]]*:" Makefile || fail "Makefile 缺少 $t 目标"
+  done
+  if grep -q 'AUTOTEAM-TODO' Makefile; then
+    fail "Makefile 里还有 AUTOTEAM-TODO 桩：把 check / dev / deploy 改成真实命令"
+  else
+    ok "Makefile 有 check / dev / deploy"
+  fi
+}
+
+# 成员项目（design/0003）：仓库里只该有调用团队可复用工作流的 autoteam.yml 和 Makefile 的三个目标
+doctor_member_files() {
+  local wf=.github/workflows/autoteam.yml old
+  ok "成员项目，团队仓库 $AUTOTEAM_TEAM_HOME；配置在那边的 $AUTOTEAM_PROJECTS_REL/$AUTOTEAM_REPO/"
+  if [ ! -f "$wf" ]; then
+    fail "缺少 $wf：运行 autoteam init"
+  elif grep -qF "uses: $AUTOTEAM_TEAM_HOME/.github/workflows/member.yml@" "$wf"; then
+    ok "$wf 调用团队仓库的可复用工作流"
+  else
+    fail "$wf 没有调用 $AUTOTEAM_TEAM_HOME/.github/workflows/member.yml：运行 autoteam init --force .github/workflows/autoteam.yml"
+  fi
+  if [ -f Makefile ]; then doctor_makefile; else fail "缺少 Makefile：运行 autoteam init"; fi
+  for old in "$AUTOTEAM_DIR" autoteam .github/workflows/gate.yml .github/workflows/deploy.yml .github/workflows/rollback.yml; do
+    [ ! -e "$old" ] || warn "$old 是旧版装进来的，成员项目不再需要：确认没有项目自己的改动后删掉"
+  done
 }
 
 # 在没有本机 skill 的独立 worktree 里执行 agent 开工的原命令。
@@ -291,9 +315,10 @@ doctor_github() {
     warn "默认分支上还没有 CODEOWNERS"
   fi
   doctor_apps
-  [ -z "$AUTOTEAM_TEAM_HOME" ] || doctor_team_conf
-  local run
-  run=$(gh run list --repo "$AUTOTEAM_REPO" --workflow gate.yml --limit 1 --json conclusion,status,headBranch,url 2>/dev/null | jq -c '.[0] // empty')
+  [ -z "$AUTOTEAM_TEAM_HOME" ] || [ "$AUTOTEAM_MODE" = member ] || doctor_team_conf
+  local run gate=gate.yml
+  [ "$AUTOTEAM_MODE" != member ] || gate=autoteam.yml
+  run=$(gh run list --repo "$AUTOTEAM_REPO" --workflow "$gate" --limit 1 --json conclusion,status,headBranch,url 2>/dev/null | jq -c '.[0] // empty')
   if [ -z "$run" ]; then
     info "gate 还没有跑过（开一个 PR 就会跑）"
   elif [ "$(jq -r '.conclusion' <<<"$run")" = success ]; then

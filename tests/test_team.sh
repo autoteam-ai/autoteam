@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# 团队仓库与成员项目（design/0003）：配置分层、-P、运行时脚本
+# 团队仓库与成员项目（design/0003）：登记、配置分层、-P、运行时脚本、启动器
 
 # 团队仓库 acme/team（已 init）登记成员 acme/app，再建成员仓库 acme/app 的 clone（不装 autoteam 文件）。
 # 结束时在成员 clone 里；TEAM 是团队仓库目录，成员命令都带 AUTOTEAM_TEAM_DIR=$TEAM
@@ -11,8 +11,8 @@ setup_team() {
   set_conf AUTOTEAM_PR_MAX_LINES 300
   set_conf AUTOTEAM_DEPLOY_ENVIRONMENT prod-team
   printf '# 团队经验\n' > .autoteam/playbook.md
-  mkdir -p .autoteam/projects/acme/app
-  printf 'AUTOTEAM_DEFAULT_BRANCH=trunk\nAUTOTEAM_PR_MAX_LINES=500\n' > .autoteam/projects/acme/app/project.conf
+  autoteam_offline project add acme/app --default-branch trunk >/dev/null
+  printf 'AUTOTEAM_PR_MAX_LINES=500\n' >> .autoteam/projects/acme/app/project.conf
   printf '# app 经验\n' > .autoteam/projects/acme/app/playbook.md
   new_repo acme/app
   MEMBER=$WORK
@@ -29,6 +29,20 @@ set_conf() {
 }
 
 team_cli() { env AUTOTEAM_TEAM_DIR="$TEAM" PATH="$REAL_JQ_DIR:$REAL_GIT_DIR:/usr/bin:/bin" HOME="$WORK/.home" NO_COLOR=1 bash "$AUTOTEAM" "$@"; }
+
+t_team_project_add_registers_member_once() {
+  setup_team
+  cd "$TEAM" || return
+  assert_file .autoteam/projects/acme/app/project.conf
+  assert_file .autoteam/projects/acme/app/playbook.md
+  assert_file_contains .autoteam/projects/acme/app/project.conf "AUTOTEAM_DEFAULT_BRANCH=trunk"
+  out=$(autoteam_offline project add acme/app)
+  assert_contains "$out" "acme/app 已登记"
+  out=$(autoteam_offline project add acme/team 2>&1) && tfail "登记团队仓库自己应失败"
+  assert_contains "$out" "就是团队仓库"
+  out=$(autoteam_offline project add not-a-repo 2>&1) && tfail "仓库名格式错误应失败"
+  assert_contains "$out" "owner/name"
+}
 
 t_team_member_conf_layers_team_and_project() {
   setup_team
@@ -65,8 +79,26 @@ t_team_unregistered_repo_is_not_autoteam_project() {
   assert_contains "$out" "不是 autoteam 项目"
 }
 
-t_team_member_eject_goes_to_team() {
+t_team_projects_lists_team_first() {
   setup_team
+  cd "$TEAM" || return
+  assert_eq "$(autoteam_offline projects)" "acme/team	team
+acme/app	app"
+  out=$(team_cli projects --json)
+  assert_eq "$(jq -c '.' <<<"$out")" '[{"repo":"acme/team","project":"team","team":true},{"repo":"acme/app","project":"app"}]'
+  # 成员 clone 里、不在任何仓库里，列出的都是同一个团队
+  cd "$MEMBER" || return
+  assert_eq "$(team_cli projects | cut -f1 | tr '\n' ' ')" "acme/team acme/app "
+  cd "$(mktemp -d "$TEST_BASE/nogit.XXXXXX")" || return
+  assert_eq "$(team_cli projects | cut -f1 | tr '\n' ' ')" "acme/team acme/app "
+}
+
+t_team_member_playbook_and_eject() {
+  setup_team
+  out=$(team_cli playbook)
+  assert_eq "$out" "# 团队经验
+
+# app 经验"
   out=$(team_cli eject planner 2>&1) && tfail "成员项目不能 eject"
   assert_contains "$out" "到团队仓库里 eject"
 }
@@ -84,4 +116,47 @@ t_team_member_scripts_use_effective_conf() {
   out=$(team_cli protected-paths --files README.md) && tfail "没有 CODEOWNERS 时应退出 1"
   assert_eq "$out" ""
   assert_eq "$(team_cli protected-paths --files yarn.lock)" "yarn.lock"
+}
+
+t_team_launcher_picks_repo_cli_then_team_snapshot() {
+  new_repo acme/standalone
+  printf '#!/usr/bin/env bash\nAUTOTEAM_REF=abc\necho "pinned $*"\n' > autoteam
+  launcher=$ROOT/skills/autoteam/bin/autoteam-launcher
+  assert_eq "$(HOME="$WORK/.home" bash "$launcher" status --check)" "pinned status --check"
+  # 不在仓库里：用缓存的团队快照，并把快照目录交给 CLI
+  cd "$(mktemp -d "$TEST_BASE/nogit.XXXXXX")" || return
+  ref=0123456789abcdef0123456789abcdef01234567
+  mkdir -p "$WORK/.home/.cache/autoteam/cli/$ref/skills/autoteam/bin"
+  printf '#!/usr/bin/env bash\necho "snapshot $AUTOTEAM_TEAM_DIR $*"\n' > "$WORK/.home/.cache/autoteam/cli/$ref/skills/autoteam/bin/autoteam"
+  printf '%s %s\n' "$(date +%s)" "$ref" > "$WORK/.home/.cache/autoteam/team-ref-autoteam-ai_autoteam"
+  out=$(env -u AUTOTEAM_TEAM_DIR HOME="$WORK/.home" XDG_CACHE_HOME= bash "$launcher" version)
+  assert_eq "$out" "snapshot $WORK/.home/.cache/autoteam/cli/$ref version"
+  # AUTOTEAM_TEAM_DIR 指向本机 checkout 时直接用它
+  out=$(AUTOTEAM_TEAM_DIR=$ROOT HOME="$WORK/.home" bash "$launcher" version)
+  assert_contains "$out" "autoteam "
+}
+
+t_team_init_and_doctor_member_files() {
+  setup_team
+  printf 'check:\n\t@true\n' > Makefile
+  out=$(team_cli init)
+  assert_contains "$out" "成员项目 acme/app"
+  assert_contains "$out" "新建 .github/workflows/autoteam.yml"
+  assert_contains "$out" "Makefile 已存在但缺少目标： dev deploy"
+  assert_file_contains .github/workflows/autoteam.yml "uses: acme/team/.github/workflows/member.yml@main"
+  assert_file_contains .github/workflows/autoteam.yml "branches: [trunk]"
+  assert_no_file .autoteam
+  assert_no_file autoteam
+  out=$(team_cli init --team-home "$TEAM" 2>&1) && tfail "已登记的仓库不用 --team-home"
+  out=$(team_cli upgrade 2>&1) && tfail "成员项目没有可升级的文件"
+  assert_contains "$out" "成员项目没有安装 autoteam 的文件"
+  printf 'check:\n\t@true\ndev:\n\t@true\ndeploy:\n\t@true\n' > Makefile
+  mkdir -p .autoteam && touch .autoteam/autoteam.conf.old
+  out=$(team_cli doctor --skip-github --skip-multica)
+  assert_contains "$out" "成员项目，团队仓库 acme/team"
+  assert_contains "$out" ".github/workflows/autoteam.yml 调用团队仓库的可复用工作流"
+  assert_contains "$out" "Makefile 有 check / dev / deploy"
+  assert_contains "$out" ".autoteam 是旧版装进来的"
+  assert_contains "$out" "registry.yaml："
+  assert_not_contains "$out" "缺少 ./autoteam"
 }
