@@ -87,7 +87,7 @@ stop_runs() {
         continue
       fi
       STOP_RUNS="$STOP_RUNS$run_id"$'\t'"$status"$'\t'"$issue_id"$'\n'
-    done < <(jq -r '.[] | select(.status == "running" or .status == "queued") | [.id,.status,(.issue_id // "-")] | @tsv' <<<"$tasks")
+    done < <(jq -r '.[] | select(.status == "running" or .status == "queued") | [.id,.status,(.issue_id | if . == null or . == "" then "-" else . end)] | @tsv' <<<"$tasks")
   done
 }
 
