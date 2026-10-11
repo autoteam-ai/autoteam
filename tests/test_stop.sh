@@ -43,7 +43,7 @@ EOF
   cat > "$STOP_STATE/autopilots" <<'EOF'
 [{"id":"ap-active","title":"推进巡检","project_id":"project-1","status":"active","last_run_at":"2026-09-29T04:00:00Z"},{"id":"ap-old-paused","title":"旧暂停","project_id":"project-1","status":"paused","last_run_at":null},{"id":"ap-other","title":"别的项目","project_id":"project-2","status":"active"}]
 EOF
-  echo '[{"id":"run-chat","status":"running","issue_id":null}]' > "$STOP_STATE/tasks-agent-planner"
+  echo '[{"id":"run-chat","status":"running","issue_id":null},{"id":"run-autopilot","status":"running","issue_id":""},{"id":"run-unlinked","status":"queued"}]' > "$STOP_STATE/tasks-agent-planner"
   echo '[{"id":"run-work","status":"running","issue_id":"issue-work"},{"id":"run-next","status":"queued","issue_id":"issue-next"},{"id":"run-other","status":"running","issue_id":"issue-other"}]' > "$STOP_STATE/tasks-agent-impl"
   echo '[]' > "$STOP_STATE/tasks-agent-rev"
   echo '[]' > "$STOP_STATE/tasks-agent-auditor"
@@ -146,6 +146,15 @@ t_stop_only_cancels_project_issue_runs() {
   assert_contains "$out" 'run-other running issue-other'
   assert_contains "$out" '未关联任务、不取消：'
   assert_contains "$out" 'run-chat running'
+  other_list=${out#*其他项目任务的运行、不取消：}
+  other_list=${other_list%%未关联任务、不取消：*}
+  assert_not_contains "$other_list" 'run-autopilot'
+  assert_not_contains "$other_list" 'run-unlinked'
+  unlinked_list=${out#*未关联任务、不取消：}
+  assert_contains "$unlinked_list" 'run-autopilot running'
+  assert_contains "$unlinked_list" 'run-unlinked queued'
+  assert_not_contains "$cancel_list" 'run-autopilot'
+  assert_not_contains "$cancel_list" 'run-unlinked'
   out=$(stop_cmd stop --apply --keep-run run-work)
   assert_contains "$out" '只处理项目 shop 的运行'
   log=$(cat "$STOP_LOG")
@@ -153,5 +162,7 @@ t_stop_only_cancels_project_issue_runs() {
   assert_not_contains "$log" 'issue cancel-task run-work'
   assert_not_contains "$log" 'issue cancel-task run-other'
   assert_not_contains "$log" 'issue cancel-task run-chat'
+  assert_not_contains "$log" 'issue cancel-task run-autopilot'
+  assert_not_contains "$log" 'issue cancel-task run-unlinked'
   assert_not_contains "$log" 'issue get issue-'
 }
