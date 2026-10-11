@@ -16,8 +16,8 @@
 ## 先知道这些
 
 - **开工先读 `.autoteam/playbook.md`**：本项目积累下来的经验（拆任务、验收、选人、参数为什么是这个值、踩过的坑），它优先于你的通用习惯。
-- 你还有一条长期的「运营笔记」任务：日常观察写在那里，不走 PR，永不关闭。它由 `autoteam multica --apply` 在接入时创建；如果缺失，提示人按升级说明运行 `autoteam multica --apply --only project`，不要在运行中自己新建。
-- 配置在 `.autoteam/autoteam.conf`（仓库、各种上限、负责人），团队和计费在 `.autoteam/registry.yaml`。工作目录里没有本仓库时，先 `multica repo checkout https://github.com/<AUTOTEAM_REPO>`。
+- 每个受管项目都有一条长期的「运营笔记」任务：日常观察写在那里，不走 PR，永不关闭。它由 `autoteam multica --apply` 在接入时创建；如果缺失，提示人按升级说明运行 `autoteam multica --apply --only project`，不要在运行中自己新建。
+- 配置在 `.autoteam/autoteam.conf`（仓库、各种上限、负责人），团队和计费在 `.autoteam/registry.yaml`。先按前言定位本项目仓库，再读这些文件；Chat 收需求先用 `multica project list --output json` 列项目，结合 `multica project resource list <项目 ID> --output json` 和 `multica issue list --project <项目 ID> --output json`，从挂了 GitHub 仓库且有「运营笔记」的项目中匹配；人点名则核实，未点名先说明目标，匹配不唯一或不确定先问人再停下。确定后 checkout，再读 playbook 和 `intake`，不要为读 runbook 先猜仓库。
 - 读写任务一律用 `multica` CLI，读的时候加 `--output json`；发评论用 `multica issue comment add <任务> --content-file <文件>`，文件要在当前目录下。
 - 任务状态（命令里写 key）：`backlog` 待审核（你建子任务时设）；`todo` 待办——指派给 Implementer 表示已派发（你设置），指派给你自己表示已放行（人放行，或你按放行分级自主放行）；`in_progress` 实现中、`in_review` 待评审（Implementer 设）；`done` / `blocked` / `cancelled` 完成 / 升级给人 / 取消（你设）。 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。 派发前运行 `<身份> bash ./autoteam next --output json`，仅派发其中 `dispatchable` 的任务；放行不代表前提已经满足。
 - Multica 只在这几种情况下叫醒 agent，**改状态本身不会叫醒任何人**：
@@ -29,9 +29,9 @@
 
 ## 停止与恢复
 
-人在 Chat 里说「停止 autoteam」或「暂停 autoteam」就是授权：取得本项目仓库后，运行 `bash ./autoteam stop --apply --keep-run "$MULTICA_TASK_ID"`。`MULTICA_TASK_ID` 是当前运行 ID，必须非空；若运行环境未提供它，用 `multica agent tasks <自己的 agent ID> --output json` 找到当前这次 running 的 Chat run ID。回复暂停的 autopilot 和取消的运行清单。
+Chat 停止/恢复：人指明项目时只处理该项目；未指明时用 `multica project list --output json`、`multica project resource list <项目 ID> --output json` 和各项目的任务清单，找出挂了 GitHub 仓库且有「运营笔记」的所有受管项目，逐个 checkout，在各自仓库执行；回复按项目列出结果，失败也逐项写明。人在 Chat 里说「停止 autoteam」或「暂停 autoteam」就是授权：取得目标项目仓库后，运行 `bash ./autoteam stop --apply --keep-run "$MULTICA_TASK_ID"`。`MULTICA_TASK_ID` 是当前运行 ID，必须非空；若运行环境未提供它，用 `multica agent tasks <自己的 agent ID> --output json` 找到当前这次 running 的 Chat run ID。回复各项目暂停的 autopilot 和取消的运行清单。
 
-人在 Chat 里说「恢复 autoteam」就是授权：执行 `bash ./autoteam resume --apply`，回复恢复的 autopilot 清单。两项操作都直接在 Multica 生效，不走 PR，也不再向人确认。其他任务运行仍遵守开工暂停检查。
+人在 Chat 里说「恢复 autoteam」就是授权：执行 `bash ./autoteam resume --apply`，回复各项目恢复的 autopilot 清单。两项操作都直接在 Multica 生效，不走 PR，也不再向人确认。其他任务运行仍遵守开工暂停检查。
 
 ## 按事件读 runbook
 

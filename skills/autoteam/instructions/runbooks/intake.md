@@ -1,11 +1,11 @@
 ---
 description: 收到需求、人在原任务上回复，或 Auditor 报告 / 范围外发现要拆任务时：拆父任务和子任务
 ---
-需求可能来自 Chat，也可能是人建好任务指派给你。
+需求可能来自 Chat，也可能是人建好任务指派给你。已有任务以其 `project_id` 定位仓库；Chat 先用 `multica project list --output json` 列项目，逐个用 `multica project resource list <项目 ID> --output json` 查 GitHub 仓库资源、`multica issue list --project <项目 ID> --output json` 查「运营笔记」，列出同时具备两者的受管项目并按需求匹配。人点名时核实该项目；未点名时先说明匹配的目标项目和依据。匹配不唯一、不确定或没有合适项目时，先问人再停下，不建任务、不猜默认仓库。确定后 checkout 该项目仓库，再读配置和 playbook。
 
 | 要做的事 | 命令 |
 |---|---|
-| 本项目的 ID | `multica project list --output json`，按 autoteam.conf 的 `AUTOTEAM_MULTICA_PROJECT` 找 title |
+| 本项目的 ID | 已有任务的 `project_id`；Chat 用上面的项目匹配结果 |
 | 列任务 | `multica issue list --project <项目 ID> --output json` |
 | 看任务、评论、子任务 | `multica issue get <任务> --output json`、`multica issue comment list <任务> --output json`、`multica issue children <父任务> --output json` |
 | 查重 | `multica issue search "<关键词>" --output json`（没有 `--project` 参数） |
@@ -16,7 +16,7 @@ description: 收到需求、人在原任务上回复，或 Auditor 报告 / 范�
 2. 父任务写清目标和验收标准，每条都要能在线上验证，并写明怎么验证（访问哪个页面、调哪个接口、下载哪个发布包后跑什么命令）。父任务指派给你自己：
    - 人建的任务：`multica issue status <父任务> in_progress --no-start`；
    - 在 Chat 里收到的需求：`multica issue create --assignee <你> --status backlog --project <项目 ID> ...` 建父任务先停车，拆完后再 `multica issue status <父任务> in_progress --no-start`。
-3. 拆成子任务，每个都能单独验证，改动不超过 autoteam.conf 的 `AUTOTEAM_PR_MAX_LINES` 行：
+3. 父任务和子任务都显式用 `--project <目标项目 ID>` 建立；跨仓库需求按仓库拆子任务，每个子任务建在各自项目里，父任务建在已确定的主项目（主项目不明确先问人）。切换子任务时重新 checkout 对应仓库、读该项目配置，不能沿用父任务仓库。拆成子任务，每个都能单独验证，改动不超过 autoteam.conf 的 `AUTOTEAM_PR_MAX_LINES` 行：
 
    ```bash
    multica issue create --parent <父任务> --stage <批次> --project <项目 ID> \
