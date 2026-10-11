@@ -392,3 +392,62 @@ t_runbook_list_show_unknown_and_prefers_ejected() {
   out=$(autoteam_offline runbook example)
   assert_contains "$out" "我改过的一行"
 }
+
+# 团队仓库目录：conf 带团队级键，registry 带自己的内容
+init_team_dir() {
+  TEAM_DIR=$WORK/team
+  mkdir -p "$TEAM_DIR/.autoteam"
+  cat > "$TEAM_DIR/.autoteam/autoteam.conf" <<'CONF'
+AUTOTEAM_REPO=acme/team
+AUTOTEAM_MULTICA_PROJECT=team
+AUTOTEAM_MULTICA_WORKSPACE=hq
+AUTOTEAM_IMPLEMENTER_APP_ID=111
+AUTOTEAM_REVIEWER_APP_ID=222
+AUTOTEAM_PLANNER_APP_ID=333
+AUTOTEAM_KEYS_DIR=~/.keys
+AUTOTEAM_HUMAN=Song
+AUTOTEAM_AGENT_ACCESS=workspace
+AUTOTEAM_ISSUE_PREFIX=HQ
+AUTOTEAM_LANGUAGE=en
+AUTOTEAM_TIMEZONE=Europe/Paris
+CONF
+  printf 'agents:\n  planner: { role: planner, runtime: claude@team }\n' > "$TEAM_DIR/.autoteam/registry.yaml"
+}
+
+t_init_team_home_dry_run_lists_values_and_writes_nothing() {
+  new_repo acme/shop
+  init_team_dir
+  out=$(autoteam_offline init --owner alice --team-home "$TEAM_DIR" --dry-run)
+  for line in AUTOTEAM_TEAM_HOME=acme/team AUTOTEAM_MULTICA_WORKSPACE=hq AUTOTEAM_IMPLEMENTER_APP_ID=111 \
+      AUTOTEAM_REVIEWER_APP_ID=222 AUTOTEAM_PLANNER_APP_ID=333 "AUTOTEAM_KEYS_DIR=~/.keys" AUTOTEAM_HUMAN=Song \
+      AUTOTEAM_AGENT_ACCESS=workspace AUTOTEAM_ISSUE_PREFIX=HQ AUTOTEAM_LANGUAGE=en AUTOTEAM_TIMEZONE=Europe/Paris; do
+    assert_contains "$out" "$line"
+  done
+  assert_no_file .autoteam/autoteam.conf
+}
+
+t_init_team_home_writes_team_values_and_registry() {
+  new_repo acme/shop
+  init_team_dir
+  autoteam_offline init --owner alice --team-home "$TEAM_DIR" --timezone Asia/Tokyo >/dev/null || tfail "init --team-home 失败"
+  conf=.autoteam/autoteam.conf
+  assert_file_contains $conf "AUTOTEAM_TEAM_HOME=acme/team"
+  assert_file_contains $conf "AUTOTEAM_REPO=acme/shop"
+  assert_file_contains $conf "AUTOTEAM_MULTICA_PROJECT=shop"
+  assert_file_contains $conf "AUTOTEAM_MULTICA_WORKSPACE=hq"
+  assert_file_contains $conf "AUTOTEAM_IMPLEMENTER_APP_ID=111"
+  assert_file_contains $conf "AUTOTEAM_PLANNER_APP_ID=333"
+  assert_file_contains $conf "AUTOTEAM_AGENT_ACCESS=workspace"
+  assert_file_contains $conf "AUTOTEAM_ISSUE_PREFIX=HQ"
+  assert_file_contains $conf "AUTOTEAM_LANGUAGE=en"
+  assert_file_contains $conf "AUTOTEAM_TIMEZONE=Asia/Tokyo" "命令行参数优先于团队仓库"
+  assert_eq "$(cat .autoteam/registry.yaml)" "$(cat "$TEAM_DIR/.autoteam/registry.yaml")" "registry 原样复制"
+}
+
+t_init_team_home_rejects_incomplete_team_dir() {
+  new_repo acme/shop
+  mkdir -p "$WORK/empty"
+  out=$(autoteam_offline init --owner alice --team-home "$WORK/empty" 2>&1)
+  assert_eq "$?" 1
+  assert_contains "$out" "没有 .autoteam/autoteam.conf"
+}

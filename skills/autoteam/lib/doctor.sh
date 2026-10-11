@@ -291,6 +291,7 @@ doctor_github() {
     warn "默认分支上还没有 CODEOWNERS"
   fi
   doctor_apps
+  [ -z "$AUTOTEAM_TEAM_HOME" ] || doctor_team_conf
   local run
   run=$(gh run list --repo "$AUTOTEAM_REPO" --workflow gate.yml --limit 1 --json conclusion,status,headBranch,url 2>/dev/null | jq -c '.[0] // empty')
   if [ -z "$run" ]; then
@@ -303,10 +304,31 @@ doctor_github() {
   : "$level"
 }
 
+# 成员仓库：团队级配置键要和团队仓库一致（init --team-home 写入时的值）。读不到团队仓库就跳过
+doctor_team_conf() {
+  local tmp line key val diff=0
+  tmp=$(autoteam_tmpdir)/team.conf
+  if ! gh api -H 'Accept: application/vnd.github.raw' "repos/$AUTOTEAM_TEAM_HOME/contents/$AUTOTEAM_CONF_REL" > "$tmp" 2>/dev/null; then
+    info "读不到团队仓库 $AUTOTEAM_TEAM_HOME 的 $AUTOTEAM_CONF_REL，跳过团队级配置核对"
+    return 0
+  fi
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    key=${line%%=*} val=${line#*=}
+    if [ "${!key}" != "$val" ]; then
+      warn "$key 与团队仓库 $AUTOTEAM_TEAM_HOME 不一致：本仓库「${!key}」，团队「$val」"
+      diff=1
+    fi
+  done <<EOF
+$(conf_team_values "$tmp")
+EOF
+  if [ "$diff" = 0 ]; then ok "团队级配置与团队仓库 $AUTOTEAM_TEAM_HOME 一致"; else hint "按团队仓库改本仓库的 $AUTOTEAM_CONF_REL，或确认是有意的差异"; fi
+}
+
 # App 的安装和私钥。doctor 可能跑在人的机器上（没有私钥），也可能跑在 agent 机器上，
 # 两种情况要给出不同的结论，不要把"本机没有私钥"报成错误。
 doctor_apps() {
-  local role key_role id org installed row err
+  local role key_role id org installed row err where
   org=${AUTOTEAM_REPO%%/*}
   installed=""
   if gh_call GET "orgs/$org/installations"; then installed=$GH_OUT; fi
@@ -327,21 +349,31 @@ doctor_apps() {
       planner) id=$AUTOTEAM_PLANNER_APP_ID; key_role=planner ;;
     esac
     [ -n "$id" ] || { warn "$role 没有配置 App ID"; continue; }
+    where=$org
     if [ -n "$installed" ]; then
       row=$(jq -c --argjson id "$id" '.installations[]? | select(.app_id == $id)' <<<"$installed" 2>/dev/null | head -n 1)
-      if [ -n "$row" ]; then
-        ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已装在 $org"
-        if [ "$role" = impl ] && [ "$(jq -r '.permissions.workflows // "none"' <<<"$row")" != write ]; then
-          warn "Implementer App 没有 Workflows 权限：提不了含 .github/workflows/ 改动的 PR"
-        fi
-        if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" != write ]; then
-          fail "Reviewer App 没有 Contents 写权限：它的批准不计入必需审批数，PR 会卡在等审批"
-        fi
-      else
-        fail "$role App $id 没有装在 $org 上"
-      fi
     else
-      info "$role App $id：核对不了安装状态（需要组织 admin），到 App 的 Install 页面自己确认"
+      # 个人账号或非 admin 读不到 orgs/<owner>/installations：用私钥直接问这个仓库有没有装
+      where=$AUTOTEAM_REPO row="" err=""
+      if ! row=$("$AUTOTEAM_DIR/scripts/gh-app-token.sh" --installation "$key_role" 2>&1); then
+        err=$row row=""
+        case $err in
+          *"找不到 $key_role 的私钥"*) info "$role App $id：核对不了安装状态（需要组织 admin，或本机有该角色的私钥），到 App 的 Install 页面自己确认" ;;
+          *"没有装在"*) fail "$role App $id 没有装在 $where 上" ;;
+          *) fail "$role App $id：查不到在 $where 的安装：${err:-跑 $AUTOTEAM_DIR/scripts/gh-app-token.sh --installation $key_role 看报错}" ;;
+        esac
+      fi
+    fi
+    if [ -n "$row" ]; then
+      ok "$role App $(jq -r '.app_slug' <<<"$row")（$id）已装在 $where"
+      if [ "$role" = impl ] && [ "$(jq -r '.permissions.workflows // "none"' <<<"$row")" != write ]; then
+        warn "Implementer App 没有 Workflows 权限：提不了含 .github/workflows/ 改动的 PR"
+      fi
+      if [ "$role" = review ] && [ "$(jq -r '.permissions.contents // "none"' <<<"$row")" != write ]; then
+        fail "Reviewer App 没有 Contents 写权限：它的批准不计入必需审批数，PR 会卡在等审批"
+      fi
+    elif [ -n "$installed" ]; then
+      fail "$role App $id 没有装在 $org 上"
     fi
     # 私钥可能在 $AUTOTEAM_DIR/local/、AUTOTEAM_KEYS_DIR 或环境变量指的路径，别去猜它在哪，
     # 直接铸一次看结果：铸得出就是好的，没有私钥和有私钥但坏了要分开报

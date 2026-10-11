@@ -18,13 +18,16 @@ init_usage() {
   --workspace <slug>       Multica 工作区
   --human <成员名>         在 Multica 里负责批准和接收升级的成员
   --timezone <时区>        autopilot 时区（默认 Asia/Shanghai）
+  --team-home <目录>       共享团队仓库的本地目录：带入它的团队级配置和 registry.yaml，写入
+                           AUTOTEAM_TEAM_HOME；命令行参数优先于团队仓库的值
   --force                  覆盖与模板不同的文件（autoteam.conf、registry.yaml 除外）
   --dry-run                只列出会做什么
 EOF
 }
 
 cmd_init() {
-  AUTOTEAM_FORCE=0 AUTOTEAM_DRY_RUN=0
+  AUTOTEAM_FORCE=0 AUTOTEAM_DRY_RUN=0 AUTOTEAM_TEAM_REGISTRY=""
+  local team_dir=""
   local only=" "
   while [ $# -gt 0 ]; do
     case $1 in
@@ -34,6 +37,7 @@ cmd_init() {
       --workspace) AUTOTEAM_MULTICA_WORKSPACE=$2; shift 2 ;;
       --human) AUTOTEAM_HUMAN=$2; shift 2 ;;
       --timezone) AUTOTEAM_TIMEZONE=$2; shift 2 ;;
+      --team-home) team_dir=$2; shift 2 ;;
       --force) AUTOTEAM_FORCE=1; shift ;;
       --dry-run) AUTOTEAM_DRY_RUN=1; shift ;;
       -h|--help) init_usage; return 0 ;;
@@ -47,6 +51,7 @@ cmd_init() {
   cd "$root" || die "进不去 $root"
 
   section "识别项目"
+  [ -z "$team_dir" ] || init_team_load "$team_dir"
   init_detect "$root"
   info "仓库          $AUTOTEAM_REPO（默认分支 $AUTOTEAM_DEFAULT_BRANCH）"
   info "规则文件负责人 @$AUTOTEAM_OWNER"
@@ -82,6 +87,28 @@ EOF
   info "2. 按你的订阅账号和机器填 $AUTOTEAM_DIR/registry.yaml（autoteam runtimes 列出可用的 runtime）"
   info "3. 提交这些文件，走 PR 由你合并"
   info "4. autoteam setup    一次预览 GitHub 和 Multica，交互终端确认后执行并运行 doctor；非交互终端确认后加 --apply"
+}
+
+# 读团队仓库的 conf 和 registry.yaml：团队级键没被命令行设置时取团队仓库的值，并记下 registry 路径
+init_team_load() {
+  local dir=${1%/} conf line key val
+  conf=$dir/$AUTOTEAM_CONF_REL
+  [ -f "$conf" ] || die "团队仓库 $dir 里没有 $AUTOTEAM_CONF_REL"
+  AUTOTEAM_TEAM_REGISTRY=$dir/$AUTOTEAM_REGISTRY_REL
+  [ -f "$AUTOTEAM_TEAM_REGISTRY" ] || die "团队仓库 $dir 里没有 $AUTOTEAM_REGISTRY_REL"
+  val=$( (unset AUTOTEAM_REPO; conf_load_file "$conf"; printf '%s' "${AUTOTEAM_REPO:-}") )
+  [ -n "$val" ] || die "团队仓库的 $AUTOTEAM_CONF_REL 里没有 AUTOTEAM_REPO"
+  AUTOTEAM_TEAM_HOME=$val
+  info "团队仓库      $dir"
+  info "  AUTOTEAM_TEAM_HOME=$val"
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    key=${line%%=*} val=${line#*=}
+    if [ -z "${!key+x}" ]; then printf -v "$key" '%s' "$val"; fi
+    info "  $key=${!key}"
+  done <<EOF
+$(conf_team_values "$conf")
+EOF
 }
 
 # 识别仓库信息：命令行参数 > 已有 autoteam.conf > 自动识别 > 默认值
@@ -164,6 +191,10 @@ init_install() {
   [ -f "$tpl" ] || die "模板缺失：$tpl"
   content=$(render_file "$tpl"; printf x)
   content=${content%x}
+  if [ -n "$AUTOTEAM_TEAM_REGISTRY" ] && [ "$target" = "$AUTOTEAM_DIR/registry.yaml" ]; then
+    content=$(cat "$AUTOTEAM_TEAM_REGISTRY"; printf x)
+    content=${content%x}
+  fi
 
   case $mode in
     file|exec|config)

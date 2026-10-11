@@ -103,4 +103,24 @@ $(autoteam_conf_defaults)
 EOF
 }
 
+# 团队级配置键：autoteam init --team-home 从团队仓库带到成员仓库，doctor 核对它们是否一致
+autoteam_team_keys() {
+  printf '%s\n' AUTOTEAM_MULTICA_WORKSPACE AUTOTEAM_IMPLEMENTER_APP_ID AUTOTEAM_REVIEWER_APP_ID \
+    AUTOTEAM_PLANNER_APP_ID AUTOTEAM_KEYS_DIR AUTOTEAM_HUMAN AUTOTEAM_AGENT_ACCESS \
+    AUTOTEAM_ISSUE_PREFIX AUTOTEAM_LANGUAGE AUTOTEAM_TIMEZONE
+}
+
+# 读团队仓库的 conf 文件，输出团队级键的 KEY=VALUE（文件里没写的键不输出，不受当前环境变量影响）
+conf_team_values() {
+  local keys k
+  keys=$(autoteam_team_keys)
+  (
+    for k in $keys; do unset "$k"; done
+    conf_load_file "$1"
+    for k in $keys; do
+      [ -z "${!k+x}" ] || printf '%s=%s\n' "$k" "${!k}"
+    done
+  )
+}
+
 conf_exists() { [ -f "${1:-$(repo_root)}/$AUTOTEAM_CONF_REL" ]; }

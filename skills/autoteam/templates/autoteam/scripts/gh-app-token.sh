@@ -10,6 +10,7 @@
 #   .autoteam/scripts/gh-app-token.sh --identity <角色>   打印 git 提交身份：name<TAB>email
 #   .autoteam/scripts/gh-app-token.sh --credential <角色> git 凭据助手模式（git push 用）
 #   .autoteam/scripts/gh-app-token.sh --find-key <角色>   只打印按下面顺序找到的私钥路径（doctor 用，不联网）
+#   .autoteam/scripts/gh-app-token.sh --installation <角色>  打印这个 App 在本仓库的安装信息 JSON（doctor 用）
 #
 # agent 每次工具调用都是新 shell，export 出来的变量活不到下一条命令，所以一律用 --run：
 #   .autoteam/scripts/gh-app-token.sh --run implementer gh pr create --title ...
@@ -29,11 +30,12 @@ die() { printf 'gh-app-token：%s\n' "$*" >&2; exit 1; }
 
 mode=token role=
 case ${1:-} in
-  -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   --identity) mode=identity; role=${2:-} ;;
   --setup-git) mode=setup-git; role=${2:-} ;;
   --credential) mode=credential; role=${2:-} ;;
   --find-key) mode=find-key; role=${2:-} ;;
+  --installation) mode=installation; role=${2:-} ;;
   --run) mode=run; role=${2:-}; shift 2 2>/dev/null || true; RUN_CMD=("$@") ;;
   -*) die "未知选项：$1" ;;
   *) role=${1:-} ;;
@@ -129,7 +131,7 @@ emit() {  # token
 }
 
 # 缓存里还剩 5 分钟以上就直接用。文件格式：第一行到期时间戳，第二行 token
-if [ "$mode" != identity ] && [ "$mode" != setup-git ] && [ -r "$cache" ]; then
+if [ "$mode" != identity ] && [ "$mode" != setup-git ] && [ "$mode" != installation ] && [ -r "$cache" ]; then
   cached_exp=$(sed -n 1p "$cache")
   cached_tok=$(sed -n 2p "$cache")
   if [ -n "$cached_tok" ] && [ "${cached_exp:-0}" -gt "$(($(date +%s) + 300))" ] 2>/dev/null; then
@@ -176,6 +178,7 @@ api() {  # 方法 路径 [凭据，默认用 App 的 JWT]
 }
 
 api GET "/repos/$repo/installation"
+if [ "$mode" = installation ]; then printf '%s\n' "$API_BODY"; exit 0; fi
 installation=$(printf '%s' "$API_BODY" | jq -r '.id // empty')
 slug=$(printf '%s' "$API_BODY" | jq -r '.app_slug // empty')
 [ -n "$installation" ] || die "没拿到 installation id"

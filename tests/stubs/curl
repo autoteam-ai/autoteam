@@ -35,7 +35,9 @@ case $url in
       *) [ "$segs" = 3 ] || { printf '{"message":"Bad credentials"}\n401'; exit 0; } ;;
     esac
     case ${url#https://api.github.com} in
-      /repos/*/installation) printf '{"id":98765,"app_slug":"acme-impl"}\n200' ;;
+      /repos/*/installation)
+        if [ -f "$state/app-not-installed" ]; then printf '{"message":"Not Found"}\n404'
+        else printf '{"id":98765,"app_slug":"acme-impl","permissions":{"workflows":"write","contents":"write"}}\n200'; fi ;;
       # /users/ 不吃 App 的 JWT，只认 installation token。真的 GitHub 会返回 401，
       # 桩也照做——这个区别踩过一次坑
       /users/*)

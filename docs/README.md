@@ -34,6 +34,7 @@ slug: /
 | [第 1–3 步 GitHub](setup/github.md) | 账号隔离、合并规则、自动部署 |
 | [第 4–6 步 Multica](setup/multica.md) | 状态、agent 和计费注册表、触发配置 |
 | [第 7 步 跑通第一个需求](setup/first-run.md) | 用示例项目完整走一遍 |
+| [共享团队接入新仓库](setup/multi-project.md) | 一套团队服务多个仓库：`init --team-home`、App 安装、成员仓库的 doctor |
 | [示例项目](setup/example.md) | 团队书架：拆分、实现、评审、上线和验收的真实记录 |
 
 ## 日常
