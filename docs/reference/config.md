@@ -31,6 +31,9 @@ title: 配置文件
 | `AUTOTEAM_MAX_ACCEPTANCE_FAILURES` | 2 | 同一个任务验收不通过上限 |
 | `AUTOTEAM_MAX_IMPLEMENTER_SWITCHES` | 1 | 同一个任务换几次 Implementer 之后升级 |
 | `AUTOTEAM_ACCEPT_RECHECK_HOURS` | 1 | 最近合并的 PR 对应任务仍未完成，超过几小时后巡检补查 |
+| `AUTOTEAM_ACCEPT_OBSERVE_MAX_HOURS` | 10 | 一次性/条件唤醒延后验收补查的上限，从合并时刻计算；持续定时唤醒不延后 |
+| `AUTOTEAM_STALLED_HOURS` | 10 | 无评论、运行或状态变化的停滞阈值；覆盖两轮 5 小时巡检 |
+| `AUTOTEAM_WAKEUP_OVERDUE_HOURS` | 1 | 唤醒过期、超时或失败后未推进的宽限小时数 |
 | `AUTOTEAM_METRICS_DAYS` | 30 | health-metrics 默认窗口 |
 | `AUTOTEAM_PR_SIZE_EXCLUDE` | lock 文件、Markdown、`.github/**`、`.autoteam/**` | 不计入 PR 行数上限的路径，逗号分隔。上限管的是**代码**改动量，文档和由人批准的规则文件不占 agent 的预算 |
 | `AUTOTEAM_AUTOPILOTS` | `deploy-result,patrol,daily-digest,rule-review,health` | 允许新建的 autopilot 文件名，逗号分隔。已有但未列入的仍更新，并由预览和 doctor 提醒处理；缺少此键的旧配置按已有实例加默认 5 个处理，升级时补写当前要保留的清单 |

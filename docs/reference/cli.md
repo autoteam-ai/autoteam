@@ -90,7 +90,15 @@ autoteam [-C <目录>] <命令> [选项]
 
 `autoteam next --check` 在清单为空时打印「无事可做」并返回 0，有事项时打印清单并返回 1，读取 Multica 或 GitHub 失败时返回 2。
 
-`next` 的已合并未验收清单排除有启用且未到期的任务级唤醒（`next_fire_at`）的任务，以及 `blocked` 且指派给人的任务；已到期唤醒、指派给 agent 的 blocked 任务仍列出。其他类别规则不变。
+`merged_unaccepted` 排除 `blocked` 且指派给人的任务。一次性或条件唤醒可延后补查，但从合并时刻起最多观察 `AUTOTEAM_ACCEPT_OBSERVE_MAX_HOURS`（默认 10 小时），续期不重置上限；`every` / `cron` 持续巡检不算观察期。
+
+新增健康巡检覆盖本项目所有非终态任务（以 `status_category` 识别终态）：
+
+- `stalled`：`in_progress` / `in_review`、指派给 Planner 或 agent 的 `todo`、指派给 agent 的 `blocked`，超过 `AUTOTEAM_STALLED_HOURS` 无评论、运行或状态变化。活动取任务 `last_activity_at` / `updated_at` / `created_at` 和运行创建、开始、结束时间的最大值；有排队或正在运行的任务不算停滞。
+- `missing_wakeup`：未满足的每个 `autoteam.depends_on` 前提没有对应启用且未过期的 `other_issue` / `done` 条件唤醒，或开放 PR 检查仍在等待但没有 `pull_request` / `checks_finished` 条件唤醒。无关定时唤醒不能替代这些条件。
+- `wakeup_overdue`：唤醒到期、超时或最近触发失败后，超过 `AUTOTEAM_WAKEUP_OVERDUE_HOURS` 仍无更新活动。正常消费并关闭的规则不算过期；event 的 `next_fire_at` 是条件检查时间，不作为逾期依据。
+
+每个任务只列一次，优先顺序为 `merged_unaccepted`、`pr_remediation`、`loop_limit`、`wakeup_overdue`、`missing_wakeup`、`failed_run`、`stalled`、`dispatchable`。依赖读取或格式失败也返回 2。
 
 ## autoteam approve
 
@@ -191,4 +199,4 @@ autoteam runbook <名字>       # 输出该 runbook 的正文
 
 跨需求依赖必须写入 metadata `autoteam.depends_on`，不能只写在描述里：`multica issue metadata set <任务 ID> --key autoteam.depends_on --type string --value "HDGCS-125,HDGCS-126"`。编号逗号分隔，全部 `done` 才可派发；编号不存在、读取失败或解析失败时不派发，先修正前提。
 
-`next` 将等待原因写到 stderr，不把等待任务列入 `dispatchable`；`next --check` 只按可处理清单决定退出码。`approve` 预览显示等待的前提，放行时这些任务使用 `--no-start`；前提完成后由巡检派发。同一父任务的批次语义不变，无此字段或空字符串表示没有跨需求前提。
+`next` 将等待原因写到 stderr，不把等待任务列入 `dispatchable`；`next --check` 按完整巡检清单决定退出码，缺少对应唤醒会列为 `missing_wakeup`。`approve` 预览显示等待的前提，放行时这些任务使用 `--no-start`；前提完成后由巡检派发。同一父任务的批次语义不变，无此字段或空字符串表示没有跨需求前提。
