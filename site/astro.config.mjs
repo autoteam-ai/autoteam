@@ -9,6 +9,9 @@ import {renderMermaidSVG} from 'beautiful-mermaid';
 const base = process.env.AUTOTEAM_DOCS_BASE || '/';
 // 相对路径按 site/ 解析，而不是进程的 cwd（docs:build 在仓库根执行）。
 const source = path.resolve(import.meta.dirname, process.env.AUTOTEAM_DOCS_SOURCE || '../docs');
+// 历史版本可能尚未包含新增页面，按该版本的文档源生成侧边栏。
+const optional = (slug) => existsSync(path.join(source, `${slug}.md`)) ? [slug] : [];
+
 const mermaidPlugin = {
   name: 'mermaid',
   code(node, context) {
@@ -61,14 +64,12 @@ export default defineConfig({
           label: '概念',
           items: [
             'concepts/why',
-            // Historical versions may predate this page.
-            ...(existsSync(path.join(source, 'concepts/invariants.md'))
-              ? ['concepts/invariants'] : []),
+            'concepts/invariants',
             'concepts/roles',
             'concepts/lifecycle',
             'concepts/quota-routing',
             'concepts/guardrails',
-          ],
+          ].flatMap(optional),
         },
         {
           label: '搭建',
@@ -80,9 +81,8 @@ export default defineConfig({
             'setup/multica',
             'setup/first-run',
             'setup/multi-project',
-            ...(existsSync(path.join(source, 'setup/example.md'))
-              ? ['setup/example'] : []),
-          ],
+            'setup/example',
+          ].flatMap(optional),
         },
         {
           label: '日常操作',
@@ -90,7 +90,7 @@ export default defineConfig({
             'operations/daily',
             'operations/metrics',
             'operations/troubleshooting',
-          ],
+          ].flatMap(optional),
         },
         {
           label: '参考',
@@ -99,7 +99,7 @@ export default defineConfig({
             'reference/config',
             'reference/files',
             'limitations',
-          ],
+          ].flatMap(optional),
         },
       ],
       customCss: ['./src/styles/docs.css'],
