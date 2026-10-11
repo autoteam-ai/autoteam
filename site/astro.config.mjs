@@ -1,6 +1,6 @@
-import {existsSync} from 'node:fs';
 import path from 'node:path';
 import {markdownLinks} from './scripts/docs-links.mjs';
+import {filterSidebar} from './scripts/docs-sidebar.mjs';
 import starlight from '@astrojs/starlight';
 import {satteri} from '@astrojs/markdown-satteri';
 import {defineConfig} from 'astro/config';
@@ -55,15 +55,13 @@ export default defineConfig({
           href: 'https://github.com/autoteam-ai/autoteam',
         },
       ],
-      sidebar: [
+      sidebar: filterSidebar([
         {slug: '/', label: '文档首页'},
         {
           label: '概念',
           items: [
             'concepts/why',
-            // Historical versions may predate this page.
-            ...(existsSync(path.join(source, 'concepts/invariants.md'))
-              ? ['concepts/invariants'] : []),
+            'concepts/invariants',
             'concepts/roles',
             'concepts/lifecycle',
             'concepts/quota-routing',
@@ -80,8 +78,7 @@ export default defineConfig({
             'setup/multica',
             'setup/first-run',
             'setup/multi-project',
-            ...(existsSync(path.join(source, 'setup/example.md'))
-              ? ['setup/example'] : []),
+            'setup/example',
           ],
         },
         {
@@ -101,7 +98,7 @@ export default defineConfig({
             'limitations',
           ],
         },
-      ],
+      ], source),
       customCss: ['./src/styles/docs.css'],
       markdown: {
         processedDirs: [source],
