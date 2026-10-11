@@ -75,8 +75,8 @@ autoteam [-C <目录>] <命令> [选项]
 
 | 命令 | 效果 |
 |---|---|
-| `autoteam stop` | 预览将暂停的 autopilot、将取消的 running/queued 运行 |
-| `autoteam stop --apply [--keep-run <运行 ID>]` | 写标记、暂停本项目 active 的 autopilot，并取消 registry agent 的运行；`--keep-run` 保留当前 Chat 运行 |
+| `autoteam stop` | 预览将暂停的 autopilot、将取消的本项目任务 running/queued 运行，以及不取消的其他项目和未关联任务运行 |
+| `autoteam stop --apply [--keep-run <运行 ID>]` | 写标记、暂停本项目 active 的 autopilot，并只取消 registry agent 在本项目任务上的 running/queued 运行；其他项目任务及未关联任务的 Chat 等运行不取消，`--keep-run` 继续保留指定运行 |
 | `autoteam resume` | 预览恢复列表 |
 | `autoteam resume --apply` | 只恢复标记记录且仍有生效定义的 autopilot，清除标记；已取消的运行不会自动重跑 |
 | `autoteam status [--check]` | 显示暂停状态；`--check` 在暂停时退出码为 1，供 agent 开工检查 |

@@ -11,7 +11,9 @@ case "$1 $2" in
   'project list') echo '[{"id":"project-1","title":"shop"}]' ;;
   'issue list')
     if [ "${STOP_NO_NOTE:-0}" = 1 ]; then echo '{"issues":[],"has_more":false}'
-    else echo '{"issues":[{"id":"note-1","title":"运营笔记"}],"has_more":false}'; fi ;;
+    elif [[ " $* " == *" --offset 0 "* ]]; then
+      echo '{"issues":[{"id":"note-1","title":"运营笔记"},{"id":"issue-work","title":"工作"}],"has_more":true}'
+    else echo '{"issues":[{"id":"issue-next","title":"排队"}],"has_more":false}'; fi ;;
   'issue get')
     if [ -f "$STOP_STATE/marker" ]; then jq -n --argjson marker "$(cat "$STOP_STATE/marker")" '{metadata:{"autoteam.paused":$marker}}';
     else echo '{"metadata":{}}'; fi ;;
@@ -41,8 +43,8 @@ EOF
   cat > "$STOP_STATE/autopilots" <<'EOF'
 [{"id":"ap-active","title":"推进巡检","project_id":"project-1","status":"active","last_run_at":"2026-09-29T04:00:00Z"},{"id":"ap-old-paused","title":"旧暂停","project_id":"project-1","status":"paused","last_run_at":null},{"id":"ap-other","title":"别的项目","project_id":"project-2","status":"active"}]
 EOF
-  echo '[{"id":"run-chat","status":"running","issue_id":"issue-chat"}]' > "$STOP_STATE/tasks-agent-planner"
-  echo '[{"id":"run-work","status":"running","issue_id":"issue-work"},{"id":"run-next","status":"queued","issue_id":"issue-next"}]' > "$STOP_STATE/tasks-agent-impl"
+  echo '[{"id":"run-chat","status":"running","issue_id":null}]' > "$STOP_STATE/tasks-agent-planner"
+  echo '[{"id":"run-work","status":"running","issue_id":"issue-work"},{"id":"run-next","status":"queued","issue_id":"issue-next"},{"id":"run-other","status":"running","issue_id":"issue-other"}]' > "$STOP_STATE/tasks-agent-impl"
   echo '[]' > "$STOP_STATE/tasks-agent-rev"
   echo '[]' > "$STOP_STATE/tasks-agent-auditor"
 }
@@ -128,4 +130,28 @@ t_resume_skips_removed_definition_after_upgrade() {
   assert_not_contains "$(cat "$STOP_LOG")" 'autopilot update ap-obsolete'
   assert_eq "$(jq -r '.[] | select(.id=="ap-active") | .status' "$STOP_STATE/autopilots")" active
   assert_no_file "$STOP_STATE/marker"
+}
+
+t_stop_only_cancels_project_issue_runs() {
+  stop_fixture
+  : > "$STOP_LOG"
+  out=$(stop_cmd stop)
+  assert_contains "$out" '只处理项目 shop 的运行'
+  cancel_list=${out#*将取消的运行：}
+  cancel_list=${cancel_list%%其他项目任务的运行、不取消：*}
+  assert_contains "$cancel_list" 'run-work'
+  assert_contains "$cancel_list" 'run-next'
+  assert_not_contains "$cancel_list" 'run-other'
+  assert_not_contains "$cancel_list" 'run-chat'
+  assert_contains "$out" 'run-other running issue-other'
+  assert_contains "$out" '未关联任务、不取消：'
+  assert_contains "$out" 'run-chat running'
+  out=$(stop_cmd stop --apply --keep-run run-work)
+  assert_contains "$out" '只处理项目 shop 的运行'
+  log=$(cat "$STOP_LOG")
+  assert_contains "$log" 'issue cancel-task run-next'
+  assert_not_contains "$log" 'issue cancel-task run-work'
+  assert_not_contains "$log" 'issue cancel-task run-other'
+  assert_not_contains "$log" 'issue cancel-task run-chat'
+  assert_not_contains "$log" 'issue get issue-'
 }
