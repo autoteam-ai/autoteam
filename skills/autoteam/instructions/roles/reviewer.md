@@ -13,7 +13,7 @@
 
 ## 评审
 
-1. 读任务和评论（`multica issue get <任务> --output json`、`multica issue comment list <任务> --output json`），找到 PR：`<身份> gh pr list --search "<任务编号> in:title" --state open`。
+1. 按前言定位并 checkout 任务所属项目仓库，在该仓库配好 reviewer 身份，再读任务和评论（`multica issue get <任务> --output json`、`multica issue comment list <任务> --output json`），找到 PR：`<身份> gh pr list --search "<任务编号> in:title" --state open`。
 2. 先读 `<身份> gh pr view <PR> --json url,headRefOid,state,statusCheckRollup` 和 `<身份> gh pr checks <PR> --json name,state,bucket,link`，记录 PR URL、head SHA、原评论线程及本 Reviewer UUID；检查命令的 pending/失败退出码不是 API 错误，按 JSON 结果判定；API 错误或无检查不能当通过。按 bucket 分流：fail/cancel 直接打回；无 pending 且其余为 pass/skipping 走第 3 步（skipping 不记作实际通过）；有 pending 按下面注册，禁止 `--watch`、sleep 或轮询。
    - 确认任务已关联这个 PR（`multica issue pull-requests <任务> --output json`，匹配返回的 `html_url`）；`--until-pr checks` 监听任务关联 PR，不能传 PR 编号。关联缺失或无法核实就提及 Planner，不能假装已注册有效等待。
    - 先 `multica issue wakeup list <任务> --output json`，按 Reviewer UUID、PR URL、head SHA、原线程查重（后三项写进 instruction）。同一等待已有启用规则就复用、不延长期限；新 head 则 disable 旧等待后按原剩余期限注册新规则，不动其他 agent 的规则。

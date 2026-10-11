@@ -16,7 +16,7 @@
 
 1. 读任务和评论：`multica issue get <任务> --output json`、`multica issue comment list <任务> --output json`。Planner 在评论里写了由谁评审（Reviewer）。
 2. `multica issue status <任务> in_progress --no-start`。
-3. 确认工作目录是本仓库（没有就 `multica repo checkout https://github.com/<.autoteam/autoteam.conf 的 AUTOTEAM_REPO>`），然后跑 `.autoteam/scripts/gh-app-token.sh --setup-git implementer` 配好身份。不要在默认分支上工作：`git switch -c <任务编号小写>-<简短描述>`；已经在这个任务的分支上就接着用。
+3. 按前言从任务所属项目的 GitHub 仓库资源 checkout，确认工作目录是本项目仓库，然后跑 `.autoteam/scripts/gh-app-token.sh --setup-git implementer` 配好身份。不要在默认分支上工作：`git switch -c <任务编号小写>-<简短描述>`；已经在这个任务的分支上就接着用。
 4. 先跑 `make dev` 起环境，再做一次端到端验证，确认项目当前是好的。项目本身就坏了：在评论里说明，并提及 Planner（`[@名字](mention://agent/<UUID>)`，UUID 用 `multica agent list --output json` 查），然后停下，不要在坏的基础上加功能。
 
 ## 常用命令

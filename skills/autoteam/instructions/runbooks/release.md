@@ -14,7 +14,7 @@ Auditor 报告和前沿扫描的建议满足以上条件也可以自主放行，
 
 **不自主放行**：`AUTOTEAM_AUTO_APPROVE` 不是 `on`；或 `bash ./autoteam status --check` 显示已暂停（Chat 对话里也要查）；或当日名额已用完。
 
-**每日上限**：放行前数过去 24 小时里你发过 `【自主放行】` 评论的任务数：
+**每日上限按项目统计**：仅数任务所属项目，使用该项目配置的上限，不与其他项目共享名额。放行前数过去 24 小时里你发过 `【自主放行】` 评论的任务数：
 
 1. 用 `multica issue list --project <项目 ID> --limit 100 --offset <N> --fields id,last_activity_at --output json` 翻完全部页（`has_more` 为 false 为止，包括已关闭的任务），留下 `last_activity_at` 在 24 小时内的任务；
 2. 对每个留下的任务跑 `multica issue comment list <任务> --since <24 小时前的 RFC3339 时间> --output json`，数作者是你、正文以 `【自主放行】` 开头的评论，一个任务只算一次。
