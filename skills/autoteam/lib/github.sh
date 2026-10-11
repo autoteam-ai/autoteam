@@ -76,7 +76,12 @@ cmd_github() {
   repo_json=$GH_OUT
   owner_type=$(jq -r '.owner.type' <<<"$repo_json")
   visibility=$(jq -r '.visibility' <<<"$repo_json")
-  [ "$(jq -r '.permissions.admin' <<<"$repo_json")" = true ] || die "需要 $AUTOTEAM_REPO 的管理员权限"
+  # 用 App 的 installation token（autoteam token --run planner autoteam github ...）时仓库信息里没有
+  # permissions，能不能改由后面的接口说了算
+  case $(jq -r '.permissions.admin // "app"' <<<"$repo_json") in
+    true|app) ;;
+    *) die "需要 $AUTOTEAM_REPO 的管理员权限" ;;
+  esac
 
   if ! gh_call GET "repos/$AUTOTEAM_REPO/rulesets"; then
     case $GH_OUT in

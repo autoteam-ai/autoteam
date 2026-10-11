@@ -160,3 +160,32 @@ t_team_init_and_doctor_member_files() {
   assert_contains "$out" "registry.yaml："
   assert_not_contains "$out" "缺少 ./autoteam"
 }
+
+t_team_multica_syncs_member_projects_and_hook() {
+  setup_applied_repo acme/team
+  autoteam_stub project add acme/app >/dev/null
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica)
+  assert_contains "$out" "== 成员项目 =="
+  assert_contains "$out" "新建项目 app（挂上仓库 https://github.com/acme/app）"
+  assert_contains "$out" "把团队「部署结果」的 webhook 写入 acme/app 的 secret MULTICA_DEPLOY_HOOK"
+  assert_no_log "gh secret set"
+  out=$(autoteam_stub multica --apply)
+  assert_contains "$out" "acme/app 的 secret MULTICA_DEPLOY_HOOK 已写入团队 webhook"
+  assert_log "gh secret set MULTICA_DEPLOY_HOOK --repo acme/app"
+  assert_log "project create --title app --repo https://github.com/acme/app"
+  assert_not_contains "$out" "SECRET-TOKEN"
+}
+
+t_team_next_all_tags_items_with_repo() {
+  next_fixture
+  autoteam_stub project add acme/app >/dev/null
+  sed -i 's/\[{"id":"project-1","title":"shop"}\]/[{"id":"project-1","title":"shop"},{"id":"project-2","title":"app"}]/' "$WORK/next-multica"
+  AUTOTEAM_TEAM_DIR=$WORK
+  export AUTOTEAM_TEAM_DIR
+  out=$(next_cmd --all --output json)
+  assert_eq "$(jq -c 'map(.repo) | unique' <<<"$out")" '["acme/app","acme/shop"]'
+  assert_eq "$(jq 'length' <<<"$out")" 6
+  out=$(next_cmd --all --check) && tfail "有事项时 --check 应返回 1"
+  assert_contains "$out" "acme/app	HDGCS-1	dispatchable"
+}
