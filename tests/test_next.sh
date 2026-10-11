@@ -94,7 +94,7 @@ case " $* " in
     echo '[{"number":11,"title":"HDGCS-4 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":12,"title":"HDGCS-3 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":10,"title":"HDGCS-4 older","mergedAt":"2020-01-01T00:00:00Z"}]' | jq --arg at "$NEXT_MERGED_AT" 'map(.mergedAt = $at)' ;;
   *' --state open '*)
     if [ "${NEXT_NO_OPEN:-}" = 1 ]; then echo '[]'; exit; fi
-    if [ "${NEXT_PENDING:-0}" = 1 ]; then echo '[{"number":15,"title":"HDGCS-4 waiting","reviewDecision":"REVIEW_REQUIRED","mergeable":"MERGEABLE","statusCheckRollup":[{"status":"IN_PROGRESS","conclusion":null}]}]'; exit; fi
+    if [ "${NEXT_PENDING:-0}" = 1 ]; then echo '[{"number":15,"title":"HDGCS-4 waiting","reviewDecision":"REVIEW_REQUIRED","mergeable":"MERGEABLE","statusCheckRollup":[{"__typename":"CheckRun","status":"IN_PROGRESS","conclusion":""}]}]'; exit; fi
     echo '[{"number":13,"title":"HDGCS-4 conflict","reviewDecision":"REVIEW_REQUIRED","mergeable":"CONFLICTING","statusCheckRollup":[]},{"number":14,"title":"HDGCS-3 approved","reviewDecision":"APPROVED","mergeable":"MERGEABLE","statusCheckRollup":[{"status":"COMPLETED","conclusion":"SUCCESS"}]}]' ;;
   *' --state all '*)
     if [ "${NEXT_GH_LOOP:-}" = 1 ]; then echo '[{"number":13,"title":"HDGCS-4 loop","state":"OPEN","url":"https://github.com/acme/shop/pull/13","reviews":[{"state":"CHANGES_REQUESTED"},{"state":"CHANGES_REQUESTED"}]}]'

@@ -100,7 +100,7 @@ next_collect_github() {
     [ -n "$identifier" ] || continue
     id=$(jq -r --arg key "$identifier" 'select(.identifier == $key) | select((.status_category // .status) != "done" and (.status_category // .status) != "cancelled") | .id' "$NEXT_ISSUES")
     [ -n "$id" ] || continue
-    if jq -e 'any(.statusCheckRollup[]; if .state != null then .state == "PENDING" or .state == "EXPECTED" else .status != "COMPLETED" and (.conclusion == null) end)' <<<"$pr" >/dev/null; then
+    if jq -e 'any(.statusCheckRollup[]; if .state != null then .state == "PENDING" or .state == "EXPECTED" else .status != "COMPLETED" end)' <<<"$pr" >/dev/null; then
       printf '%s\n' "$id" >> "$NEXT_CHECKS"
     fi
     number=$(jq -r '.number' <<<"$pr")
