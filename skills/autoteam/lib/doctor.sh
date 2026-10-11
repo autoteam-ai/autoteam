@@ -468,6 +468,7 @@ doctor_multica() {
   mc_resolve_workspace "$ws"
   info "工作区 $MC_WS_NAME（profile ${MC_PROFILE:-默认}）"
   doctor_pinned_version
+  [ -z "$AUTOTEAM_TEAM_HOME" ] || info "共享团队，由 $AUTOTEAM_TEAM_HOME 管理；指令、runtime / 模型 / 并发配置由团队仓库负责"
 
   runtimes="" agents=""
   doctor_mc_read "runtime 列表" runtime list && runtimes=$MC_READ_OUT
@@ -476,10 +477,26 @@ doctor_multica() {
     while IFS=$'\t' read -r name role _ runtime model max _; do
       [ -n "$name" ] || continue
       id=$(jq -r --arg n "$name" '[.[] | select(.name == $n)][0].id // empty' <<<"$agents")
-      if [ -z "$id" ]; then fail "agent $name 不存在（autoteam multica --apply）"; continue; fi
+      if [ -z "$id" ]; then
+        if [ -n "$AUTOTEAM_TEAM_HOME" ]; then
+          fail "agent $name 不存在，请去团队仓库 $AUTOTEAM_TEAM_HOME 执行 autoteam multica --apply"
+        else
+          fail "agent $name 不存在（autoteam multica --apply）"
+        fi
+        continue
+      fi
       doctor_mc_read "agent $name 的配置" agent get "$id" || continue
       cur=$MC_READ_OUT
       rid=$(jq -r '.runtime_id' <<<"$cur")
+      if [ -n "$AUTOTEAM_TEAM_HOME" ]; then
+        if [ -n "$runtimes" ] && [ "$(jq -r --arg id "$rid" '.[] | select(.id == $id) | .status' <<<"$runtimes")" != online ]; then
+          warn "agent $name 的 runtime 不在线"
+        elif [ -n "$runtimes" ]; then
+          ok "agent $name（$role）存在，runtime 在线"
+        fi
+        info "agent $name 的指令漂移及 runtime / 模型 / 并发差异由团队仓库 $AUTOTEAM_TEAM_HOME 负责"
+        continue
+      fi
       want=$(instructions_role_text "$role") || { fail "找不到角色 $role 的指令文件"; continue; }
       if [ "$(jq -r '.instructions' <<<"$cur")" != "${want%$'\n'}" ] && [ "$(jq -r '.instructions' <<<"$cur")" != "$want" ]; then
         fail "agent $name 的指令和生效文本（$(instructions_source roles "$role.md")）不一致（指令漂移）：autoteam multica --apply"
@@ -502,7 +519,9 @@ doctor_multica() {
     done <<EOF
 $rows
 EOF
-    [ -z "$runtimes" ] || doctor_app_keys "$rows" "$runtimes"
+    if [ -z "$AUTOTEAM_TEAM_HOME" ] && [ -n "$runtimes" ]; then
+      doctor_app_keys "$rows" "$runtimes"
+    fi
   fi
 
   local pause_marker="" pause_reported=0

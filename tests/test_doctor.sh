@@ -688,3 +688,24 @@ EOF
     assert_contains "$md" '| 自主放行 / 人批准数（近 7 天） | 1 / 0 |'
   done
 }
+
+t_doctor_shared_team() {
+  setup_applied_repo
+  sed -i '/^AUTOTEAM_TEAM_HOME=/d' .autoteam/autoteam.conf
+  echo 'AUTOTEAM_TEAM_HOME=acme/team' >> .autoteam/autoteam.conf
+  doctor_edit_agent planner '.instructions="different" | .model="other" | .max_concurrent_tasks=7'
+  sed -i 's/, account:.*}/ }/' .autoteam/registry.yaml
+  out=$(autoteam_stub doctor --skip-github)
+  assert_doctor_ok "$?" "$out" '成员仓库忽略团队配置差异'
+  assert_contains "$out" '共享团队，由 acme/team 管理'
+  assert_contains "$out" 'agent planner（planner）存在，runtime 在线'
+  assert_contains "$out" '指令漂移及 runtime / 模型 / 并发差异由团队仓库'
+  assert_contains "$out" 'agent rev-codex 的 runtime 不在线'
+  doctor_edit_agent planner '.runtime_id="missing-runtime"'
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" 'agent planner 的 runtime 不在线'
+  stub_json_edit mc-agents.json 'map(select(.name != "planner"))'
+  out=$(autoteam_stub doctor --skip-github)
+  assert_eq "$?" 1
+  assert_contains "$out" 'agent planner 不存在'
+}

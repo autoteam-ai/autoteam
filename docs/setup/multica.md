@@ -30,7 +30,9 @@ autoteam 按 `.autoteam/registry.yaml` 的每一行建 agent（已存在就更�
 - `env_file`：按量计费的 agent 需要的 API key 等环境变量（JSON 文件，放 `.autoteam/local/`，不要提交）。
 - 调用权限：autoteam.conf 的 `AUTOTEAM_AGENT_ACCESS=private`（默认，只有创建者能触发）或 `workspace`（工作区成员都能触发）。多人一起用时设为 workspace。
 
-agent 名在工作区内唯一。一个工作区里放多个项目时，给名字加前缀（比如 `shop-planner`）。
+agent 名在工作区内唯一。多个项目可以各自一套团队，给名字加前缀（比如 `shop-planner`）；也可以共享团队：团队仓库保留权威 registry，成员仓库设置 `AUTOTEAM_TEAM_HOME=owner/name`，registry 只需角色到 agent 名字的映射（如 `planner: { role: planner }`）。
+
+成员仓库预览和 `--apply` 都跳过 agent，同步项目、运营笔记、autopilot 和状态迁移照常；显式指定 `--only agents` 会报错，请去团队仓库执行。doctor 只核对 agent 存在、实际绑定的 runtime 在线，指令漂移及 runtime / 模型 / 并发差异仅以 info 说明由团队仓库负责。团队仓库不设置该键，行为保持原样。每个成员仓库仍需安装三个 GitHub App，私钥可共用机器级目录。
 
 ## 项目
 
