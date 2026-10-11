@@ -621,6 +621,11 @@ EOF
     id=$(mc_autopilot_id "$list" "$title" "$project")
     if ! autopilot_selected "$name" "$id"; then
       if [ -z "$id" ]; then continue; fi
+      # 成员项目的 autopilot 是团队级的，项目上的是按项目建的旧版本，不比指令
+      if [ "$AUTOTEAM_MODE" = member ]; then
+        warn "autopilot「$title」是按项目建的旧版本，已由团队仓库 $AUTOTEAM_TEAM_HOME 的团队级 autopilot 接管：确认不再需要后到 Multica 界面删除（$id）"
+        continue
+      fi
       autopilot_unlisted_hint "$title"
     fi
     if [ -z "$id" ]; then fail "本项目没有 autopilot「$title」（autoteam multica --apply）"; continue; fi
