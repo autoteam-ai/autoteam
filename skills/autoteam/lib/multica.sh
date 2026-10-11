@@ -333,6 +333,9 @@ cmd_multica() {
     multica_autopilots "$rows" "$paused" "$rotate"
     multica_sync_end
   fi
+  if [ "$AUTOTEAM_MODE" = local ] && [ -z "$AUTOTEAM_TEAM_HOME" ] && { multica_want project || multica_want autopilots; }; then
+    multica_members "$root"
+  fi
 
   section "需要你在 Multica 界面里做的事"
   info "GitHub 集成（可选）：Settings → GitHub 连接仓库后，任务卡片上能看到关联 PR 和 CI 状态"
@@ -755,6 +758,36 @@ multica_pause_new_autopilot() {
 mc_autopilot_id() {
   jq -r --arg t "$2" --arg p "$3" \
     '[.autopilots[]? | select($p != "" and .title == $t and .project_id == $p)][0].id // empty' <<<"$1"
+}
+
+# 团队仓库：给 projects/ 下登记的每个成员项目建 Multica 项目（挂仓库、运营笔记），并把团队
+# 「部署结果」的 webhook 写进成员仓库的 secret——成员仓库共用这一个 webhook，payload 带 repo。
+multica_members() {
+  local members slug title hook="" list id team_repo=$AUTOTEAM_REPO team_title=$AUTOTEAM_MULTICA_PROJECT team_project=$MC_PROJECT_ID
+  members=$(projects_list "$1" | sed 1d)
+  [ -n "$members" ] || return 0
+  section "成员项目"
+  if [ -n "$team_project" ] && list=$(mc autopilot list --output json 2>/dev/null); then
+    id=$(mc_autopilot_id "$list" "$(fm_get "$(instructions_path autopilots deploy-result.md)" title)" "$team_project")
+    [ -z "$id" ] || hook=$(mc autopilot get "$id" --show-secrets --output json 2>/dev/null | jq -r '[.triggers[]? | select(.kind == "webhook") | .webhook_url][0] // empty')
+  fi
+  while IFS=$'\t' read -r slug title; do
+    [ -n "$slug" ] || continue
+    AUTOTEAM_REPO=$slug AUTOTEAM_MULTICA_PROJECT=$title
+    multica_project
+    if [ "$AUTOTEAM_APPLY" != 1 ]; then
+      planned "把团队「部署结果」的 webhook 写入 $slug 的 secret MULTICA_DEPLOY_HOOK"
+    elif [ -z "$hook" ]; then
+      fail "拿不到团队「部署结果」的 webhook 地址，$slug 的部署通知不到 Planner：先在团队仓库 autoteam multica --apply 建好它"
+    elif printf '%s' "$hook" | gh secret set MULTICA_DEPLOY_HOOK --repo "$slug" >/dev/null 2>&1; then
+      ok "$slug 的 secret MULTICA_DEPLOY_HOOK 已写入团队 webhook（地址含凭据，不在这里显示）"
+    else
+      fail "写 $slug 的 secret 失败：检查 gh 的身份有没有该仓库的 Secrets 写权限"
+    fi
+  done <<EOF
+$members
+EOF
+  AUTOTEAM_REPO=$team_repo AUTOTEAM_MULTICA_PROJECT=$team_title MC_PROJECT_ID=$team_project
 }
 
 # agent 名字 -> ID。精确匹配，避免 Multica 的模糊解析把 planner 匹配到 ex-planner

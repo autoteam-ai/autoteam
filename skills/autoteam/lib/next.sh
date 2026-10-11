@@ -3,11 +3,36 @@
 
 next_usage() {
   cat <<'EOF'
-用法：autoteam next [--check] [--output json] [--profile <名字>]
+用法：autoteam next [--check] [--all] [--output json] [--profile <名字>]
 
 列出待派发、失败运行、已合并未验收、待补救 PR 和打转到上限、停滞和唤醒异常的任务。
 --check：空清单打印「无事可做」并返回 0；有事返回 1；读取失败返回 2。
+--all：团队管理的全部项目（autoteam projects）逐个检查，跳过已暂停的项目；每项多一个 repo 字段。
 EOF
+}
+
+# 团队巡检：逐个项目跑 next，合成一份清单。暂停的项目跳过；任一项目读取失败整体返回 2
+next_all() {
+  local profile=$1 rows slug _title items out all='[]' rc=0
+  rows=$(projects_list "$(projects_root)")
+  while IFS=$'\t' read -r slug _title; do
+    [ -n "$slug" ] || continue
+    if ! out=$(bash "$AUTOTEAM_HOME/bin/autoteam" -P "$slug" status --check ${profile:+--profile "$profile"} 2>&1); then
+      case $out in
+        *已暂停*) printf '%s\t已暂停，跳过\n' "$slug" >&2; continue ;;
+        *) next_read_error "$slug 的暂停状态" || rc=2; continue ;;
+      esac
+    fi
+    if ! items=$(bash "$AUTOTEAM_HOME/bin/autoteam" -P "$slug" next --output json ${profile:+--profile "$profile"}); then
+      next_read_error "$slug 的清单" || rc=2
+      continue
+    fi
+    all=$(jq -c --arg r "$slug" --argjson items "$items" '. + ($items | map(. + {repo: $r}))' <<<"$all") || { next_read_error "$slug 的清单格式" || rc=2; }
+  done <<EOF
+$rows
+EOF
+  printf '%s\n' "$all"
+  return "$rc"
 }
 
 next_read_error() { printf 'autoteam next：读取%s失败\n' "$1" >&2; return 2; }
@@ -282,10 +307,11 @@ next_collect() {
 }
 
 cmd_next() {
-  local profile="" output=text check=0 items
+  local profile="" output=text check=0 items all=0
   while [ $# -gt 0 ]; do
     case $1 in
       --check) check=1; shift ;;
+      --all) all=1; shift ;;
       --output) [ $# -ge 2 ] || die '--output 需要格式'; output=$2; shift 2 ;;
       --profile) [ $# -ge 2 ] || die '--profile 需要名字'; profile=$2; shift 2 ;;
       -h|--help) next_usage; return ;;
@@ -293,13 +319,18 @@ cmd_next() {
     esac
   done
   case $output in text|json) ;; *) die "未知输出格式：$output" ;; esac
-  items=$(next_collect "$profile") || return 2
+  if [ "$all" = 1 ]; then
+    need_cmd jq
+    items=$(next_all "$profile") || return 2
+  else
+    items=$(next_collect "$profile") || return 2
+  fi
   if [ "$output" = json ]; then
     printf '%s\n' "$items"
   elif [ "$(jq 'length' <<<"$items")" = 0 ]; then
     printf '无事可做\n'
   else
-    jq -r '.[] | "\(.identifier)\t\(.category)\t\(.reason)"' <<<"$items"
+    jq -r '.[] | [(.repo // empty), .identifier, .category, .reason] | join("\t")' <<<"$items"
   fi
   [ "$check" = 0 ] || [ "$(jq 'length' <<<"$items")" = 0 ]
 }
