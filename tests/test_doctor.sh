@@ -709,3 +709,42 @@ t_doctor_shared_team() {
   assert_eq "$?" 1
   assert_contains "$out" 'agent planner 不存在'
 }
+
+# 个人账号仓库读不到 orgs/<owner>/installations：每个角色用私钥问这个仓库有没有装
+t_doctor_apps_personal_account_checks_repo_installation() {
+  doctor_keys_repo
+  ghapp_test_key
+  for r in implementer reviewer planner; do cp "$APP_PEM" "$WORK/.home/.autoteam/$r.pem"; done
+  : > "$STUB_STATE/installations-denied"
+  out=$(autoteam_stub doctor)
+  assert_contains "$out" "impl App"
+  assert_contains "$out" "已装在 acme/shop"
+  assert_not_contains "$out" "核对不了安装状态"
+  count=$(printf '%s\n' "$out" | grep -c '已装在 acme/shop')
+  assert_eq "$count" 3 "三个角色都应核对到"
+
+  : > "$STUB_STATE/app-not-installed"
+  out=$(autoteam_stub doctor)
+  assert_eq "$?" 1
+  assert_contains "$out" "没有装在 acme/shop 上"
+
+  rm "$STUB_STATE/app-not-installed" "$WORK/.home/.autoteam/reviewer.pem"
+  out=$(autoteam_stub doctor)
+  assert_contains "$out" "review App 222：核对不了安装状态"
+  assert_contains "$out" "impl App"
+}
+
+t_doctor_team_conf_drift() {
+  setup_applied_repo
+  sed -i '/^AUTOTEAM_TEAM_HOME=/d' .autoteam/autoteam.conf
+  echo 'AUTOTEAM_TEAM_HOME=acme/team' >> .autoteam/autoteam.conf
+  out=$(autoteam_stub doctor)
+  assert_contains "$out" "读不到团队仓库 acme/team"
+  grep -E '^AUTOTEAM_(MULTICA_WORKSPACE|HUMAN|AGENT_ACCESS|ISSUE_PREFIX|LANGUAGE|TIMEZONE|KEYS_DIR)=' .autoteam/autoteam.conf > "$STUB_STATE/team.conf"
+  out=$(autoteam_stub doctor)
+  assert_contains "$out" "团队级配置与团队仓库 acme/team 一致"
+  sed -i '/^AUTOTEAM_HUMAN=/d' "$STUB_STATE/team.conf"
+  echo 'AUTOTEAM_HUMAN=Someone' >> "$STUB_STATE/team.conf"
+  out=$(autoteam_stub doctor)
+  assert_contains "$out" "AUTOTEAM_HUMAN 与团队仓库 acme/team 不一致"
+}

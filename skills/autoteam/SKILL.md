@@ -33,7 +33,7 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 
 ### 1. 生成文件
 
-`autoteam init --workspace <slug>`。确认根目录生成可执行的 `./autoteam`，把它和其他生成文件一起提交；agent 会运行 `bash ./autoteam status --check`。入口只使用版本与固定提交一致的本机 skill，否则下载当前包构建提交的 CLI。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。生成的 `.gitignore` 受管块会忽略 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/`。
+`autoteam init --workspace <slug>`。接入共享团队的成员仓库用 `autoteam init --team-home <团队仓库本地目录>`（可先加 `--dry-run`）：从团队仓库的 conf 带来工作区、三个 App ID、私钥目录、负责人、调用权限、任务前缀、语言、时区并复制 `registry.yaml`，写入 `AUTOTEAM_TEAM_HOME`；命令行参数优先；步骤见 `docs/setup/multi-project.md`。确认根目录生成可执行的 `./autoteam`，把它和其他生成文件一起提交；agent 会运行 `bash ./autoteam status --check`。入口只使用版本与固定提交一致的本机 skill，否则下载当前包构建提交的 CLI。看输出：因为已存在而被跳过的文件，用 `autoteam diff <文件>` 看差异，手动合并；受管块（`>>> autoteam >>>` 之间）以外的内容不要动。生成的 `.gitignore` 受管块会忽略 `npx skills add` 安装的 `.claude/skills/`、`.agents/skills/`。
 
 ### 2. 适配（需要判断的部分）
 
@@ -53,13 +53,13 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 ### 4. 接入 GitHub 和 Multica
 
 `autoteam setup` 一次预览两边，给用户解释 GitHub 保护等级（full / standard / none）、`--trial` 的含义和要做的改动。非交互终端用户同意后运行 `autoteam setup --apply`；交互终端确认一次即可执行。按情况加 `--trial`、`--apps impl=<App ID>,review=<App ID>,planner=<App ID>`、`--paused`。App 的创建和安装要人点确认：还没有 App 时，预览并（经用户同意后）单独运行 `autoteam github --create-apps --apply`（App Manifest 流程：用户在浏览器点确认、把跳转后的 URL 粘回终端；私钥写进 `AUTOTEAM_KEYS_DIR`，已有私钥不覆盖，不打印密钥），装到仓库仍由用户做；`autoteam setup` 和 `autoteam github` 本身只核对。执行顺序是 GitHub → Multica → doctor，失败时按输出从断点继续。
-如 App 安装在组织全部仓库，说明私钥泄露会影响安装范围内所有仓库；有意多仓库共用时，逐个核对安装范围与权限后设置 `AUTOTEAM_APP_ALL_REPOS_ACK=on`，后续仅显示确认信息。
+如 App 安装在组织全部仓库，说明私钥泄露会影响安装范围内所有仓库；有意多仓库共用时，逐个核对安装范围与权限后设置 `AUTOTEAM_APP_ALL_REPOS_ACK=on`，后续仅显示确认信息。doctor 读不到 `orgs/<owner>/installations`（个人账号或非 admin）时，本机有该角色私钥就用它调 `repos/<repo>/installation` 核对是否装在本仓库及权限，没有私钥才提示核对不了。
 
 ### 5. Multica 结果
 
 给用户看预览中会建哪些状态、agent、autopilot。新项目默认只新建 `AUTOTEAM_AUTOPILOTS` 中的 5 个 autopilot（`deploy-result,patrol,daily-digest,rule-review,health`）；月度方向报告需显式追加 `direction`。已有但未列入的 autopilot 仍更新，预览和 doctor 会提示用户决定加入清单或到 Multica 界面删除；升级前 conf 缺少该键时，现有实例加默认 5 个都保留，`autoteam upgrade` 提醒补写。想先配好、晚点再让定时任务跑起来，加 `--paused`。项目已被 `autoteam stop` 暂停时，新建的 autopilot 自动保持暂停并记入暂停记录（`resume` 时恢复），预览会提示「项目暂停，新建项将暂停」。autopilot 只认绑在本项目（`AUTOTEAM_MULTICA_PROJECT`）上的，同一工作区别的项目的同名 autopilot 不会被改；预览里出现「另有同名 autopilot 不属于本项目」时向用户说明会另建一套。
 
-共享团队时，成员仓库设置 `AUTOTEAM_TEAM_HOME=owner/name`，registry 只需角色到名字的映射；预览和 `--apply` 不改 agent，`--only agents` 报错并提示去团队仓库执行。项目、运营笔记、状态和 autopilot 仍按本仓库同步。doctor 只核对 agent 存在、实际 runtime 在线，指令及配置差异以 info 说明由团队仓库负责。团队仓库保持该键为空，沿用原行为。
+共享团队时，成员仓库设置 `AUTOTEAM_TEAM_HOME=owner/name`，registry 只需角色到名字的映射；预览和 `--apply` 不改 agent，`--only agents` 报错并提示去团队仓库执行。项目、运营笔记、状态和 autopilot 仍按本仓库同步。doctor 只核对 agent 存在、实际 runtime 在线，指令及配置差异以 info 说明由团队仓库负责；另核对本仓库的团队级配置键与团队仓库一致（不一致 warn，读不到则跳过）。团队仓库保持该键为空，沿用原行为。
 
 同步完成时给用户看输出末尾的 agents、autopilots、项目看板链接。未登录提示对应 `multica login`；默认 profile 没有服务器对应 `multica setup` 或 `--profile`。
 

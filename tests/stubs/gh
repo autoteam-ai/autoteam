@@ -101,7 +101,7 @@ while [ $# -gt 0 ]; do
   case $1 in
     -X|--method) method=$2; shift 2 ;;
     --input) body=$(cat); shift 2 ;;
-    -f|-F) shift 2 ;;
+    -f|-F|-H) shift 2 ;;
     *) [ -z "$path" ] && path=$1; shift ;;
   esac
 done
@@ -123,7 +123,10 @@ case "$method $path" in
   "GET repos/acme/shop/rules/branches/main")
     if [ -f "$state/branch-rules.json" ]; then cat "$state/branch-rules.json"; else echo '[]'; fi | out ;;
   "GET orgs/acme/installations")
-    if [ -f "$state/installations.json" ]; then cat "$state/installations.json" | out; else echo '{"installations":[]}' | out; fi ;;
+    if [ -f "$state/installations-denied" ]; then http_error 403 "You must be an organization admin"
+    elif [ -f "$state/installations.json" ]; then cat "$state/installations.json" | out; else echo '{"installations":[]}' | out; fi ;;
+  "GET repos/acme/team/contents/.autoteam/autoteam.conf")
+    if [ -f "$state/team.conf" ]; then cat "$state/team.conf"; else http_error 404 "Not Found"; fi ;;
   "GET graphql")
     jq -n --argjson auto "$([ -f "$state/auto-merge" ] && echo true || echo false)" '{data: {repository: {pullRequest:
       {state: "OPEN", isInMergeQueue: false, autoMergeRequest: (if $auto then {enabledAt: "2026-09-27T00:00:00Z"} else null end)}}}}' | out ;;

@@ -79,6 +79,7 @@ export default defineConfig({
             'setup/github',
             'setup/multica',
             'setup/first-run',
+            'setup/multi-project',
             ...(existsSync(path.join(source, 'setup/example.md'))
               ? ['setup/example'] : []),
           ],

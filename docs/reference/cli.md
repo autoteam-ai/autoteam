@@ -22,6 +22,7 @@ autoteam [-C <目录>] <命令> [选项]
 | `--workspace <slug>` | Multica 工作区 |
 | `--human <成员名>` | 负责批准和接收升级的 Multica 成员 |
 | `--timezone <时区>` | autopilot 时区，默认 Asia/Shanghai |
+| `--team-home <目录>` | 共享团队仓库的本地目录：带入其 conf 的团队级配置和 `registry.yaml`，写入 `AUTOTEAM_TEAM_HOME`；命令行参数优先，见[共享团队接入新仓库](../setup/multi-project.md) |
 | `--force` | 覆盖与模板不同的文件、替换受管块，不管改没改过；`autoteam.conf`、`registry.yaml`（用户数据）不覆盖。升级请用 `autoteam upgrade`，它不会动你改过的文件 |
 | `[文件...]` | 只处理这些文件，例如 `autoteam init --force .autoteam/playbook.md` |
 | `--dry-run` | 只列出会做什么 |
