@@ -19,4 +19,4 @@ multica issue assign <任务> --to-id <人的 user_id> --no-start
 
 **指派这一步不能省**：球在谁手里，assignee 就该是谁。人打开「指派给我的」要能看到全部等他决断的事，不用一个个翻看板。指派给成员不会启动任何 agent。人回复 @你之后你再按 `dispatch` 把它指回 agent。
 
-次数用 `<身份> .autoteam/scripts/loop-guard.sh <任务>` 从 GitHub 的评审记录和任务评论里算，不要相信 agent 自己的说法。`<身份>` = `.autoteam/scripts/gh-app-token.sh --run planner`。
+次数用 `<身份> autoteam loop-guard <任务>` 从 GitHub 的评审记录和任务评论里算，不要相信 agent 自己的说法。`<身份>` = `autoteam token --run planner`。

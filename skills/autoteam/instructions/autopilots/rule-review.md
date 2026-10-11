@@ -14,10 +14,10 @@ subscriber: human
 ## 读这些
 
 1. 本周的 Auditor 报告：周度健康报告、月度方向报告（有新的一份时）。
-2. `.autoteam/scripts/health-metrics.sh --md`，重点看 `human_7d`（人自己提交和评审了多少次）和一次通过率的趋势。
+2. `autoteam metrics --md`，重点看 `human_7d`（人自己提交和评审了多少次）和一次通过率的趋势。
 3. 本周所有 `blocked` 过的任务，以及人在任务里留的评论——**每一条人工介入都是一次规则缺失的证据**。
-4. Multica 的「运营笔记」任务，只读最近 7 天：`multica issue comment list <运营笔记任务> --since <7 天前的 RFC3339 时间> --compact --output json`，不读更早的评论。
-5. `.autoteam/playbook.md` 现在有什么。
+4. 各项目的「运营笔记」任务（`autoteam projects` 列出的每个项目一条），只读最近 7 天：`multica issue comment list <运营笔记任务> --since <7 天前的 RFC3339 时间> --compact --output json`，不读更早的评论。
+5. `autoteam playbook` 现在有什么。
 
 ## 产出
 
@@ -26,11 +26,11 @@ subscriber: human
 | 类型 | 改哪里 |
 |---|---|
 | 删除 / 合并 | 删除失效规则或合并重复规则，写明证据与替代关系 |
-| 经验固化 | `.autoteam/playbook.md` 加一条 |
-| 参数调整 | `.autoteam/autoteam.conf` 的某个 `AUTOTEAM_*`，写明从多少改到多少、依据是什么 |
+| 经验固化 | 团队仓库 `.autoteam/playbook.md`（跨项目通用）或 `.autoteam/projects/<仓库>/playbook.md`（单个项目）加一条 |
+| 参数调整 | 团队仓库 `.autoteam/autoteam.conf` 或项目的 `project.conf` 里某个 `AUTOTEAM_*`，写明从多少改到多少、依据是什么 |
 | 指令修订 | 当前生效的角色指令（已 eject 时为 `.autoteam/instructions/<角色>.md`，否则为包内指令）的具体段落 |
 | 流程缺口 | 需要新脚本或新检查的，说明它要挡住什么 |
 
-新增规则须说明替换或删掉哪条旧规则；说不出来时优先放进 playbook。把建议按 Planner 的“收到需求”拆进 backlog，再按「放行分级」处理。受保护规则文件的改动**必须由人批准才能生效**。判断标准：能删的规则优先于新增的规则；建议能否减少下一周的人工介入？不能就不提。
+新增规则须说明替换或删掉哪条旧规则；说不出来时优先放进 playbook。把建议按 Planner 的“收到需求”拆进 backlog，再按「放行分级」处理。规则文件的改动走 PR 评审，对应任务按放行分级由人或你放行。判断标准：能删的规则优先于新增的规则；建议能否减少下一周的人工介入？不能就不提。
 
 本周人工介入为零、指标没有恶化时，只回复“本周无需调整”，不要为了有产出而提建议。

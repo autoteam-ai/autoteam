@@ -184,7 +184,7 @@ t_multica_instructions_sync_preamble_and_eject() {
   assert_eq "$(jq '[.[] | select((.autopilot.description | split("\n")[0]) != $p)] | length' --arg p "$pre" "$STUB_STATE/mc-autopilots.json")" 0 "每个 autopilot 正文开头是前言"
   assert_contains "$(autopilot_description 推进巡检)" "$pre
 
-按 \`bash ./autoteam runbook progress\` 处理，事件=\`patrol\`"
+按 \`autoteam runbook progress\` 处理，事件=\`patrol\`"
 
   # eject 出的文件不含前言，同步时仍自动加上，不会重复
   autoteam_stub eject planner >/dev/null
@@ -538,7 +538,7 @@ t_multica_apply_follows_conf_and_ejected_files() {
   sed -i.bak 's|^AUTOTEAM_CRON_PATROL=.*|AUTOTEAM_CRON_PATROL=15 */3 * * *|' .autoteam/autoteam.conf && rm -f .autoteam/autoteam.conf.bak
   sed -i '/^AUTOTEAM_LANGUAGE=/d' .autoteam/autoteam.conf
   autoteam_stub eject patrol >/dev/null
-  sed -i.bak 's|^按 `bash ./autoteam runbook progress`|自定义巡检 runbook|' .autoteam/instructions/autopilots/patrol.md && rm -f .autoteam/instructions/autopilots/patrol.md.bak
+  sed -i.bak 's|^按 `autoteam runbook progress`|自定义巡检 runbook|' .autoteam/instructions/autopilots/patrol.md && rm -f .autoteam/instructions/autopilots/patrol.md.bak
   autoteam_stub multica --apply --paused >/dev/null
   assert_eq "$(autopilot_cron 推进巡检)" "15 */3 * * *"
   assert_eq "$(autopilot_cron 每日摘要)" "0 9 * * *"

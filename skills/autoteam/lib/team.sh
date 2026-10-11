@@ -197,7 +197,7 @@ cmd_project() {
 # 下面这些键描述项目自己，不继承团队仓库的值，没写时用 autoteam 默认值：
 #   AUTOTEAM_DEFAULT_BRANCH、AUTOTEAM_MULTICA_PROJECT（默认仓库名）、
 #   AUTOTEAM_CHECK_NAME（默认 autoteam / check，即 .github/workflows/autoteam.yml 的检查）、
-#   AUTOTEAM_PR_SIZE_EXCLUDE、AUTOTEAM_DEPLOY_ENVIRONMENT、AUTOTEAM_AUTOPILOTS（默认空：autopilot 是团队级的）
+#   AUTOTEAM_PR_SIZE_EXCLUDE、AUTOTEAM_AUTOPILOTS（默认空：autopilot 是团队级的）。部署 environment 固定为 production
 AUTOTEAM_DEFAULT_BRANCH=${branch:-main}
 EOF
   cat > "$root/$dir/playbook.md" <<EOF
