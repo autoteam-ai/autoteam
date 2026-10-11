@@ -630,3 +630,27 @@ t_obsolete_autopilots_preview_apply_and_doctor() {
   out=$(autoteam_stub doctor --skip-github)
   assert_not_contains "$out" '旧报告1」（old-1，active）已无生效定义'
 }
+
+# 成员 registry 只需角色映射；预览及 apply 都不能改共享 agent。
+t_multica_shared_team() {
+  setup_applied_repo
+  sed -i '/^AUTOTEAM_TEAM_HOME=/d' .autoteam/autoteam.conf
+  echo 'AUTOTEAM_TEAM_HOME=acme/team' >> .autoteam/autoteam.conf
+  sed -i 's/, account:.*}/ }/' .autoteam/registry.yaml
+  local mode
+  for mode in preview apply; do
+    : > "$STUB_LOG"
+    if [ "$mode" = apply ]; then out=$(autoteam_stub multica --apply); else out=$(autoteam_stub multica); fi
+    assert_contains "$out" 'agent 由团队仓库 acme/team 管理，本仓库不改动'
+    assert_contains "$out" '运营笔记已存在'
+    assert_contains "$out" 'autopilot「推进巡检」已是最新'
+    assert_no_log 'agent create'
+    assert_no_log 'agent update'
+    assert_no_log 'runtime list'
+  done
+  : > "$STUB_LOG"
+  out=$(autoteam_stub multica --only agents --apply 2>&1)
+  assert_eq "$?" 1
+  assert_contains "$out" '请去团队仓库执行 --only agents'
+  assert_no_log 'agent update'
+}

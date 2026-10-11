@@ -55,7 +55,7 @@ registry_validate() {
       auditor) n_aud=$((n_aud + 1)) ;;
       *) fail "agent $name 的 role 不对：$role（应为 planner / implementer / reviewer / auditor）"; bad=1 ;;
     esac
-    if [ "$runtime" = "-" ]; then fail "agent $name 没写 runtime"; bad=1; fi
+    if [ -z "${AUTOTEAM_TEAM_HOME:-}" ] && [ "$runtime" = "-" ]; then fail "agent $name 没写 runtime"; bad=1; fi
     case $max in -|[1-9]|[1-4][0-9]|50) ;; *) fail "agent $name 的 max_tasks 应为 1-50：$max"; bad=1 ;; esac
     case $seen_names in *" $name "*) fail "agent 名重复：$name"; bad=1 ;; esac
     seen_names="$seen_names$name "

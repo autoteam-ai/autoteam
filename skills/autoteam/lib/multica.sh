@@ -293,6 +293,9 @@ cmd_multica() {
   cd "$root" || die "进不去 $root"
   conf_exists "$root" || die "还没有 $AUTOTEAM_CONF_REL，先运行 autoteam init"
   conf_load "$root"
+  if [ -n "$AUTOTEAM_TEAM_HOME" ] && [ -n "$only" ] && multica_want agents; then
+    die "agent 由团队仓库 $AUTOTEAM_TEAM_HOME 管理，请去团队仓库执行 --only agents"
+  fi
   rows=$(registry_agents)
   registry_validate "$rows" || die "registry.yaml 有问题，改好后重试"
 
@@ -309,8 +312,12 @@ cmd_multica() {
   if multica_want agents; then
     section "agent"
     multica_sync_begin agents
-    runtimes=$(mc runtime list --output json) || die "读取 runtime 列表失败"
-    multica_agents "$rows" "$runtimes"
+    if [ -n "$AUTOTEAM_TEAM_HOME" ]; then
+      info "agent 由团队仓库 $AUTOTEAM_TEAM_HOME 管理，本仓库不改动"
+    else
+      runtimes=$(mc runtime list --output json) || die "读取 runtime 列表失败"
+      multica_agents "$rows" "$runtimes"
+    fi
     multica_sync_end
   fi
   MC_PROJECT_ID=""

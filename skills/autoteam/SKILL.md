@@ -58,6 +58,9 @@ description: 把“自管理 agent 团队”工作流装进当前项目：Planne
 ### 5. Multica 结果
 
 给用户看预览中会建哪些状态、agent、autopilot。新项目默认只新建 `AUTOTEAM_AUTOPILOTS` 中的 5 个 autopilot（`deploy-result,patrol,daily-digest,rule-review,health`）；月度方向报告需显式追加 `direction`。已有但未列入的 autopilot 仍更新，预览和 doctor 会提示用户决定加入清单或到 Multica 界面删除；升级前 conf 缺少该键时，现有实例加默认 5 个都保留，`autoteam upgrade` 提醒补写。想先配好、晚点再让定时任务跑起来，加 `--paused`。项目已被 `autoteam stop` 暂停时，新建的 autopilot 自动保持暂停并记入暂停记录（`resume` 时恢复），预览会提示「项目暂停，新建项将暂停」。autopilot 只认绑在本项目（`AUTOTEAM_MULTICA_PROJECT`）上的，同一工作区别的项目的同名 autopilot 不会被改；预览里出现「另有同名 autopilot 不属于本项目」时向用户说明会另建一套。
+
+共享团队时，成员仓库设置 `AUTOTEAM_TEAM_HOME=owner/name`，registry 只需角色到名字的映射；预览和 `--apply` 不改 agent，`--only agents` 报错并提示去团队仓库执行。项目、运营笔记、状态和 autopilot 仍按本仓库同步。doctor 只核对 agent 存在、实际 runtime 在线，指令及配置差异以 info 说明由团队仓库负责。团队仓库保持该键为空，沿用原行为。
+
 同步完成时给用户看输出末尾的 agents、autopilots、项目看板链接。未登录提示对应 `multica login`；默认 profile 没有服务器对应 `multica setup` 或 `--profile`。
 
 ### 6. 必须由人做的事
