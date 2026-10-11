@@ -11,12 +11,12 @@ case "$1 $2" in
   'project list') echo '[{"id":"project-1","title":"shop"}]' ;;
   'agent list') echo '[{"id":"planner-1","name":"planner"}]' ;;
   'issue list')
-    if [ -n "${NEXT_ISSUES_FILE:-}" ]; then cat "$NEXT_ISSUES_FILE"; exit; fi
+    if [ -n "${NEXT_ISSUES_FILE:-}" ]; then jq '.issues |= map(. + {last_activity_at:(.last_activity_at // (now | todate)), updated_at:(.updated_at // (now | todate)), metadata:(.metadata // {})})' "$NEXT_ISSUES_FILE"; exit; fi
     [ "${NEXT_FAIL:-}" != list ] || exit 1
     case " $* " in
       *)
         if [ "${NEXT_EMPTY:-0}" = 1 ]; then echo '{"issues":[],"has_more":false}'
-        else echo '{"issues":[{"id":"ready","identifier":"HDGCS-1","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":1},{"id":"blocked","identifier":"HDGCS-2","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":2},{"id":"failed","identifier":"HDGCS-3","status":"todo","assignee_id":"impl-1"},{"id":"running","identifier":"HDGCS-4","status":"in_progress","assignee_id":"impl-1"}],"has_more":false}'; fi ;;
+        else echo '{"issues":[{"id":"ready","identifier":"HDGCS-1","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":1},{"id":"blocked","identifier":"HDGCS-2","status":"todo","assignee_id":"planner-1","parent_issue_id":"parent","stage":2},{"id":"failed","identifier":"HDGCS-3","status":"todo","assignee_id":"impl-1"},{"id":"running","identifier":"HDGCS-4","status":"in_progress","assignee_id":"impl-1"}],"has_more":false}' | jq --arg dep "${NEXT_DEP:-}" '.issues |= map(. + {last_activity_at:(now | todate),updated_at:(now | todate),assignee_type:"agent",metadata:(if $dep == "" then {} elif $dep == "invalid" then {"autoteam.depends_on":false} else {"autoteam.depends_on":"HDGCS-125"} end)})'; fi ;;
     esac ;;
   'issue wakeup')
     [ "${NEXT_FAIL:-}" != wakeups ] || exit 1
@@ -31,6 +31,7 @@ case "$1 $2" in
   'issue children')
     echo '{"stages":[{"stage":1,"total":1,"done":0,"issues":[{"id":"ready","status":"todo"}]},{"stage":2,"total":1,"done":0,"issues":[{"id":"blocked","status":"todo"}]}],"total":2,"unstaged":[]}' ;;
   'issue runs')
+    if [ -n "${NEXT_RUNS:-}" ]; then cat "$NEXT_RUNS"; exit; fi
     [ "${NEXT_FAIL:-}" != runs ] || exit 1
     case $3 in
       failed) echo '[{"id":"run-3","status":"failed","failure_reason":"runtime_recovery","error":"daemon restarted"},{"id":"run-2","status":"completed"}]' ;;
@@ -50,7 +51,7 @@ next_cmd() {
     HOME="$WORK/.home" NO_COLOR=1 STUB_LOG="$STUB_LOG" STUB_STATE="$STUB_STATE" \
     STUB_FIXTURES="$TESTS_DIR/fixtures" AUTOTEAM_MULTICA_BIN="$WORK/next-multica" \
     NEXT_DEP="${NEXT_DEP:-}" NEXT_DEP_STATUS="${NEXT_DEP_STATUS:-in_review}" \
-    NEXT_ISSUES_FILE="${NEXT_ISSUES_FILE:-}" NEXT_WAKEUPS="${NEXT_WAKEUPS:-}" NEXT_LOG="$NEXT_LOG" NEXT_EMPTY="${NEXT_EMPTY:-0}" NEXT_FAIL="${NEXT_FAIL:-}" \
+    NEXT_RUNS="${NEXT_RUNS:-}" NEXT_MERGED_AT="${NEXT_MERGED_AT:-2020-01-01T00:00:00Z}" NEXT_PENDING="${NEXT_PENDING:-0}" NEXT_ISSUES_FILE="${NEXT_ISSUES_FILE:-}" NEXT_WAKEUPS="${NEXT_WAKEUPS:-}" NEXT_LOG="$NEXT_LOG" NEXT_EMPTY="${NEXT_EMPTY:-0}" NEXT_FAIL="${NEXT_FAIL:-}" \
     NEXT_NO_OPEN="${NEXT_NO_OPEN:-}" NEXT_GH_LOG="${NEXT_GH_LOG:-}" NEXT_GH_FAIL="${NEXT_GH_FAIL:-}" NEXT_GH_LOOP="${NEXT_GH_LOOP:-}" \
     AUTOTEAM_ISSUE_PREFIX=HDGCS bash "$AUTOTEAM" next "$@"
 }
@@ -90,9 +91,10 @@ printf '%s\n' "$*" >> "$NEXT_GH_LOG"
 [ "${NEXT_GH_FAIL:-}" != 1 ] || exit 1
 case " $* " in
   *' --state merged '*)
-    echo '[{"number":11,"title":"HDGCS-4 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":12,"title":"HDGCS-3 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":10,"title":"HDGCS-4 older","mergedAt":"2020-01-01T00:00:00Z"}]' ;;
+    echo '[{"number":11,"title":"HDGCS-4 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":12,"title":"HDGCS-3 merged","mergedAt":"2020-01-01T00:00:00Z"},{"number":10,"title":"HDGCS-4 older","mergedAt":"2020-01-01T00:00:00Z"}]' | jq --arg at "$NEXT_MERGED_AT" 'map(.mergedAt = $at)' ;;
   *' --state open '*)
     if [ "${NEXT_NO_OPEN:-}" = 1 ]; then echo '[]'; exit; fi
+    if [ "${NEXT_PENDING:-0}" = 1 ]; then echo '[{"number":15,"title":"HDGCS-4 waiting","reviewDecision":"REVIEW_REQUIRED","mergeable":"MERGEABLE","statusCheckRollup":[{"__typename":"CheckRun","status":"IN_PROGRESS","conclusion":""}]}]'; exit; fi
     echo '[{"number":13,"title":"HDGCS-4 conflict","reviewDecision":"REVIEW_REQUIRED","mergeable":"CONFLICTING","statusCheckRollup":[]},{"number":14,"title":"HDGCS-3 approved","reviewDecision":"APPROVED","mergeable":"MERGEABLE","statusCheckRollup":[{"status":"COMPLETED","conclusion":"SUCCESS"}]}]' ;;
   *' --state all '*)
     if [ "${NEXT_GH_LOOP:-}" = 1 ]; then echo '[{"number":13,"title":"HDGCS-4 loop","state":"OPEN","url":"https://github.com/acme/shop/pull/13","reviews":[{"state":"CHANGES_REQUESTED"},{"state":"CHANGES_REQUESTED"}]}]'
@@ -109,12 +111,18 @@ t_next_github_categories_and_failure() {
   next_github_fixture
   out=$(next_cmd --output json)
   assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted")] | length' <<<"$out")" 2
-  assert_eq "$(jq '[.[] | select(.category == "pr_remediation")] | length' <<<"$out")" 2
+  assert_eq "$(jq '[.[] | select(.category == "pr_remediation")] | length' <<<"$out")" 0
   # 同一个事项的多个已合并 PR 只算一次
   assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-4")] | length' <<<"$out")" 1
   assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted" and .identifier == "HDGCS-3")] | length' <<<"$out")" 1
   assert_contains "$(cat "$NEXT_GH_LOG")" 'api graphql'
   NEXT_GH_LOOP=1; export NEXT_GH_LOOP
+  out=$(next_cmd --output json)
+  assert_eq "$(jq '[.[] | select(.category == "loop_limit")] | length' <<<"$out")" 0
+  NEXT_MERGED_AT=$(jq -nr 'now | todate'); export NEXT_MERGED_AT
+  out=$(next_cmd --output json)
+  assert_eq "$(jq '[.[] | select(.category == "pr_remediation")] | length' <<<"$out")" 2
+  NEXT_NO_OPEN=1; export NEXT_NO_OPEN
   out=$(next_cmd --output json)
   assert_eq "$(jq '[.[] | select(.category == "loop_limit")] | length' <<<"$out")" 1
   NEXT_GH_FAIL=1; export NEXT_GH_FAIL
@@ -134,8 +142,7 @@ t_next_cross_requirement_dependencies() {
   assert_eq "$(jq '[.[] | select(.category == "dispatchable")] | length' <<<"$out")" 1
   for NEXT_DEP in missing invalid; do
     export NEXT_DEP
-    out=$(next_cmd --output json 2> "$WORK/deps.err")
-    assert_eq "$(jq '[.[] | select(.category == "dispatchable")] | length' <<<"$out")" 0
+    if next_cmd --output json > "$WORK/next.out" 2> "$WORK/deps.err"; then tfail '前提读取或格式失败应返回 2'; else assert_eq "$?" 2; fi
     assert_contains "$(cat "$WORK/deps.err")" '前提'
   done
 }
@@ -145,8 +152,8 @@ t_next_future_and_expired_wakeups() {
   NEXT_WAKEUPS=$WORK/wakeups.json; export NEXT_WAKEUPS
   cp "$TESTS_DIR/fixtures/next-wakeup.json" "$NEXT_WAKEUPS"
   out=$(next_cmd --output json)
-  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted")] | length' <<<"$out")" 0
-  assert_eq "$(jq '[.[] | select(.category == "pr_remediation")] | length' <<<"$out")" 2
+  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted")] | length' <<<"$out")" 2
+  assert_eq "$(jq '[.[] | select(.category == "pr_remediation")] | length' <<<"$out")" 0
   jq '.[0].next_fire_at = "2020-01-01T00:00:00.123456Z"' "$NEXT_WAKEUPS" > "$WORK/expired.json"
   mv "$WORK/expired.json" "$NEXT_WAKEUPS"
   out=$(next_cmd --output json)
@@ -162,7 +169,8 @@ t_next_only_waiting_and_blocked_agent() {
   echo '{"issues":[{"id":"running","identifier":"HDGCS-4","status":"blocked","assignee_type":"member"},{"id":"failed","identifier":"HDGCS-3","status":"blocked","assignee_type":"agent"}],"has_more":false}' > "$NEXT_ISSUES_FILE"
   cp "$TESTS_DIR/fixtures/next-wakeup.json" "$NEXT_WAKEUPS"
   NEXT_NO_OPEN=1; export NEXT_NO_OPEN
-  assert_eq "$(next_cmd --check)" '无事可做'
+  out=$(next_cmd --output json)
+  assert_eq "$(jq 'length' <<<"$out")" 1
   jq '.[0].enabled = false' "$NEXT_WAKEUPS" > "$WORK/disabled.json"
   mv "$WORK/disabled.json" "$NEXT_WAKEUPS"
   out=$(next_cmd --output json)
@@ -172,4 +180,106 @@ t_next_only_waiting_and_blocked_agent() {
   mv "$WORK/expired.json" "$NEXT_WAKEUPS"
   out=$(next_cmd --output json)
   assert_eq "$(jq -r '.[0].identifier' <<<"$out")" HDGCS-3
+}
+
+# 与真实 issue list / runs / wakeup list 相同的字段，时间按场景显式设定。
+next_health_fixture() {
+  next_github_fixture
+  NEXT_ISSUES_FILE=$WORK/issues.json; NEXT_RUNS=$WORK/runs.json; NEXT_WAKEUPS=$WORK/wakeups.json
+  NEXT_NO_OPEN=1
+  export NEXT_ISSUES_FILE NEXT_RUNS NEXT_WAKEUPS NEXT_NO_OPEN
+  echo '{"issues":[{"id":"health","identifier":"HDGCS-90","status":"in_review","assignee_type":"agent","assignee_id":"impl-1","last_activity_at":"2020-01-01T00:00:00.123456Z","updated_at":"2020-01-01T00:00:00Z","metadata":{}}],"has_more":false}' > "$NEXT_ISSUES_FILE"
+  echo '[]' > "$NEXT_RUNS"; echo '[]' > "$NEXT_WAKEUPS"
+}
+
+t_next_stalled_activity_and_scope() {
+  next_health_fixture
+  out=$(next_cmd --output json)
+  assert_eq "$(jq -r '.[0].category' <<<"$out")" stalled
+  for status in in_progress in_review todo blocked; do
+    jq --arg status "$status" '.issues[0].status = $status' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+    mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+    assert_eq "$(next_cmd --output json | jq -r '.[0].category')" stalled
+  done
+  jq '.issues[0].assignee_type = "member"' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+  mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  assert_eq "$(next_cmd --check)" '无事可做'
+  jq '.issues[0].status = "in_review"' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+  mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  jq -n '[{id:"run",status:"completed",created_at:"2020-01-01T00:00:00Z",started_at:"2020-01-01T00:00:00Z",completed_at:(now | todate),error:null}]' > "$NEXT_RUNS"
+  assert_eq "$(next_cmd --check)" '无事可做'
+  echo '[{"id":"run","status":"running","started_at":"2020-01-01T00:00:00Z","completed_at":null}]' > "$NEXT_RUNS"
+  assert_eq "$(next_cmd --check)" '无事可做'
+  echo '[]' > "$NEXT_RUNS"
+  jq '.issues[0].last_activity_at = (now | todate)' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+  mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  assert_eq "$(next_cmd --check)" '无事可做'
+}
+
+t_next_missing_dependency_wakeup() {
+  next_health_fixture
+  jq '.issues[0].metadata = {"autoteam.depends_on":"HDGCS-125"}' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+  mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  out=$(next_cmd --output json)
+  assert_eq "$(jq 'length' <<<"$out")" 1
+  assert_eq "$(jq -r '.[0].category' <<<"$out")" missing_wakeup
+  # 无关 every 不能掩盖依赖等待。
+  echo '[{"enabled":true,"kind":"every","next_fire_at":"2099-01-01T00:00:00Z"}]' > "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" missing_wakeup
+  echo '[{"enabled":true,"kind":"event","condition":{"type":"other_issue","issue_id":"dep","identifier":"HDGCS-125","state":"done"},"expires_at":"2099-01-01T00:00:00Z","next_fire_at":"2020-01-01T00:00:00Z"}]' > "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" stalled
+  NEXT_DEP_STATUS="done"; export NEXT_DEP_STATUS
+  echo '[]' > "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" stalled
+}
+
+t_next_waiting_checks_condition() {
+  next_health_fixture
+  NEXT_PENDING=1; NEXT_NO_OPEN=0; export NEXT_PENDING NEXT_NO_OPEN
+  jq '.issues[0].id = "running" | .issues[0].identifier = "HDGCS-4"' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+  mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  # 避开已合并样本，让开放检查成为唯一等待来源。
+  NEXT_MERGED_AT=$(jq -nr 'now | todate'); export NEXT_MERGED_AT
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" missing_wakeup
+  echo '[{"enabled":true,"kind":"event","condition":{"type":"pull_request","event":"checks_finished"},"next_fire_at":null,"expires_at":"2099-01-01T00:00:00Z","last_task_status":null}]' > "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" stalled
+  jq '.[0].enabled = false' "$NEXT_WAKEUPS" > "$WORK/new.json"; mv "$WORK/new.json" "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" missing_wakeup
+}
+
+t_next_overdue_and_progress() {
+  next_health_fixture
+  for field in next_fire_at expires_at timed_out_at; do
+    jq -n --arg field "$field" '[{enabled:true,kind:"at",fire_count:0,($field):"2020-01-02T00:00:00.123456Z"}]' > "$NEXT_WAKEUPS"
+    assert_eq "$(next_cmd --output json | jq -r '.[0].category')" wakeup_overdue
+  done
+  echo '[{"enabled":false,"kind":"event","last_error":"dispatch failed","last_task_status":"failed","last_task_id":"run","updated_at":"2020-01-02T00:00:00Z"}]' > "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" wakeup_overdue
+  # 新活动、到期宽限和正常消费的 once 规则不会报警。
+  jq -n '[{enabled:true,kind:"at",next_fire_at:(now - 60 | todate)}]' > "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" stalled
+  echo '[{"enabled":false,"kind":"event","fire_count":1,"expires_at":"2020-01-02T00:00:00Z","last_task_status":"completed"}]' > "$NEXT_WAKEUPS"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" stalled
+  echo '[{"enabled":true,"kind":"at","next_fire_at":"2020-01-02T00:00:00Z"}]' > "$NEXT_WAKEUPS"
+  jq '.issues[0].last_activity_at = "2020-01-03T00:00:00Z"' "$NEXT_ISSUES_FILE" > "$WORK/new.json"; mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  assert_eq "$(next_cmd --output json | jq -r '.[0].category')" stalled
+  echo '[{"enabled":true,"kind":"at","next_fire_at":"invalid"}]' > "$NEXT_WAKEUPS"
+  if next_cmd --check >/dev/null 2> "$WORK/err"; then tfail '无效唤醒时间应返回 2'; else assert_eq "$?" 2; fi
+}
+
+t_next_observation_cap_and_every() {
+  next_github_fixture
+  NEXT_WAKEUPS=$WORK/wakeups.json; export NEXT_WAKEUPS
+  cp "$TESTS_DIR/fixtures/next-wakeup.json" "$NEXT_WAKEUPS"
+  NEXT_MERGED_AT=$(jq -nr 'now - 7200 | todate'); export NEXT_MERGED_AT
+  assert_eq "$(next_cmd --output json | jq '[.[] | select(.category == "merged_unaccepted")] | length')" 0
+  for kind in every cron; do
+    jq --arg kind "$kind" '.[0].kind = $kind' "$NEXT_WAKEUPS" > "$WORK/new.json"; mv "$WORK/new.json" "$NEXT_WAKEUPS"
+    assert_eq "$(next_cmd --output json | jq '[.[] | select(.category == "merged_unaccepted")] | length')" 2
+  done
+  jq '.[0].kind = "at"' "$NEXT_WAKEUPS" > "$WORK/new.json"; mv "$WORK/new.json" "$NEXT_WAKEUPS"
+  NEXT_MERGED_AT=$(jq -nr 'now - 39600 | todate'); export NEXT_MERGED_AT
+  out=$(next_cmd --output json)
+  assert_eq "$(jq '[.[] | select(.category == "merged_unaccepted")] | length' <<<"$out")" 2
+  assert_eq "$(jq '[.[].id] | length == (unique | length)' <<<"$out")" true
 }
