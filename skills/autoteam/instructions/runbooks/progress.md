@@ -10,6 +10,7 @@ description: 推进：按部署通知、巡检清单或批次屏障，去重后�
 
 5. **卡住任务**（仅 `patrol`，按 `reason` 处理；每步先重读任务和评论，已有同类痕迹不重复）：
    - `stalled`：先复核前提（依赖、PR、描述是否仍成立，不成立就在原任务改说明）；成立则评论 `【推进-停滞】` 提及当前指派人（agent）说明要继续的具体动作，指派给 Planner 的 `todo` 按 `dispatch`；已有 `【推进-停滞】` 且之后仍无活动，按 `reassign` 换人，换过仍无进展按 `escalate`；
+   - `missing_wakeup` / `wakeup_overdue` 先分归属：Reviewer 的 PR 检查等待（原线程、head、2h 期限）交 Reviewer 按原线程、head 和原期限处理，Planner 不代注册、不续期、不换 agent，只在原线程提及 Reviewer 一次；仅 Planner 自己的等待走下面两条。
    - `missing_wakeup`：按 `reason` 的等待项用 `dispatch` 的「依赖方唤醒」补注册，写一条 `/note【补注册唤醒】`，不另提醒；
    - `wakeup_overdue`：复核 `reason` 的前提，已满足就直接推进（派发、验收或叫醒指派人）；未满足则重注册一次并 `/note【重注册唤醒】`，已有此痕迹仍逾期则换人或按外部前提处理；
    - `merged_unaccepted`：超过观察上限不再续期，按 `accept` 直接验收；前提仍缺的按外部前提处理。
