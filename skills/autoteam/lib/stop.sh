@@ -27,10 +27,11 @@ stop_setup() {
   STOP_PROJECT_ID=$(jq -r --arg title "$AUTOTEAM_MULTICA_PROJECT" '[.[] | select(.title == $title)][0].id // empty' <<<"$projects")
   [ -n "$STOP_PROJECT_ID" ] || die "找不到项目 $AUTOTEAM_MULTICA_PROJECT"
   STOP_NOTE_ID=""
+  STOP_ISSUE_IDS='[]'
   while [ "$more" = true ]; do
     issues=$(mc issue list --project "$STOP_PROJECT_ID" --limit 100 --offset "$offset" --fields id,title --output json) || die "读取项目任务失败"
-    STOP_NOTE_ID=$(jq -r '.issues[] | select(.title == "运营笔记") | .id' <<<"$issues" | head -n 1)
-    [ -z "$STOP_NOTE_ID" ] || break
+    STOP_ISSUE_IDS=$(jq -nc --argjson ids "$STOP_ISSUE_IDS" --argjson page "$issues" '$ids + [$page.issues[].id]')
+    [ -n "$STOP_NOTE_ID" ] || STOP_NOTE_ID=$(jq -r '.issues[] | select(.title == "运营笔记") | .id' <<<"$issues" | head -n 1)
     more=$(jq -r '.has_more' <<<"$issues")
     offset=$((offset + $(jq '.issues | length' <<<"$issues")))
   done
@@ -70,11 +71,21 @@ stop_agents() {
 stop_runs() {
   local id tasks run_id status issue_id
   STOP_RUNS=""
+  STOP_OTHER_RUNS=""
+  STOP_UNLINKED_RUNS=""
   for id in $STOP_AGENT_IDS; do
     tasks=$(mc agent tasks "$id" --output json) || die "读取 agent $id 的运行失败"
     while IFS=$'\t' read -r run_id status issue_id; do
       [ -n "$run_id" ] || continue
       [ "$run_id" = "$STOP_KEEP_RUN" ] && continue
+      if [ "$issue_id" = "-" ]; then
+        STOP_UNLINKED_RUNS="$STOP_UNLINKED_RUNS$run_id"$'\t'"$status"$'\n'
+        continue
+      fi
+      if ! jq -e --arg id "$issue_id" 'index($id) != null' <<<"$STOP_ISSUE_IDS" >/dev/null; then
+        STOP_OTHER_RUNS="$STOP_OTHER_RUNS$run_id"$'\t'"$status"$'\t'"$issue_id"$'\n'
+        continue
+      fi
       STOP_RUNS="$STOP_RUNS$run_id"$'\t'"$status"$'\t'"$issue_id"$'\n'
     done < <(jq -r '.[] | select(.status == "running" or .status == "queued") | [.id,.status,(.issue_id // "-")] | @tsv' <<<"$tasks")
   done
@@ -102,10 +113,15 @@ cmd_stop() {
   else
     ids=$(jq -c --arg p "$STOP_PROJECT_ID" '[.autopilots[] | select(.project_id == $p and .status == "active") | .id]' <<<"$list")
   fi
+  info "只处理项目 $AUTOTEAM_MULTICA_PROJECT 的运行"
   info "将暂停的 autopilot："
   jq -r --arg p "$STOP_PROJECT_ID" '.autopilots[] | select(.project_id == $p and .status == "active") | "  \(.title) (\(.id))"' <<<"$list"
   info "将取消的运行："
   if [ -n "$STOP_RUNS" ]; then printf '%s' "$STOP_RUNS" | tr '\t' ' '; else info "  无"; fi
+  info "其他项目任务的运行、不取消："
+  if [ -n "$STOP_OTHER_RUNS" ]; then printf '%s' "$STOP_OTHER_RUNS" | tr '\t' ' '; else info "  无"; fi
+  info "未关联任务、不取消："
+  if [ -n "$STOP_UNLINKED_RUNS" ]; then printf '%s' "$STOP_UNLINKED_RUNS" | tr '\t' ' '; else info "  无"; fi
   [ "$apply" = 1 ] || { info "预览完成；加 --apply 执行"; return; }
   [ -n "$STOP_NOTE_ID" ] || die "项目没有运营笔记任务；先让 Planner 创建"
   if [ -z "$STOP_MARKER" ]; then
