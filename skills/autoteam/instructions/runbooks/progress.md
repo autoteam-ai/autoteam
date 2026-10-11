@@ -8,6 +8,15 @@ description: 推进：按部署通知、巡检清单或批次屏障，去重后�
 3. **父任务整体验收**：仅 `barrier` 且最后一批子任务全部 `done` 时执行；部署结果与巡检即使看到最后一个子任务，也不得执行。先查父任务评论及回复是否已有 `【验收通过】`；有就跳过、不评论。没有才按 `accept` 第 6 条在线上验收父任务，成功仅写一次【验收通过】并设 `done`，失败在原任务处理。批次屏障若非最后一批，到派发后结束。
 4. **换人/升级**：`patrol` 的 `failed_run` 先查 PR，有 PR 交 Reviewer、无 PR 按 `reassign`；`loop_limit` 按 `escalate`。换人前查任务评论及回复是否已有 `【换人】` 或 `【换人-Reviewer】`：已有同类评论不再换同一角色、不再评论，仍失败按 `escalate`。`pr_remediation` 先核对 PR 审批、检查和 `<身份> .autoteam/scripts/merge-status.sh <PR>`；批准且检查通过但未开自动合并，写【补开自动合并】并提及 Implementer 重跑 `open-pr.sh <PR>`；自动合并中的 PR 冲突，写【需要 rebase】并提及 Implementer。发评论前用 `multica issue comment list <任务> --since <本轮开始时间> --compact --output json` 查该 PR 是否已有对应评论；有则跳过、不再评论。再查完整相关线程：此前一轮已提醒且问题仍在，按 `escalate`。不要以 Planner 身份运行 `merge-mode.sh`。`deploy` 和 `barrier` 不做巡检换人。
 
+5. **卡住任务**（仅 `patrol`，按 `reason` 处理；每步先重读任务和评论，已有同类痕迹不重复）：
+   - `stalled`：先复核前提（依赖、PR、描述是否仍成立，不成立就在原任务改说明）；成立则评论 `【推进-停滞】` 提及当前指派人（agent）说明要继续的具体动作，指派给 Planner 的 `todo` 按 `dispatch`；已有 `【推进-停滞】` 且之后仍无活动，按 `reassign` 换人，换过仍无进展按 `escalate`；
+   - `missing_wakeup` / `wakeup_overdue` 先分归属：Reviewer 的 PR 检查等待（原线程、head、2h 期限）交 Reviewer 按原线程、head 和原期限处理，Planner 不代注册、不续期、不换 agent，只在原线程提及 Reviewer 一次；仅 Planner 自己的等待走下面两条。
+   - `missing_wakeup`：按 `reason` 的等待项用 `dispatch` 的「依赖方唤醒」补注册，写一条 `/note【补注册唤醒】`，不另提醒；
+   - `wakeup_overdue`：复核 `reason` 的前提，已满足就直接推进（派发、验收或叫醒指派人）；未满足则重注册一次并 `/note【重注册唤醒】`，已有此痕迹仍逾期则换人或按外部前提处理；
+   - `merged_unaccepted`：超过观察上限不再续期，按 `accept` 直接验收；前提仍缺的按外部前提处理。
+   **外部前提**（集成、人工配置等 agent 自己补不了的）：先看任务评论有无 `【前提升级】`，没有才升级一次——`blocked` 并指派给人（按 `escalate`），评论 `【前提升级】` 写明要什么、怎么给；再注册 `--event comment.created --filter-actor-type member --filter-actor-id <人> --expires-in 72h --on-timeout wake`。期满被叫醒：前提已满足则推进；未满足且只有一条 `【前提升级】`，评论 `【前提再次升级】` 并不再注册唤醒；两条都有则静默。人在期间回复则按 `intake` 处理。
+   巡检动作之外无事可做时不评论。
+
 `patrol` 中运行 `<身份> bash ./autoteam next --check`：退出码 0 为清单为空，回复「本轮无事可做」，不在任务评论；退出码 2 向人报告读取失败，不当作空清单；退出码 1 只处理清单任务。清单里的范围外发现先查重再按 `release` 处理；因每日名额耗尽留在 backlog 的候选也按 `release`。不全量扫描。
 
 `deploy` 的 kind=deploy、result=failure：不重试；先查任务状态及父任务评论是否已记录相同 run_url 的部署失败，已记录则跳过，否则将 issues 中任务设为 `blocked`，在父任务评论提及人并附 run_url。kind=rollback：先查任务评论有无相同 run_url 的回滚结果，已有则跳过，否则只在 issues 中任务记录结果和 run_url，失败立即提及人。两者不做上述派发或验收。`sync_instructions=true` 表示部署触及规则文件，即使 issues 为空也要同步。任何成功部署若触及 `.autoteam/` 或当前生效的 `skills/autoteam/instructions/**`（eject 后为 `.autoteam/instructions/**`），即使 issues 为空，也须在 main 最新代码运行 `bash ./autoteam multica --apply --only agents,autopilots` 和 `bash ./autoteam doctor`；失败写运营笔记并提及人，不重试。`issues` 为空且无同步工作时仅回复「无待验收任务」。
