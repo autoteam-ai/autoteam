@@ -189,3 +189,19 @@ t_team_next_all_tags_items_with_repo() {
   out=$(next_cmd --all --check) && tfail "有事项时 --check 应返回 1"
   assert_contains "$out" "acme/app	HDGCS-1	dispatchable"
 }
+
+t_team_doctor_member_legacy_autopilots_only_warn() {
+  setup_applied_repo acme/app
+  AUTOTEAM_TEAM_DIR=$(mktemp -d "$TEST_BASE/team.XXXXXX")
+  export AUTOTEAM_TEAM_DIR
+  cp -R .autoteam "$AUTOTEAM_TEAM_DIR/"
+  sed -i 's|^AUTOTEAM_REPO=.*|AUTOTEAM_REPO=acme/team|' "$AUTOTEAM_TEAM_DIR/.autoteam/autoteam.conf"
+  mkdir -p "$AUTOTEAM_TEAM_DIR/.autoteam/projects/acme/app"
+  printf 'AUTOTEAM_MULTICA_PROJECT=app\n' > "$AUTOTEAM_TEAM_DIR/.autoteam/projects/acme/app/project.conf"
+  # 0002 的成员仓库迁移后：本仓库不再有 .autoteam/，项目上还留着按项目建的旧 autopilot
+  mv .autoteam .autoteam.old
+  out=$(autoteam_stub doctor --skip-github)
+  assert_contains "$out" "autopilot「推进巡检」是按项目建的旧版本，已由团队仓库 acme/team 的团队级 autopilot 接管"
+  assert_not_contains "$out" "的指令和生效文本不一致"
+}
+
