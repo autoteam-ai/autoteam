@@ -251,7 +251,7 @@ autoteam_script() {
   file=$(script_file "$name") || die "未知命令：$name"
   conf=$(autoteam_tmpdir)/effective.conf
   [ -f "$conf" ] || conf_write_effective "$conf"
-  AUTOTEAM_CONF_FILE=$conf bash "$file" "$@"
+  AUTOTEAM_CONF_FILE=$conf AUTOTEAM_CLI=$AUTOTEAM_HOME/bin/autoteam bash "$file" "$@"
 }
 
 # 不在 autoteam 项目里时不带配置直接跑，由脚本自己报缺什么

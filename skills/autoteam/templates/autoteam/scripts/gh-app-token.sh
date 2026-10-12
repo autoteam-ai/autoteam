@@ -209,8 +209,14 @@ if [ "$mode" = identity ] || [ "$mode" = setup-git ]; then
   # git push 的凭据现铸现用，不落盘。先用空值清掉从 ~/.gitconfig 继承来的助手，
   # 否则机器上 gh auth login 留下的钥匙串会先应答，agent 就会以人的身份推代码。
   git -C "$root" config --worktree --replace-all credential.helper "" || die "清空凭据助手失败"
-  git -C "$root" config --worktree --add credential.helper \
-    "!'$root/.autoteam/scripts/gh-app-token.sh' --credential $role" || die "配置凭据助手失败"
+  # 经 autoteam token 调用时（AUTOTEAM_CLI）助手也走 CLI：成员仓库里没有 .autoteam/scripts/，
+  # 每次 push 由 CLI 重新取本项目的配置；直接跑脚本时沿用仓库里的这份
+  if [ -n "${AUTOTEAM_CLI:-}" ]; then
+    helper="!bash '$AUTOTEAM_CLI' token --credential $role"
+  else
+    helper="!'$root/.autoteam/scripts/gh-app-token.sh' --credential $role"
+  fi
+  git -C "$root" config --worktree --add credential.helper "$helper" || die "配置凭据助手失败"
   # 回读生效值：别处（如 include 进来的配置）盖掉了就在这里报错，不要等提交完才发现
   [ "$(git -C "$root" config --get user.email)" = "$email" ] ||
     die "提交身份没有生效，当前是 $(git -C "$root" config --get user.email)：检查 git config --show-origin user.email"
