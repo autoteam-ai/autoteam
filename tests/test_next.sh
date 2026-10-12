@@ -206,6 +206,13 @@ t_next_stalled_activity_and_scope() {
   assert_eq "$(next_cmd --check)" '无事可做'
   jq '.issues[0].status = "in_review"' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
   mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  # 指派给人的 in_review / in_progress：球在人手里，不算停滞
+  assert_eq "$(next_cmd --check)" '无事可做'
+  jq '.issues[0].assignee_type = "agent" | .issues[0].status = "in_progress" | .issues[0].title = "运营笔记"' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+  mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
+  assert_eq "$(next_cmd --check)" '无事可做' "运营笔记是长期任务，不算停滞"
+  jq '.issues[0].title = "实现" | .issues[0].status = "in_review"' "$NEXT_ISSUES_FILE" > "$WORK/new.json"
+  mv "$WORK/new.json" "$NEXT_ISSUES_FILE"
   jq -n '[{id:"run",status:"completed",created_at:"2020-01-01T00:00:00Z",started_at:"2020-01-01T00:00:00Z",completed_at:(now | todate),error:null}]' > "$NEXT_RUNS"
   assert_eq "$(next_cmd --check)" '无事可做'
   echo '[{"id":"run","status":"running","started_at":"2020-01-01T00:00:00Z","completed_at":null}]' > "$NEXT_RUNS"

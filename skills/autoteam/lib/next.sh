@@ -65,7 +65,7 @@ next_collect_page() {
   local offset=0 page count more
   while :; do
     page=$(mc issue list --project "$NEXT_PROJECT_ID" --limit 100 --offset "$offset" \
-      --fields id,identifier,status,assignee_type,assignee_id,parent_issue_id,stage,status_category,last_activity_at,updated_at,created_at,metadata --output json) || { next_read_error '任务'; return 2; }
+      --fields id,identifier,title,status,assignee_type,assignee_id,parent_issue_id,stage,status_category,last_activity_at,updated_at,created_at,metadata --output json) || { next_read_error '任务'; return 2; }
     jq -e 'type == "object" and (.issues | type == "array") and (.has_more | type == "boolean")' <<<"$page" >/dev/null || { next_read_error '任务格式'; return 2; }
     jq -c '.issues[]' <<<"$page" >> "$NEXT_ISSUES" || return 2
     more=$(jq -r '.has_more' <<<"$page")
@@ -210,7 +210,8 @@ next_collect_health() {
       jq -nc --arg id "$id" --arg identifier "$identifier" --arg reason "等待 $waiting 但无对应启用唤醒" '{id:$id,identifier:$identifier,category:"missing_wakeup",reason:$reason}' >> "$NEXT_ITEMS"
     fi
     case $(jq -r '.status' <<<"$issue") in
-      in_progress|in_review) ;;
+      # 运营笔记是长期任务，没有动静是常态；指派给人的任务球在人手里，agent 推进不了
+      in_progress|in_review) jq -e '.assignee_type == "agent" and .title != "运营笔记"' <<<"$issue" >/dev/null || continue ;;
       todo) jq -e --arg planner "$NEXT_PLANNER_ID" '.assignee_type == "agent" or .assignee_id == $planner' <<<"$issue" >/dev/null || continue ;;
       blocked) jq -e '.assignee_type == "agent"' <<<"$issue" >/dev/null || continue ;;
       *) continue ;;
