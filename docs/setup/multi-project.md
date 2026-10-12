@@ -44,7 +44,8 @@ agent 在成员仓库里用子命令代替原来 `.autoteam/scripts/` 下的脚�
 **一次性前提**
 
 - 三个 GitHub App 装在仓库所在的账号或组织上，选**全部仓库**：以后在这个账号新建的仓库自动覆盖，不用再装。仓库在别的账号或组织下时，先到每个 App 的设置页把可见性改成可以安装到其他账号。
-- 要让 Planner 自己配置规则集和 secret，planner App 需要 Administration、Secrets 的写权限；没有就由有仓库 admin 的人运行下面的 `github --apply`。
+- Multica 的 GitHub App 也要装在这个账号或组织上（全部仓库）。没装时 PR 不会自动关联到任务，Reviewer 没法注册“等检查结束”的条件唤醒，只能靠巡检兜底。
+- 要让 Planner 自己配置规则集和 secret，planner App 需要 Administration、Secrets 的写权限，并在每个安装上接受新权限；没有就由有仓库 admin 的人运行下面的 `github --apply`。
 
 **步骤**
 
