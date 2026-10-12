@@ -93,6 +93,9 @@ t_ghapp_identity_and_setup_git() {
   first=$(git config --local --get-all credential.helper | head -n 1)
   assert_eq "$first" "" "第一个助手要是空串，用来清掉继承来的凭据助手"
   assert_contains "$(git config --local --get-all credential.helper | tail -n 1)" "--credential implementer"
+  # 经 autoteam token 调用（成员仓库没有 .autoteam/scripts/）：助手走 CLI
+  AUTOTEAM_CLI=/opt/autoteam/bin/autoteam ghapp --setup-git implementer >/dev/null
+  assert_eq "$(git config --local --get-all credential.helper | tail -n 1)" "!bash '/opt/autoteam/bin/autoteam' token --credential implementer"
 
   # Multica 托管 checkout 的 config.worktree 里带着人的身份，比 --local 优先：必须写 worktree 级
   git config --local extensions.worktreeConfig true
