@@ -10,4 +10,4 @@ description: 接入一个新的 GitHub 仓库：在团队仓库登记，成员�
 - `<身份> autoteam multica --apply`：建 Multica 项目、挂仓库、建运营笔记，把团队「部署结果」的 webhook 写进新仓库的 secret；
 - `<身份> autoteam -P <owner/repo> github --apply`：仓库设置和规则集（必需检查 `autoteam / check`）。报权限不足时按 `escalate`：请人给 planner App 加 Administration、Secrets 写权限，或请人自己跑这条命令。
 
-三个 App 要装在仓库所在的账号或组织上（选全部仓库，以后新建的仓库自动覆盖）；第 2 个子任务里 `autoteam doctor` 报没装时按 `escalate` 请人安装。第 2 个子任务合并、部署成功后，在成员仓库跑 `autoteam doctor` 无 ❌ 即整体验收通过。
+三个 App 和 Multica 的 GitHub App 都要装在仓库所在的账号或组织上（选全部仓库，以后新建的仓库自动覆盖）；第 2 个子任务里 `autoteam doctor` 报没装、或 `multica issue pull-requests <任务>` 关联不到 PR 时，按 `escalate` 请人安装。第 2 个子任务合并、部署成功后，在成员仓库跑 `autoteam doctor` 无 ❌ 即整体验收通过。
