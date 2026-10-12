@@ -145,6 +145,7 @@ t_team_init_and_doctor_member_files() {
   assert_contains "$out" "Makefile 已存在但缺少目标： dev deploy"
   assert_file_contains .github/workflows/autoteam.yml "uses: acme/team/.github/workflows/member.yml@main"
   assert_file_contains .github/workflows/autoteam.yml "branches: [trunk]"
+  assert_file_contains .github/workflows/autoteam.yml 'MULTICA_DEPLOY_HOOK: ${{ secrets.MULTICA_DEPLOY_HOOK }}'
   assert_no_file .autoteam
   assert_no_file autoteam
   out=$(team_cli init --team-home "$TEAM" 2>&1) && tfail "已登记的仓库不用 --team-home"
@@ -159,6 +160,9 @@ t_team_init_and_doctor_member_files() {
   assert_contains "$out" ".autoteam 是旧版装进来的"
   assert_contains "$out" "registry.yaml："
   assert_not_contains "$out" "缺少 ./autoteam"
+  sed -i 's|^    secrets:$|    secrets: inherit|; /MULTICA_DEPLOY_HOOK: \$/d' .github/workflows/autoteam.yml
+  out=$(team_cli doctor --skip-github --skip-multica)
+  assert_contains "$out" "用的是 secrets: inherit"
 }
 
 t_team_multica_syncs_member_projects_and_hook() {

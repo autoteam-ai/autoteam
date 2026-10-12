@@ -6,6 +6,10 @@ name: member
 
 on:
   workflow_call:
+    # 显式声明：secrets: inherit 只在同一组织内生效，个人账号或别的组织的仓库调用时传不进来
+    secrets:
+      MULTICA_DEPLOY_HOOK:
+        required: false
 
 jobs:
   check:

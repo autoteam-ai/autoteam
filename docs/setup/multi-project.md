@@ -68,7 +68,7 @@ agent 在成员仓库里用子命令代替原来 `.autoteam/scripts/` 下的脚�
    autoteam init          # 只生成 .github/workflows/autoteam.yml 和 Makefile（已有 Makefile 只提示缺哪些目标）
    ```
 
-   `make deploy` 要等线上换成本次提交再返回；项目已有自己的部署流水线时，`make deploy` 等那条流水线完成即可（devcontainer 就是这样）。
+   调用文件显式传 `MULTICA_DEPLOY_HOOK`，不用 `secrets: inherit`：后者只在同一组织内生效，个人账号下的仓库调用团队仓库的工作流时传不过去。`make deploy` 要等线上换成本次提交再返回；项目已有自己的部署流水线时，`make deploy` 等那条流水线完成即可（devcontainer 就是这样）。
 
 4. 在新仓库的 clone 里 `autoteam doctor` 验收。
 
