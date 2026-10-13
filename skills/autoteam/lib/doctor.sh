@@ -188,7 +188,7 @@ doctor_member_files() {
   else
     fail "$wf 没有调用 $AUTOTEAM_TEAM_HOME/.github/workflows/member.yml：运行 autoteam init --force .github/workflows/autoteam.yml"
   fi
-  if [ -f "$wf" ] && grep -q 'secrets: inherit' "$wf"; then
+  if [ -f "$wf" ] && grep -Eq '^[[:space:]]*secrets:[[:space:]]*inherit' "$wf"; then
     fail "$wf 用的是 secrets: inherit：跨组织调用时 MULTICA_DEPLOY_HOOK 传不过去，部署通知不到 Planner；运行 autoteam init --force .github/workflows/autoteam.yml"
   fi
   if [ -f Makefile ]; then doctor_makefile; else fail "缺少 Makefile：运行 autoteam init"; fi

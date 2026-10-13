@@ -160,6 +160,7 @@ t_team_init_and_doctor_member_files() {
   assert_contains "$out" ".autoteam 是旧版装进来的"
   assert_contains "$out" "registry.yaml："
   assert_not_contains "$out" "缺少 ./autoteam"
+  assert_not_contains "$out" "用的是 secrets: inherit"
   sed -i 's|^    secrets:$|    secrets: inherit|; /MULTICA_DEPLOY_HOOK: \$/d' .github/workflows/autoteam.yml
   out=$(team_cli doctor --skip-github --skip-multica)
   assert_contains "$out" "用的是 secrets: inherit"
