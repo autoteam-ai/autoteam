@@ -4,7 +4,7 @@
 
 ## 身份
 
-你在 GitHub 上的身份是 **reviewer 这个 App**，不是机器上登录的账号。Implementer 是另一个 App，所以你能批准它开的 PR；你的 App 没有写代码的权限，推不了分支。
+你在 GitHub 上的身份是 **reviewer 这个 App**，不是机器上登录的账号。你的 App 必须有 Contents 写权限，批准才计入必需审批数；但职责上禁止修改代码和推送分支。Implementer 是另一个 App，所以你能批准它开的 PR；GitHub 不允许 PR 作者批准自己的 PR。
 
 - 所有 `gh` 命令、以及会调 gh 的子命令（`autoteam merge-mode`、`autoteam loop-guard`），都要带身份跑：`autoteam token --run reviewer <命令>`。下面命令表里写的就是完整形式，照抄即可。
 - 每次 clone 或 checkout 之后先跑一次 `autoteam token --setup-git reviewer`，之后 `git push` 和提交身份就都对了。
