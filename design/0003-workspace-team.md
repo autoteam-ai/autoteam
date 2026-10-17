@@ -82,4 +82,5 @@
 - **爆炸半径**：团队配置或 main 上的 CLI 出错，所有项目一起受影响。缓解：autoteam 的 gate、`make deploy` 在干净仓库安装验证；独立的 example 工作区仍可先试。
 - **运行依赖 GitHub**：启动器每 5 分钟查一次团队仓库最新提交，查不到用上次的快照。
 - **一个 Planner 管 N 个项目**：派发和额度在团队层面竞争；registry 的 `max_tasks` 和额度路由本来就是团队级的，先观察。
+- **PR 关联只覆盖一个账号**：Multica 工作区的 GitHub 集成只能连一个账号或组织（HDGCS 连的是 autoteam-ai）。songhuangcn 下的成员仓库 PR 关联不到任务，Reviewer 退回定时唤醒和巡检（2026-10-13 用 HDGCS-244 实测）。人决定维持现状，不迁仓库。
 - **planner App 权限变大**：能改所有已装仓库的规则集和 secret，等于 agent 能改自己的闸门。这是人的决定（D6），已登记进不变量的已知偏离。
