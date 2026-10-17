@@ -77,6 +77,39 @@ t_doctor_warns_when_codeowners_gate_off() {
   assert_contains "$out" "AUTOTEAM_CODEOWNERS_GATE=off：规则集不要求 Code Owner 审批"
 }
 
+# 规则集关键参数漂移：真实 gh api 输出里 required_status_checks 与 pull_request 的结构同桩一致
+t_doctor_flags_ruleset_drift() {
+  setup_ready_repo
+  autoteam_stub github --apply >/dev/null
+  out=$(autoteam_stub doctor --skip-multica)
+  assert_not_contains "$out" "必需检查里没有" "正常规则集不应报缺检查"
+  assert_not_contains "$out" "来源不是 GitHub Actions" "正常规则集不应报来源错"
+  assert_not_contains "$out" "没有开启 Require review from Code Owners" "gate=on 且开关为 true 不应报错"
+
+  stub_json_edit ruleset.json '(.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks) = []'
+  out=$(autoteam_stub doctor --skip-multica)
+  rc=$?
+  assert_contains "$out" "必需检查里没有 check"
+  assert_eq "$rc" 1 "缺必需检查 check 应失败"
+
+  stub_json_edit ruleset.json '(.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks) = [{context: "check", integration_id: 1}]'
+  out=$(autoteam_stub doctor --skip-multica)
+  rc=$?
+  assert_contains "$out" "来源不是 GitHub Actions（integration_id=1，应为 15368）"
+  assert_eq "$rc" 1 "来源错误应失败"
+
+  autoteam_stub github --apply >/dev/null
+  stub_json_edit ruleset.json '(.rules[] | select(.type == "pull_request") | .parameters.require_code_owner_review) = false'
+  out=$(autoteam_stub doctor --skip-multica)
+  rc=$?
+  assert_contains "$out" "没有开启 Require review from Code Owners"
+  assert_eq "$rc" 1 "gate=on 但 Code Owner 开关为 false 应失败"
+
+  echo 'AUTOTEAM_CODEOWNERS_GATE=off' >> .autoteam/autoteam.conf
+  out=$(autoteam_stub doctor --skip-multica)
+  assert_not_contains "$out" "没有开启 Require review from Code Owners" "gate=off 不核验 Code Owner 开关"
+}
+
 # 运营笔记和 autopilot 的缺失、重复、同名异项目：一次预检出全部，再一次 apply 后复查
 t_doctor_checks_project_notes_and_autopilots() {
   setup_applied_repo
