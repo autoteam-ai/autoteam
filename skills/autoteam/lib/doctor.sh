@@ -297,6 +297,17 @@ doctor_github() {
         else
           ok "规则集生效：必须走 PR、$approvals 个审批、必需检查 $(jq -r '[.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | join(",")' <<<"$GH_OUT")"
         fi
+        local check_app
+        check_app=$(jq -r --arg c "$AUTOTEAM_CHECK_NAME" '[.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[] | select(.context == $c)][0] | if . == null then "missing" else (.integration_id // "none" | tostring) end' <<<"$GH_OUT")
+        if [ "$check_app" = missing ]; then
+          fail "规则集 $AUTOTEAM_RULESET_NAME 的必需检查里没有 $AUTOTEAM_CHECK_NAME：autoteam github --apply"
+        elif [ "$check_app" != "$GH_ACTIONS_APP_ID" ]; then
+          fail "规则集的必需检查 $AUTOTEAM_CHECK_NAME 来源不是 GitHub Actions（integration_id=$check_app，应为 $GH_ACTIONS_APP_ID）：autoteam github --apply"
+        fi
+        if [ "$AUTOTEAM_CODEOWNERS_GATE" = on ] && [ "$approvals" != 0 ] &&
+          [ "$(jq -r '[.rules[] | select(.type == "pull_request") | .parameters.require_code_owner_review][0] // false' <<<"$GH_OUT")" != true ]; then
+          fail "AUTOTEAM_CODEOWNERS_GATE=on，但规则集没有开启 Require review from Code Owners：autoteam github --apply"
+        fi
         if [ "$AUTOTEAM_CODEOWNERS_GATE" = off ]; then
           warn "AUTOTEAM_CODEOWNERS_GATE=off：规则集不要求 Code Owner 审批（初期开发阶段临时配置）"
         fi
