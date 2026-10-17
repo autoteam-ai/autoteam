@@ -30,7 +30,9 @@ title: 代价和风险
 
 - 没在长期运行的大型项目上验证过整套配置，效果要用[每周指标](operations/metrics.md)自己衡量。
 - 跨文件调用数这类可维护性指标和语言强相关，`health-metrics.sh` 没有内置。
-- Multica agent 的调用权限：默认 private，autopilot 和 agent 由同一个人创建时链路能走通；多人协作时要改成 workspace。
+- **Multica agent 的调用权限要按实际调用人核对**。依据 Multica 平台技能 `mentions` 参考文档的调用闸（invoke gate）合约，能查看 agent 不代表能调用；`private` / `public_to` 的允许范围要匹配调用人（owner 或 `public_to` 匹配），不能仅因多人协作就放宽权限。agent 间委派沿用调用链顶端的人，跨任务评论也不会换成 agent owner 或目标任务的发起人；没有人的调用链不能通过成员允许列表。
+  - **允许场景**：Alice 在目标 agent 的 `public_to` 允许范围内，她发起的 agent 链通过 `@agent` / `@squad` 委派时可以通过调用闸。无人工发起人的定时 / webhook autopilot，在其创建的任务内委派时，以 autopilot 创建者判断权限；创建者是目标 owner 或匹配 `public_to`，也可通过调用闸。这只是授权判断，不改变后续运行的发起人归属，实际运行仍受 runtime 等条件限制。
+  - **拒绝场景**：Bob 能在界面查看目标 agent，但既不是 owner，也不匹配 `public_to`，提及仍会被调用闸拒绝；换个任务评论不会借用其他人的权限。autopilot 创建者无调用权限时同样拒绝；其他任务上的运行也不能借用该 autopilot 创建者的权限。遇到 `invocation_not_allowed` 先核对目标 UUID，不据此直接放宽权限。上述为平台合约；本项目多人协作和 autopilot 场景的端到端实测未验证。
 
 ## 什么时候不该用
 
